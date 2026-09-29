@@ -1,0 +1,20 @@
+{
+  "passed": 24,
+  "failed": 0,
+  "seconds": 0.3,
+  "categoriesTouched": [
+    "code",
+    "analysis",
+    "writing",
+    "research",
+    "product",
+    "business",
+    "comms",
+    "data",
+    "devops",
+    "review",
+    "silicon",
+    "testing",
+    "design"
+  ]
+}

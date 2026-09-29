@@ -1,0 +1,17 @@
+SelfImpulse — version of record
+Product release: 1.0.0
+Engine release: MJ 19.7.16 ("Harness")
+Org: User → Captain → 30 desks (Lead+HR = 60) → 1,500 workers
+Floor: IMPULSE-WORKSPACE, Agentic MoE cap 25
+Execution layers:
+  • Layer 1 (crew) — Hermes native runtime on the owner's provider keys;
+    every AGENT nn runs here.
+  • Layer 2 (mission harnesses) — bounded coding-CLI tool invocations
+    (Claude Code / Codex / ACP / custom) inside a real workspace root,
+    gated by boundary.codingAgents, scored by arbitration, argv visible
+    before execution, receipted. Never crew.
+  • Layer 3 (interop) — tools/vh-interop.mjs for cross-process federated
+    admission under the same rulebook.
+Source: packed from the working tree including IMPULSE-WORKSPACE.
+Install: unzip, npm ci, npm test / npm run dev
+Policy: docs/VERSIONING.md — product manifests carry the product release; receipts and engine manifests carry the engine release.

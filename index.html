@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="SelfImpulse — an on-device AI captain that governs, executes, verifies and receipts every action. Built on the MJ engine." />
+    <meta name="theme-color" content="#0D1010" />
+    <title>SelfImpulse — your agents, with receipts</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D5B26B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 12l2 2 4-4'/%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3C/svg%3E" type="image/svg+xml" />
+    <script>
+      // Boot: surface errors early. No splash — the app paints directly.
+      (function(){
+        /* Resolve the theme before any stylesheet paints. vh.css carries its
+         * colour tokens only under [data-theme=dark] / [data-theme=light], so
+         * with no attribute set `color:var(--fg)` is invalid-at-computed-value
+         * (black) while the inline background below forces #0D1010 — black text
+         * on charcoal for the whole first frame. */
+        try {
+          document.documentElement.dataset.theme =
+            localStorage.getItem("vh.theme.v2") === "light" ? "light" : "dark";
+        } catch (e) {
+          document.documentElement.dataset.theme = "dark";
+        }
+        window.addEventListener('error', function(e){ console.error('[11h]', e.message); });
+        window.addEventListener('unhandledrejection', function(e){ console.error('[11h]', e.reason); });
+      })();
+    </script>
+    <style>html,body{margin:0;padding:0;background:#0D1010}html[data-theme="light"],html[data-theme="light"] body{background:#FAEBD7}#root{min-height:100vh}</style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
