@@ -118,7 +118,7 @@ Munshi — the Indian-finance specialist pack (new capability on the SAME engine
   (credential patterns, entropy, JWT decoding without verification, CSP), reliability
   (error budgets, capacity runway, severity, deploy risk), docs (Flesch readability,
   reading time, heading structure, terminology drift) and growth (unit economics, funnels,
-  RICE, revenue trajectory) — 65 tools and 240 specialists, every one driven by
+  RICE, revenue trajectory) — 65 tools and 251 specialists, every one driven by
   probe/specialists.test.ts (213 checks) against its own declared defaults, twice, to prove
   determinism rather than assert it. The tools render from a declared field spec, so the
   shell holds no domain logic and a new domain is a data change.
@@ -144,10 +144,12 @@ Munshi — the Indian-finance specialist pack (new capability on the SAME engine
   base-unit integer arithmetic). Thirty-two new tools, each printing the rule it came from,
   every one driven twice from its own declared defaults by probe/specialists.test.ts.
 
-  THE ROSTER. 40 specialists became 240 — the sixteen new domains carry eleven each and the
-  original eight are deepened by three. 47 are gated, and in every domain the ungated
-  specialists outnumber the gated, because a gate that always fires is noise. Every engine a
-  specialist names is a function the pack exports; the probe refuses the roster otherwise.
+  THE ROSTER. The roster stands at 251 specialists across twenty-five domains, and the
+  number is not narrated, it is COUNTED: probe/specialists.test.ts asserts the total
+  against the shipped roster, so this record and the source cannot drift apart silently.
+  Gating rides each specialist's declared output (a gate that always fires is noise).
+  Every engine a specialist names is a function the pack exports; the probe refuses the
+  roster otherwise.
   The shell absorbed none of this: the surface still renders whatever a tool declares, so the
   twenty-fifth domain cost the UI nothing.
 
