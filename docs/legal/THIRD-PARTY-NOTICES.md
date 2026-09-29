@@ -60,7 +60,7 @@ SelfImpulse (built on the MJ engine) includes clean-room TypeScript implementati
 compression techniques proven in the open-source community. The following
 projects informed the design of LOTUS (Lean Optimal Token Utilisation System,
 `src/engine/lotus.ts`); no source code from either project is included — the
-implementations in this repository were written for VH's audited pipeline —
+implementations in this repository were written for SelfImpulse's audited pipeline —
 but their MIT licenses require this notice, and their authors have our thanks.
 
 ## context-compress (Open330)
@@ -77,7 +77,7 @@ but their MIT licenses require this notice, and their authors have our thanks.
 - Project: https://github.com/microsoft/LLMLingua
 - Techniques informed: the principle that a small, deterministic scorer can
   identify low-value tokens before inference — the research baseline for
-  prompt compression (up to 20× with minimal performance loss). VH's LOTUS
+  prompt compression (up to 20× with minimal performance loss). SelfImpulse's LOTUS
   uses deterministic, model-free passes today; the LLMLingua line marks the
   path for model-scored compression later.
 - License: MIT License. Copyright (c) Microsoft Corporation.

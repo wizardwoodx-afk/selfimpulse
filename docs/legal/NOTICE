@@ -26,5 +26,5 @@ verbatim.
 
 The agent skill contract, skill parsing, and the evolution fitness/constraints engine are SelfImpulse's own
 TypeScript code. `vendor/evolution-service/` is **SelfImpulse's own** Python service (DSPy/GEPA reflective
-optimiser) — first-party code covered by the VH LICENSE, not by any notice above. It lives under
+optimiser) — first-party code covered by the SelfImpulse LICENSE, not by any notice above. It lives under
 `vendor/` because `src-tauri/src/hermes.rs` resolves the bridge as `<vendor>/evolution-service/…`.

@@ -28,12 +28,12 @@ any mutation API. T changes only through its own lifecycle:
 
 `Human proposal → Independent review → T_vN → T_vN+1 → Signed release → deployed → RSIRALS resumes`
 
-In VH that lifecycle is the existing human-gated self-evolution flow plus a
+In SelfImpulse that lifecycle is the existing human-gated self-evolution flow plus a
 versioned release — never the recursive loop.
 
 ### Trust / Promotion plane (enforces T, never redefines T)
 
-| Component | VH implementation |
+| Component | SelfImpulse implementation |
 |---|---|
 | Control-plane firewall | `controlPlaneFirewall()` — candidates touching governance-plane targets are rejected **before verification runs**; no score can override it |
 | Independent verification | The autonomy exam is held out of the generation path — the judge that scores is never the drafter |
@@ -50,7 +50,7 @@ versioned release — never the recursive loop.
 - **Σ-arm (fast, in-product):** playbooks, routing, prompts, memory — the
   `rsi.ts` loop: curriculum from the five evidence sources → actor drafts →
   human apply → frozen digest-stamped memory → measured promotion.
-- **θ-arm (slow, out-of-band):** weight updates. **VH never trains weights
+- **θ-arm (slow, out-of-band):** weight updates. **SelfImpulse never trains weights
   in-product** — that is the honest boundary of a local-first assurance
   runtime. Instead, model-shaped failures attribute to the θ-arm and its fuel
   is exported: `exportThetaPairs()` yields the real logged accept/reject

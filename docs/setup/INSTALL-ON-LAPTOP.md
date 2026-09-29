@@ -1,6 +1,6 @@
 # Install SelfImpulse on your laptop (Windows 11) — the only supported install
 
-This zip is **native desktop source**, not a website. VH is a **Tauri v2** app: the UI is React,
+This zip is **native desktop source**, not a website. SelfImpulse is a **Tauri v2** app: the UI is React,
 the engine is Rust, and everything real (SQLite, the keyring, agent processes, sandboxes) happens
 in the native shell. There is no hosted version and no `localhost` install — you compile it once
 on this laptop and run the installer it produces.
@@ -60,7 +60,7 @@ When it finishes, the installer is at:
 src-tauri\target\release\bundle\nsis\SelfImpulse_x64-setup.exe
 ```
 
-Run it — VH installs per-user, gets a Start-menu entry, and launches as a desktop
+Run it — SelfImpulse installs per-user, gets a Start-menu entry, and launches as a desktop
 app. First launch creates its SQLite store under `%APPDATA%\com.elevenhandle.app`; nothing is
 written outside that.
 

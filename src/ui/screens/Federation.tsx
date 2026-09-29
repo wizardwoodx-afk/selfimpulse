@@ -29,6 +29,7 @@ const IDLE: FederationStatus = {
   pid: null, port: null, cardUrl: null, interfaceUrl: null, selfimpulse: null,
   identityFp: null, cardSigned: false, tokenMinted: false,
   bindScope: null, bindAddress: null, pairingCode: null, pairingExpires: null,
+  files: false,
   detail: "Reading the bundle state…",
 };
 
@@ -50,6 +51,9 @@ export default function Federation(): React.ReactElement {
    * behind your back — and a wildcard bind is not offered at all. */
   const [bind, setBind] = useState<"local" | "lan">("local");
   const [pair, setPair] = useState(false);
+  /* File exchange is its own decision, for the same reason binding is: a
+   * control that is on by default is a control the operator did not make. */
+  const [files, setFiles] = useState(false);
   const mountedOnce = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -75,7 +79,7 @@ export default function Federation(): React.ReactElement {
     setOutcome(null);
     setSt((s) => ({ ...s, state: "starting", running: false, detail: "Verifying the engine pin, then signing the card…" }));
     try {
-      const r = await ipc.federationMount({ selfimpulse: "SelfImpulse", port: 0, bind, pair });
+      const r = await ipc.federationMount({ selfimpulse: "SelfImpulse", port: 0, bind, pair, files });
       setOutcome(r.detail);
     } catch (e) {
       setOutcome(`Mount failed in words rather than pretending: ${String(e)}`);
@@ -83,7 +87,7 @@ export default function Federation(): React.ReactElement {
       setBusy(false);
       await refresh();
     }
-  }, [bind, pair, refresh]);
+  }, [bind, pair, files, refresh]);
 
   const stop = useCallback(async () => {
     setBusy(true);
@@ -196,6 +200,21 @@ export default function Federation(): React.ReactElement {
               />
               <span>Create a one-time pairing code so a peer machine can join</span>
             </label>
+            <label className="si-check">
+              <input
+                type="checkbox" checked={files} onChange={() => setFiles(!files)}
+                data-testid="federation-files-toggle"
+              />
+              <span>Allow paired peers to offer files (AlterSend)</span>
+            </label>
+            {files ? (
+              <p className="si-hint">
+                An offer is still not an acceptance. Every file a peer sends is
+                held until you look at its name, size and hash, and nothing is
+                written anywhere you did not choose. Received files wait in your
+                user folder, not inside the app.
+              </p>
+            ) : null}
           </fieldset>
         ) : null}
 

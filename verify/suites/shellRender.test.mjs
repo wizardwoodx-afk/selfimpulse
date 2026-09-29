@@ -260768,6 +260768,7 @@ var init_client = __esm({
             bindAddress: null,
             pairingCode: null,
             pairingExpires: null,
+            files: false,
             detail: "Federation is a desktop capability. This build has no bundled A2A host."
           };
         }
@@ -260786,6 +260787,7 @@ var init_client = __esm({
             state: state2,
             ...base,
             running: st.running === true && state2 === "running",
+            files: st.files === true,
             pid: typeof st.pid === "number" ? st.pid : null,
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
@@ -260817,6 +260819,7 @@ var init_client = __esm({
             bindAddress: null,
             pairingCode: null,
             pairingExpires: null,
+            files: false,
             detail: `Could not read the A2A host state: ${String(err)}`
           };
         }
@@ -260835,7 +260838,8 @@ var init_client = __esm({
             selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
-            pair: opts.pair === true
+            pair: opts.pair === true,
+            files: opts.files === true
           });
           return { ok: r3.ok === true, detail: String(r3.detail ?? (r3.ok === true ? "The host is mounted." : "The host did not report ready.")) };
         } catch (err) {
@@ -261289,6 +261293,7 @@ function Federation() {
   const [outcome, setOutcome] = (0, import_react11.useState)(null);
   const [bind, setBind] = (0, import_react11.useState)("local");
   const [pair, setPair] = (0, import_react11.useState)(false);
+  const [files, setFiles] = (0, import_react11.useState)(false);
   const mountedOnce = (0, import_react11.useRef)(false);
   const refresh2 = (0, import_react11.useCallback)(async () => {
     try {
@@ -261313,7 +261318,7 @@ function Federation() {
     setOutcome(null);
     setSt((s2) => ({ ...s2, state: "starting", running: false, detail: "Verifying the engine pin, then signing the card\u2026" }));
     try {
-      const r3 = await ipc.federationMount({ selfimpulse: "SelfImpulse", port: 0, bind, pair });
+      const r3 = await ipc.federationMount({ selfimpulse: "SelfImpulse", port: 0, bind, pair, files });
       setOutcome(r3.detail);
     } catch (e3) {
       setOutcome(`Mount failed in words rather than pretending: ${String(e3)}`);
@@ -261321,7 +261326,7 @@ function Federation() {
       setBusy(false);
       await refresh2();
     }
-  }, [bind, pair, refresh2]);
+  }, [bind, pair, files, refresh2]);
   const stop = (0, import_react11.useCallback)(async () => {
     setBusy(true);
     setOutcome(null);
@@ -261442,7 +261447,20 @@ function Federation() {
             }
           ),
           /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { children: "Create a one-time pairing code so a peer machine can join" })
-        ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("label", { className: "si-check", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+            "input",
+            {
+              type: "checkbox",
+              checked: files,
+              onChange: () => setFiles(!files),
+              "data-testid": "federation-files-toggle"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { children: "Allow paired peers to offer files (AlterSend)" })
+        ] }),
+        files ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("p", { className: "si-hint", children: "An offer is still not an acceptance. Every file a peer sends is held until you look at its name, size and hash, and nothing is written anywhere you did not choose. Received files wait in your user folder, not inside the app." }) : null
       ] }) : null,
       st.running && st.pairingCode ? /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "si-card", "data-testid": "federation-pairing", children: [
         /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("h3", { children: "Pair a peer" }),
@@ -261510,6 +261528,7 @@ var init_Federation = __esm({
       bindAddress: null,
       pairingCode: null,
       pairingExpires: null,
+      files: false,
       detail: "Reading the bundle state\u2026"
     };
     STATE_WORD = {

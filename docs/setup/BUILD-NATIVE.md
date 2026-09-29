@@ -51,7 +51,7 @@ node --version     # 22.12 or newer (package.json engines floor)
 > `vh.sqlite`, the `si-desktop` keychain service and `vh://event` events.
 > Earlier builds used `mj.sqlite` / `mj-desktop`: the app migrates the
 > database file on first run and still READS legacy keychain entries, so no
-> stored secret is lost; all new writes use the VH names.
+> stored secret is lost; all new writes use the current names.
 
 ```powershell
 cd elevenhandle
@@ -73,7 +73,7 @@ Verified on Windows 11, with the command that verified it:
 | `vite build` (the exact `beforeBuildCommand`) | ok — this is what gets bundled into the app |
 | `cargo test` (full Tauri crate, real deps) | **40 passed, 0 failed** (29 unit + 11 store-integration) |
 | `tauri build` → NSIS installer | ok — `SelfImpulse_x64-setup.exe`, installs per-user |
-| Launch smoke | exe stays alive, main window titled "VH", SQLite store created |
+| Launch smoke | exe stays alive, main window titled "SelfImpulse", SQLite store created |
 | Bundle icons | `32x32.png`, `128x128.png`, `128x128@2x.png`, `512x512.png`, `icon.png`, `icon.ico` |
 | `tauri.conf.json` | valid JSON, `frontendDist: ../dist`, `identifier: com.elevenhandle.app`, bundle target nsis |
 | Mission/verification suites | 81/81 live, 80/80 offline |
@@ -91,10 +91,10 @@ Verified on Windows 11, with the command that verified it:
 
 ## 4. First launch, once installed
 
-1. VH opens on a real workflow (Code → Test → Review, 5 nodes, 5 wires) rather than an empty grid.
+1. SelfImpulse opens on a real workflow (Code → Test → Review, 5 nodes, 5 wires) rather than an empty grid.
 2. Open **Settings → Agent harnesses** and add provider keys. They go to the OS keychain. If the
    keychain is unavailable the UI now says **"in memory only"** instead of implying it was saved.
-3. Install a coding CLI if you want real execution: `npm i -g @anthropic-ai/claude-code`, or
+3. There is nothing to install: the in-process agent plane runs inside the app. No coding-agent CLI is used, supported or required.
    `codex`, or `opencode`. **Without one, agent nodes fail rather than reporting fabricated results.**
 4. A mission only reaches `COMPLETED` when the target repository's own test suite actually ran and
    passed. Simulated execution can never produce a completion.

@@ -702,11 +702,14 @@ function createA2AServer(opts) {
 
 // src/mission/altersend.ts
 import { createHash as createHash2, timingSafeEqual } from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
 var DEFAULT_LIMITS = {
   maxFileBytes: 32 * 1024 * 1024,
   maxStoreBytes: 256 * 1024 * 1024,
   maxFiles: 64,
-  maxNameLength: 120
+  maxNameLength: 120,
+  ttlMs: 60 * 60 * 1e3
 };
 function contentId(digest) {
   return digest.replace("sha256:", "").slice(0, 24);
@@ -716,7 +719,7 @@ function digestOf(bytes) {
 }
 function safeName(raw, maxLength = DEFAULT_LIMITS.maxNameLength) {
   if (typeof raw !== "string" || raw.length === 0) return { ok: false, reason: "name:empty" };
-  const cleaned = raw.replace(/[ -]/g, "").replace(/[/\\]/g, "-").replace(/\.{2,}/g, ".").replace(/^[.\-\s]+/, "").replace(/[^\w .()\-]+/g, "").trim();
+  const cleaned = raw.replace(/[\x00-\x1f\x7f]/g, "").replace(/[/\\]/g, "-").replace(/\.{2,}/g, ".").replace(/^[.\-\s]+/, "").replace(/[^\w .()\-]+/g, "").trim();
   if (cleaned.length === 0) return { ok: false, reason: "name:empty-after-sanitising" };
   return { ok: true, value: cleaned.slice(0, maxLength) };
 }
@@ -726,10 +729,81 @@ var AlterSendStore = class {
   limits;
   peer;
   now;
+  root;
+  /** How many bytes may be resident at once. Older objects fall back to disk. */
+  residentBytes;
+  resident = 0;
   constructor(opts) {
     this.limits = { ...DEFAULT_LIMITS, ...opts.limits ?? {} };
     this.peer = opts.peer;
     this.now = opts.now ?? (() => /* @__PURE__ */ new Date());
+    this.residentBytes = Math.min(this.limits.maxFileBytes, 8 * 1024 * 1024);
+    if (opts.spillDir) {
+      fs.mkdirSync(opts.spillDir, { recursive: true, mode: 448 });
+      fs.chmodSync(opts.spillDir, 448);
+      this.root = opts.spillDir;
+    } else {
+      this.root = null;
+    }
+  }
+  /** Remove every spilled object and the directory. Call on unmount. */
+  close() {
+    for (const [id] of this.entries) {
+      const e = this.entries.get(id);
+      if (e?.objectPath) {
+        try {
+          fs.rmSync(e.objectPath, { force: true });
+        } catch {
+        }
+      }
+    }
+    this.entries.clear();
+    this.resident = 0;
+    if (this.root) {
+      try {
+        fs.rmSync(this.root, { recursive: true, force: true });
+      } catch {
+      }
+    }
+  }
+  objectPathFor(digest) {
+    return this.root ? path.join(this.root, digest.replace(":", "-")) : null;
+  }
+  /** Write bytes atomically and 0600: a reader never sees a half-written file. */
+  writeObject(digest, bytes) {
+    const p = this.objectPathFor(digest);
+    if (!p) return null;
+    const tmp = `${p}.${process.pid}.partial`;
+    const fd = fs.openSync(tmp, "wx", 384);
+    try {
+      fs.writeSync(fd, bytes);
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    fs.renameSync(tmp, p);
+    return p;
+  }
+  readObject(entry) {
+    if (entry.bytes) return entry.bytes;
+    if (!entry.objectPath) throw new Error("altersend: object is not on disk");
+    const bytes = fs.readFileSync(entry.objectPath);
+    if (digestOf(bytes) !== entry.offer.digest) throw new Error("altersend: object failed its digest on read");
+    return bytes;
+  }
+  /**
+   * Keep the resident window bounded. Anything evicted stays on disk and is
+   * re-read (and re-verified) on demand, so eviction costs a read, not
+   * correctness.
+   */
+  evictFor(incoming) {
+    for (const [, e] of this.entries) {
+      if (this.resident + incoming <= this.residentBytes) break;
+      if (e.bytes && e.objectPath) {
+        this.resident -= e.bytes.byteLength;
+        e.bytes = null;
+      }
+    }
   }
   record(id, decision, detail) {
     const at = this.now().toISOString();
@@ -745,9 +819,20 @@ var AlterSendStore = class {
     this.receipts.push(receipt);
     return receipt;
   }
+  /** Bytes held by the store, resident or spilled — this is what the quota counts. */
   get storeBytes() {
     let n = 0;
-    for (const e of this.entries.values()) n += e.bytes.byteLength;
+    for (const e of this.entries.values()) n += e.offer.size;
+    return n;
+  }
+  /** Bytes actually in the JS heap. Bounded by the resident window, not the quota. */
+  get residentBytesHeld() {
+    return this.resident;
+  }
+  /** Objects currently on disk, for the operator-facing store report. */
+  get spilledCount() {
+    let n = 0;
+    for (const e of this.entries.values()) if (e.objectPath) n += 1;
     return n;
   }
   /**
@@ -788,7 +873,14 @@ var AlterSendStore = class {
       offeredAt: this.now().toISOString(),
       from: this.peer
     };
-    this.entries.set(id, { offer, bytes: file.bytes, decision: "pending", detail: "" });
+    const objectPath = this.writeObject(digest, file.bytes);
+    let resident = file.bytes;
+    if (objectPath) {
+      this.evictFor(file.bytes.byteLength);
+      if (file.bytes.byteLength > this.residentBytes) resident = null;
+      else this.resident += file.bytes.byteLength;
+    }
+    this.entries.set(id, { offer, bytes: resident, objectPath, decision: "pending", detail: "" });
     this.record(id, "pending", `${offer.name} (${offer.size} bytes)`);
     return { ok: true, value: offer };
   }
@@ -808,7 +900,16 @@ var AlterSendStore = class {
     const e = this.entries.get(id);
     if (!e) return { ok: false, reason: "no-such-offer" };
     if (e.decision !== "pending") return { ok: false, reason: `already:${e.decision}` };
-    if (digestOf(e.bytes) !== e.offer.digest) {
+    let current;
+    try {
+      current = this.readObject(e);
+    } catch (err) {
+      e.decision = "refused";
+      e.detail = "unreadable";
+      this.record(id, "refused", err instanceof Error ? err.message : "the object could not be read back");
+      return { ok: false, reason: "file:unreadable" };
+    }
+    if (digestOf(current) !== e.offer.digest) {
       e.decision = "refused";
       e.detail = "digest-mismatch";
       this.record(id, "refused", "the bytes do not match the digest the sender published");
@@ -832,12 +933,34 @@ var AlterSendStore = class {
     const e = this.entries.get(id);
     if (!e) return { ok: false, reason: "no-such-offer" };
     if (e.decision !== "accepted") return { ok: false, reason: `not-accepted (${e.decision})` };
+    let bytes;
+    try {
+      bytes = this.readObject(e);
+    } catch (err) {
+      e.decision = "refused";
+      e.detail = "unreadable";
+      this.record(id, "refused", err instanceof Error ? err.message : "the object could not be read back");
+      return { ok: false, reason: "file:unreadable" };
+    }
     e.decision = "fetched";
+    if (e.bytes) {
+      this.resident -= e.bytes.byteLength;
+      e.bytes = null;
+    }
     this.record(id, "fetched", e.offer.name);
-    return { ok: true, value: { offer: e.offer, bytes: Buffer.from(e.bytes) } };
+    return { ok: true, value: { offer: e.offer, bytes: Buffer.from(bytes) } };
   }
   drop(id) {
-    if (!this.entries.delete(id)) return { ok: false, reason: "no-such-offer" };
+    const e = this.entries.get(id);
+    if (!e) return { ok: false, reason: "no-such-offer" };
+    if (e.objectPath) {
+      try {
+        fs.rmSync(e.objectPath, { force: true });
+      } catch {
+      }
+    }
+    if (e.bytes) this.resident -= e.bytes.byteLength;
+    this.entries.delete(id);
     this.record(id, "refused", "dropped");
     return { ok: true, value: true };
   }

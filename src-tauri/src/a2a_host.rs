@@ -57,6 +57,7 @@ struct Mounted {
     stop_nonce: String,
     pairing_code: Option<String>,
     pairing_expires: Option<String>,
+    files: bool,
 }
 
 struct Supervisor {
@@ -154,6 +155,7 @@ pub fn a2a_host_status(app: AppHandle) -> Value {
             "cardSigned": m.card_signed,
             "pairingCode": m.pairing_code,
             "pairingExpires": m.pairing_expires,
+            "files": m.files,
             "tokenMinted": m.token_minted,
             "startedAt": m.started_at,
             "detail": format!(
@@ -246,6 +248,8 @@ pub fn a2a_host_start(
     port: Option<u16>,
     bind: Option<String>,
     pair: Option<bool>,
+    /// Mount AlterSend so paired peers can offer files. Off unless asked for.
+    files: Option<bool>,
 ) -> Result<Value, String> {
     let (bind_address, bind_words) = resolve_bind(bind.as_deref().unwrap_or("local"))?;
     let (launcher, (bundled, _engine)) = host_path(&app)
@@ -296,6 +300,11 @@ pub fn a2a_host_start(
         .arg(&bind_address);
     if pair.unwrap_or(false) {
         cmd.arg("--pair");
+    }
+    // File exchange is passed only when asked for. A host that accepts files
+    // from the network without the operator saying so is a host nobody chose.
+    if files.unwrap_or(false) {
+        cmd.arg("--files");
     }
         .current_dir(launcher.parent().unwrap_or(std::path::Path::new(".")))
         .stdin(Stdio::null())
@@ -388,6 +397,14 @@ pub fn a2a_host_start(
                     .and_then(|p| p.get("expiresAt"))
                     .and_then(|c| c.as_str())
                     .map(String::from),
+                // Read back from the host's OWN descriptor rather than echoing
+                // what we asked for. If the mount silently failed, the operator
+                // must see that, not the intent.
+                files: desc
+                    .get("files")
+                    .and_then(|f| f.get("enabled"))
+                    .and_then(|b| b.as_bool())
+                    .unwrap_or(false),
                 child,
             })
         }

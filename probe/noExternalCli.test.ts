@@ -17,6 +17,8 @@
  * quietly restore the capability.
  */
 import * as fs from "node:fs";
+const { readdirSync, readFileSync } = fs;
+const { join } = path;
 import * as path from "node:path";
 
 const ROOT: string = process.env.SI_ROOT ?? process.cwd();
@@ -130,6 +132,43 @@ section("6. the product tells the truth about what it is");
     /EXTERNAL CODING-AGENT CLIs .* REMOVED|REMOVED FROM THE TREE|are removed/i.test(info));
   ok("the build record does not advertise the tier as a feature",
     !/governed external-harness tier/.test(info));
+
+  /* EVERY shipped document, not a hand-picked few.
+   *
+   * The reviewer found `docs/setup/DESKTOP-NATIVE.md` still telling readers to
+   * `npm i -g @anthropic-ai/claude-code` while this suite was green, because
+   * §6 only ever read README.md and one story file. A gate that names two files
+   * and calls itself a guarantee is a gate that will be extended by the next
+   * document somebody writes, and it will pass.
+   *
+   * So: walk the whole docs tree, and fail on any instruction to install one of
+   * these. A document may still NAME them when it is explaining that they are
+   * gone — the test is for the imperative, not the word. */
+  const cliNames = ["claude-code", "@openai/codex", "opencode-ai", "aider", "continue-dev"];
+  const offenders: string[] = [];
+  const walkDocs = (dir: string): void => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const abs = join(dir, e.name);
+      if (e.isDirectory()) { walkDocs(abs); continue; }
+      if (!e.name.endsWith(".md")) continue;
+      const text = readFileSync(abs, "utf8");
+      text.split("\n").forEach((line, i) => {
+        // An install command, or prose telling the reader to install one.
+        if (/npm\s+i\s+-g|pip\s+install|brew\s+install/i.test(line) &&
+            cliNames.some((c) => line.toLowerCase().includes(c))) {
+          offenders.push(`${abs}:${i + 1} — ${line.trim().slice(0, 90)}`);
+        }
+        if (/install a coding (cli|agent)|install (claude code|codex|opencode)\b/i.test(line)) {
+          offenders.push(`${abs}:${i + 1} — ${line.trim().slice(0, 90)}`);
+        }
+      });
+    }
+  };
+  if (fs.existsSync(path.join(ROOT, "docs"))) walkDocs(path.join(ROOT, "docs"));
+  ok("no shipped document tells a reader to install an external coding agent",
+    offenders.length === 0, offenders.join(" | "));
+  ok("the docs tree still exists to be walked — a gate over zero files passes everything",
+    fs.existsSync(path.join(ROOT, "docs")) && readdirSync(path.join(ROOT, "docs")).length > 0);
 }
 
 console.log(`\n${passed} passed, ${failed} failed.`);

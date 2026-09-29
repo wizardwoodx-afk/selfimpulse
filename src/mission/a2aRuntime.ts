@@ -46,6 +46,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 import type { HarnessId } from "../domain/harness";
 import {
@@ -63,6 +64,7 @@ function constantTimeEqual(a: string, b: string): boolean {
 import { secureId } from "../security/guardrail";
 import { addTeammate, createTeam, delegateViaA2A, selfimpulseCardForTeamV10, makeDelegationHandler, type DeclaredAuthority, type DelegationOutcome, type SelfImpulseTeam, type HumanGate, type ReceiverRiskMode, type RiskTier } from "./selfimpulseTeams";
 import { createA2AServer, type A2AServerHandle } from "./a2aServer";
+import { AlterSendStore } from "./altersend";
 import { signAgentCardV10, type AgentCardV10, type CardSigningIdentityV10 } from "./a2aV10";
 import type { BridgeConfig } from "./a2aBridge";
 import { ENGINE_VERSION } from "../version";
@@ -306,6 +308,25 @@ export interface A2ARuntimeOptions {
    */
   pairing?: boolean;
   /**
+   * Allow paired peers to offer files (AlterSend).
+   *
+   * Off by default, and that default is the point: a host that quietly accepts
+   * files from the network is a host nobody chose to be one. When it is on, the
+   * bytes land in a 0600 spill directory rather than the process heap, and every
+   * transfer still needs a human or a policy to accept it — mounting the feature
+   * does not mount an auto-accept.
+   */
+  files?: boolean;
+  /** Where AlterSend keeps offered bytes. Defaults under the selfimpulse state dir. */
+  filesDir?: string;
+  /**
+   * Accept incoming offers without a human in the loop. Off by default and
+   * named explicitly, because "mount the feature" and "auto-accept everything
+   * a peer sends" are two different decisions and only one of them is a
+   * reasonable default.
+   */
+  filesAutoAccept?: boolean;
+  /**
    * Nonce for the unmount channel. It arrives in the environment, not in argv
    * (where any local process could read it from `ps`) and not in the READY line
    * (which operators tee to logs).
@@ -373,6 +394,22 @@ export interface RuntimeDescriptor {
     state: string;
     peers: number;
   };
+  /**
+   * File exchange, as actually mounted — not as advertised. A feature that the
+   * release notes claim and the runtime does not carry is the exact failure a
+   * reviewer is for, so the descriptor reports the truth either way.
+   */
+  files: {
+    enabled: boolean;
+    /** Bytes held in the JS heap right now; the rest is on disk. */
+    residentBytes: number;
+    /** Bytes the store is holding, resident or spilled. */
+    storedBytes: number;
+    objects: number;
+    /** Where the spill directory is, or null for a memory-only store. */
+    spillDir: string | null;
+    autoAccept: boolean;
+  };
   teammates: Array<{ name: string; title: string; skills: string[] }>;
   policy: {
     receiverRiskMode: ReceiverRiskMode;
@@ -403,6 +440,12 @@ export interface A2ARuntime {
   readonly token: string;
   readonly team: SelfImpulseTeam;
   readonly server: A2AServerHandle;
+  /**
+   * The mounted AlterSend store, when file exchange is on. Exposed so the
+   * operator's UI can list offers and answer them, and so `close()` can sweep
+   * the spill directory on unmount.
+   */
+  readonly files: AlterSendStore | null;
   /** What is actually mounted, for the operator and for peer probes. */
   describe(): RuntimeDescriptor;
   /** This selfimpulse acting as the SENDER: discover a peer, delegate, verify. */
@@ -498,9 +541,34 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
     pairingCode = minted.code;
   }
 
+  /* ALTERSEND — mounted here, not only in the probe.
+   *
+   * The reviewer's finding was precise and correct: the store, the HTTP surface
+   * and a 66-assertion suite all existed, and the shipped product still had no
+   * path to any of them, because this call site did not pass one. A test that
+   * wires a feature by hand proves the feature works; it does not prove the
+   * product ships it. The mount is one option, and this is it. */
+  // ~/.selfimpulse/altersend by default: user-scoped, not inside the install,
+  // so an uninstall never takes somebody's received files with it and the
+  // directory can be inspected without root.
+  const filesSpillDir = opts.files === true
+    ? (opts.filesDir ?? path.join(os.homedir(), ".selfimpulse", "altersend"))
+    : null;
+  const files = filesSpillDir ? new AlterSendStore({ peer: opts.selfimpulseUser, spillDir: filesSpillDir }) : null;
+
   const server = createA2AServer({
     card,
     onMessage: handler,
+    altersend: files
+      ? {
+          store: files,
+          /* The receiver's decision is a REFUSAL by default. There is no
+           * accept-all mode here on purpose: `decide` returning null means the
+           * caller's policy had nothing to object to, and the default policy has
+           * something to object to whenever a human is present to be asked. */
+          decide: (offer) => (opts.filesAutoAccept === true ? null : `awaiting review: ${offer.name}`),
+        }
+      : undefined,
     pairing: opts.pairing === false ? undefined : {
       redeem: async (code, peer) => {
         if (!invitation) return { ok: false, reason: "this host is not currently offering a pairing code" };
@@ -572,6 +640,14 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
   if (!bridge.repoRoot) missing.push("no repository bound");
 
   const describe = (): RuntimeDescriptor => ({
+    files: {
+      enabled: files !== null,
+      residentBytes: files?.residentBytesHeld ?? 0,
+      storedBytes: files?.storeBytes ?? 0,
+      objects: files?.list().length ?? 0,
+      spillDir: filesSpillDir,
+      autoAccept: opts.filesAutoAccept === true,
+    },
     pairing: pairingCode && invitation
       ? { offered: true, code: pairingCode, expiresAt: new Date(invitation.expiresAt).toISOString(), state: invitation.state, peers: peers.size }
       : { offered: false, code: null, expiresAt: null, state: "closed", peers: peers.size },
@@ -617,6 +693,7 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
     token,
     team,
     server,
+    files,
     describe,
     delegateTo: (o) =>
       delegateViaA2A({

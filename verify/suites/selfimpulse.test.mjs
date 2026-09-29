@@ -1040,6 +1040,7 @@ var init_client2 = __esm({
             bindAddress: null,
             pairingCode: null,
             pairingExpires: null,
+            files: false,
             detail: "Federation is a desktop capability. This build has no bundled A2A host."
           };
         }
@@ -1058,6 +1059,7 @@ var init_client2 = __esm({
             state,
             ...base,
             running: st.running === true && state === "running",
+            files: st.files === true,
             pid: typeof st.pid === "number" ? st.pid : null,
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
@@ -1089,6 +1091,7 @@ var init_client2 = __esm({
             bindAddress: null,
             pairingCode: null,
             pairingExpires: null,
+            files: false,
             detail: `Could not read the A2A host state: ${String(err)}`
           };
         }
@@ -1107,7 +1110,8 @@ var init_client2 = __esm({
             selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
-            pair: opts.pair === true
+            pair: opts.pair === true,
+            files: opts.files === true
           });
           return { ok: r.ok === true, detail: String(r.detail ?? (r.ok === true ? "The host is mounted." : "The host did not report ready.")) };
         } catch (err) {

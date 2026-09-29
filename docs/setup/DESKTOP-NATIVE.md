@@ -1,12 +1,12 @@
 # SelfImpulse — Desktop native install (Windows 11)
 
-VH is a Tauri v2 desktop app for Windows 11. The web preview you see in a browser is the same React app with no
+SelfImpulse is a Tauri v2 desktop app for Windows 11. The web preview you see in a browser is the same React app with no
 native shell — it cannot spawn coding agents, touch the keyring, or write SQLite. Everything below
 is about getting the **native** build running on your machine. macOS/Linux are not supported by this
 tree (CI is Windows-only; bundle target is nsis only).
 
-You do not need to read this carefully if you are handing it to Claude Code or OpenCode:
-§1–§5 are written as an ordered checklist they can execute and verify.
+§1–§5 are written as an ordered checklist, so they can be executed and verified
+one step at a time.
 
 ---
 
@@ -62,47 +62,58 @@ npm run tauri:build      # installer: nsis (Win x64)
 
 The bundle lands in `src-tauri\target\release\bundle\nsis\SelfImpulse_x64-setup.exe`.
 
-## 5. Install a coding agent
+## 5. There is nothing to install
 
-VH orchestrates real CLIs. Install at least one and log in:
+Earlier builds of this product drove **external coding-agent CLIs** — Claude Code,
+Codex, OpenCode — as subprocesses, under a `PATH` scan and a per-risk flag
+matrix. That architecture is **gone, permanently**. There is no CLI to install,
+no `PATH` to scan, no `--permission-mode` to pass, and no login step.
 
-```bash
-npm i -g @anthropic-ai/claude-code && claude            # Claude Code
-npm i -g @openai/codex && codex login                   # Codex
-npm i -g opencode-ai && opencode auth login             # OpenCode
-```
+What runs instead is the **in-process agent plane** (`src/engine/`), where a seat
+is a function on this machine with a scoped tool set, not a child process with a
+shell. The two harnesses that remain are both native:
 
-Then in VH: **Providers → Re-scan PATH**. Each harness shows the resolved absolute path and its
-`--version` output. If a CLI works in your terminal but VH says "not found", click **"Show where VH
-looked"** — the missing directory tells you exactly what to fix (see §7).
+| Harness | What it is | Where it runs |
+|---|---|---|
+| `hermes` | the default reasoning + tool harness | in this process |
+| `llm` | a direct provider call, with a local Ollama option | in this process |
 
-### What VH passes to each CLI
+### What replaced the risk-flag matrix
 
-`src/mission/harnessPolicy.ts` is the single source of truth. It maps the mission's risk class
-(§10) and security boundary (§33) onto real harness sandbox flags:
+The old design turned a mission's risk class into CLI sandbox flags. That is
+gone, and so is the problem it was papering over: the risk classification now
+gates the **capability set**, not a subprocess's flags.
 
-| Risk | Claude Code | Codex | OpenCode |
-|---|---|---|---|
-| LOW / review / no write permission | `--permission-mode plan --tools ""` | `--sandbox read-only` | `--agent plan` |
-| MEDIUM (writes allowed) | `--permission-mode acceptEdits --max-turns N` | `--sandbox workspace-write` | `--agent build` |
-| HIGH | as MEDIUM, **after** a human approves at the gate | same | same |
-| CRITICAL | **refused** — escalated to a human, no harness runs it | same | same |
+| Risk | What happens now |
+|---|---|
+| LOW / review | the seat is offered read-only tools; a write is a different seat |
+| MEDIUM | writes allowed, scoped to the declared worktree |
+| HIGH | **paused at the human gate** before the seat is ever created |
+| CRITICAL | **refused** — no seat is created, and the refusal is receipted |
 
-VH never passes `--dangerously-skip-permissions`, `--yolo`, or `--sandbox danger-full-access`.
+`src/mission/gateRules.ts` and `src/security/guardrail.ts` own that ladder.
+There is no equivalent of `--dangerously-skip-permissions` because there is no
+subprocess to hand it to.
 
-All three are invoked with their machine-readable output format (`--output-format json`, `--json`,
-`--format json`) so VH can record **real** cost and token counts instead of estimating them.
+### Why this is better, not just different
+
+A child process is a thing you have to *constrain*: you pass it flags and hope,
+and the flags are only as good as the CLI's own interpretation of them. An
+in-process seat is bounded by construction — the tool set is a parameter, not a
+suggestion, and there is no shell for a malformed argument to reach. Removing
+the CLIs removed an entire class of "works on my machine" failures along with
+the dependency.
 
 ## 6. Provider keys and Ollama
 
 Set locally, never committed: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`. For the local `llm` harness run
 Ollama on `127.0.0.1:11434`. Secrets go to the OS keyring (`src-tauri/src/secrets.rs`); if the
-keyring is unavailable VH falls back to an in-memory map and says so.
+keyring is unavailable SelfImpulse falls back to an in-memory map and says so.
 
 ## 7. PATH: the #1 native failure, and what was done about it
 
 A packaged app launched from the Start menu does **not** inherit your shell's PATH. So
-`claude` installed by npm is invisible to VH even though it works in your terminal.
+`claude` installed by npm is invisible to SelfImpulse even though it works in your terminal.
 
 `which_bin` in `src-tauri/src/commands.rs` now searches, in order:
 
@@ -117,7 +128,7 @@ If it still misses, the Providers page lists every directory searched.
 
 ## 8. Execution semantics
 
-Until a real CLI is installed, missions run on VH's labelled `local-test` double. It reports
+Until a real CLI is installed, missions run on SelfImpulse's labelled `local-test` double. It reports
 `simulated: true` in every event, artifact and UI surface, and `MissionRuntime.finish()` will return
-`BLOCKED` — never `COMPLETED` — for a mission that used it. That is deliberate: VH does not claim
+`BLOCKED` — never `COMPLETED` — for a mission that used it. That is deliberate: SelfImpulse does not claim
 verified success it did not earn.

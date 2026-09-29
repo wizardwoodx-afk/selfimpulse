@@ -294,6 +294,8 @@ export interface FederationStatus {
   /** The ONE-TIME pairing code. Never the host's own token. */
   pairingCode: string | null;
   pairingExpires: string | null;
+  /** Whether AlterSend is actually mounted on the running host. */
+  files: boolean;
   detail: string;
 }
 
@@ -340,7 +342,7 @@ export const ipc = {
         state: "unavailable", bundled: false, hostPath: null, running: false,
         pid: null, port: null, cardUrl: null, interfaceUrl: null, selfimpulse: null,
         identityFp: null, cardSigned: false, tokenMinted: false,
-        bindScope: null, bindAddress: null, pairingCode: null, pairingExpires: null,
+        bindScope: null, bindAddress: null, pairingCode: null, pairingExpires: null, files: false,
         detail: "Federation is a desktop capability. This build has no bundled A2A host.",
       };
     }
@@ -360,6 +362,7 @@ export const ipc = {
         state,
         ...base,
         running: st.running === true && state === "running",
+        files: st.files === true,
         pid: typeof st.pid === "number" ? st.pid : null,
         port: typeof st.port === "number" ? st.port : null,
         cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
@@ -380,7 +383,7 @@ export const ipc = {
         ...base,
         running: false, pid: null, port: null, cardUrl: null, interfaceUrl: null,
         selfimpulse: null, identityFp: null, cardSigned: false, tokenMinted: false,
-        bindScope: null, bindAddress: null, pairingCode: null, pairingExpires: null,
+        bindScope: null, bindAddress: null, pairingCode: null, pairingExpires: null, files: false,
         detail: `Could not read the A2A host state: ${String(err)}`,
       };
     }
@@ -393,6 +396,8 @@ export const ipc = {
     bind?: "local" | "lan";
     /** Mint a one-time pairing code for a peer machine. */
     pair?: boolean;
+    /** Mount AlterSend so paired peers can offer files. Off unless asked for. */
+    files?: boolean;
   }): Promise<{ ok: boolean; detail: string }> => {
     if (!useTauri()) return { ok: false, detail: "Federation is a desktop capability." };
     const st = await ipc.federationStatus();
@@ -411,6 +416,7 @@ export const ipc = {
         port: opts.port ?? 0,
         bind: opts.bind ?? "local",
         pair: opts.pair === true,
+        files: opts.files === true,
       })) as Record<string, unknown>;
       return { ok: r.ok === true, detail: String(r.detail ?? (r.ok === true ? "The host is mounted." : "The host did not report ready.")) };
     } catch (err) {

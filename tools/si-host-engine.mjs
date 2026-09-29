@@ -849,6 +849,7 @@ var init_client = __esm({
             bindAddress: null,
             pairingCode: null,
             pairingExpires: null,
+            files: false,
             detail: "Federation is a desktop capability. This build has no bundled A2A host."
           };
         }
@@ -867,6 +868,7 @@ var init_client = __esm({
             state,
             ...base,
             running: st.running === true && state === "running",
+            files: st.files === true,
             pid: typeof st.pid === "number" ? st.pid : null,
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
@@ -898,6 +900,7 @@ var init_client = __esm({
             bindAddress: null,
             pairingCode: null,
             pairingExpires: null,
+            files: false,
             detail: `Could not read the A2A host state: ${String(err)}`
           };
         }
@@ -916,7 +919,8 @@ var init_client = __esm({
             selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
-            pair: opts.pair === true
+            pair: opts.pair === true,
+            files: opts.files === true
           });
           return { ok: r.ok === true, detail: String(r.detail ?? (r.ok === true ? "The host is mounted." : "The host did not report ready.")) };
         } catch (err) {
@@ -1187,23 +1191,23 @@ var init_client = __esm({
         if (!key) throw new Error(`secret not found: ${req.secret_ref}`);
         throw new Error("Cloud LLM calls from the web host require the native desktop build (CORS). Use Local LLM / Ollama or run `npm run tauri`.");
       },
-      fsRead: async (path3) => {
-        if (useTauri()) return tauriInvoke("fs_read", { path: path3 });
+      fsRead: async (path4) => {
+        if (useTauri()) return tauriInvoke("fs_read", { path: path4 });
         throw new Error("Filesystem is available in the native desktop build.");
       },
-      fsWrite: async (path3, content) => {
-        if (useTauri()) return tauriInvoke("fs_write", { path: path3, content });
+      fsWrite: async (path4, content) => {
+        if (useTauri()) return tauriInvoke("fs_write", { path: path4, content });
         throw new Error("Filesystem is available in the native desktop build.");
       },
-      fsList: async (path3) => {
-        if (useTauri()) return tauriInvoke("fs_list", { path: path3 });
+      fsList: async (path4) => {
+        if (useTauri()) return tauriInvoke("fs_list", { path: path4 });
         return [];
       },
-      fsMkdir: async (path3) => {
-        if (useTauri()) return tauriInvoke("fs_mkdir", { path: path3 });
+      fsMkdir: async (path4) => {
+        if (useTauri()) return tauriInvoke("fs_mkdir", { path: path4 });
       },
-      fsRemove: async (path3, recursive) => {
-        if (useTauri()) return tauriInvoke("fs_remove", { path: path3, recursive });
+      fsRemove: async (path4, recursive) => {
+        if (useTauri()) return tauriInvoke("fs_remove", { path: path4, recursive });
       },
       shellExec: async (program, args, cwd, timeoutSecs) => {
         if (useTauri()) return tauriInvoke("shell_exec", { program, args, cwd, timeoutSecs });
@@ -1360,14 +1364,15 @@ var init_client = __esm({
 });
 
 // tools/si-host.entry.ts
-import fs2 from "node:fs";
+import fs3 from "node:fs";
 
 // src/mission/a2aRuntime.ts
 import { spawn } from "node:child_process";
-import { createHash as createHash2 } from "node:crypto";
-import fs from "node:fs";
+import { createHash as createHash3 } from "node:crypto";
+import fs2 from "node:fs";
 import net from "node:net";
-import path2 from "node:path";
+import os from "node:os";
+import path3 from "node:path";
 
 // src/mission/pairing.ts
 var ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -3228,14 +3233,14 @@ function parseStatusPorcelainZ(raw) {
     const entry = fields[i];
     if (!entry || entry.length < 4) continue;
     const code = entry.slice(0, 2);
-    const path3 = entry.slice(3);
+    const path4 = entry.slice(3);
     let oldPath = null;
     if (code === "R " || code === "RM" || code === "C " || code === "CM") {
       oldPath = fields[i + 1] ?? null;
       i += 1;
     }
     const status = code === "??" ? "untracked" : code.startsWith("R") ? "renamed" : code.startsWith("C") ? "copied" : code.startsWith("A") ? "added" : code.startsWith("D") ? "deleted" : "modified";
-    out.push({ status, path: path3, oldPath });
+    out.push({ status, path: path4, oldPath });
   }
   return out;
 }
@@ -3530,13 +3535,13 @@ function planWorktrees(team, opts) {
   for (const seat2 of team.seats) {
     if (!seat2.mayWrite) {
       if (opts.deferReview && hasWriter) {
-        const path4 = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+        const path5 = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
         plans.push({
           seatId: seat2.id,
           branch: "",
-          path: path4,
+          path: path5,
           createArgv: [],
-          removeArgv: [["worktree", "remove", "--force", path4]],
+          removeArgv: [["worktree", "remove", "--force", path5]],
           shared: false,
           deferred: true,
           reason: `${seat2.role} is read-only, so it gets its own worktree on the REVIEW SNAPSHOT \u2014 the base plus every writer branch merged. Pointing it at the base checkout would have it review the tree as it was before the work happened, which is the bug this replaces.`
@@ -3556,13 +3561,13 @@ function planWorktrees(team, opts) {
       continue;
     }
     const branch = `vh/${opts.missionSlug}/${branchSafe(seat2.id)}`;
-    const path3 = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+    const path4 = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
     plans.push({
       seatId: seat2.id,
       branch,
-      path: path3,
-      createArgv: [["worktree", "add", "-b", branch, path3, opts.baseBranch]],
-      removeArgv: [["worktree", "remove", "--force", path3]],
+      path: path4,
+      createArgv: [["worktree", "add", "-b", branch, path4, opts.baseBranch]],
+      removeArgv: [["worktree", "remove", "--force", path4]],
       shared: false,
       deferred: false,
       reason: `${seat2.role} writes, so it gets its own worktree on ${branch}. Two agents in one working tree overwrite each other.`
@@ -3584,8 +3589,8 @@ function reviewSnapshotArgv(opts) {
   for (const b of opts.writerBranches) argv.push(["merge", "--no-ff", "--no-edit", b]);
   return { argv, snapshotBranch, problem: null };
 }
-function reviewWorktreeArgv(snapshotBranch, path3) {
-  return [["worktree", "add", "--detach", path3, snapshotBranch]];
+function reviewWorktreeArgv(snapshotBranch, path4) {
+  return [["worktree", "add", "--detach", path4, snapshotBranch]];
 }
 function snapshotPreflightArgv(baseBranch, writerBranches) {
   const out = [];
@@ -6577,6 +6582,293 @@ function createA2AServer(opts) {
   };
 }
 
+// src/mission/altersend.ts
+import { createHash as createHash2, timingSafeEqual } from "node:crypto";
+import * as fs from "node:fs";
+import * as path2 from "node:path";
+var DEFAULT_LIMITS = {
+  maxFileBytes: 32 * 1024 * 1024,
+  maxStoreBytes: 256 * 1024 * 1024,
+  maxFiles: 64,
+  maxNameLength: 120,
+  ttlMs: 60 * 60 * 1e3
+};
+function contentId(digest) {
+  return digest.replace("sha256:", "").slice(0, 24);
+}
+function digestOf(bytes) {
+  return `sha256:${createHash2("sha256").update(bytes).digest("hex")}`;
+}
+function safeName(raw, maxLength = DEFAULT_LIMITS.maxNameLength) {
+  if (typeof raw !== "string" || raw.length === 0) return { ok: false, reason: "name:empty" };
+  const cleaned = raw.replace(/[\x00-\x1f\x7f]/g, "").replace(/[/\\]/g, "-").replace(/\.{2,}/g, ".").replace(/^[.\-\s]+/, "").replace(/[^\w .()\-]+/g, "").trim();
+  if (cleaned.length === 0) return { ok: false, reason: "name:empty-after-sanitising" };
+  return { ok: true, value: cleaned.slice(0, maxLength) };
+}
+var AlterSendStore = class {
+  entries = /* @__PURE__ */ new Map();
+  receipts = [];
+  limits;
+  peer;
+  now;
+  root;
+  /** How many bytes may be resident at once. Older objects fall back to disk. */
+  residentBytes;
+  resident = 0;
+  constructor(opts) {
+    this.limits = { ...DEFAULT_LIMITS, ...opts.limits ?? {} };
+    this.peer = opts.peer;
+    this.now = opts.now ?? (() => /* @__PURE__ */ new Date());
+    this.residentBytes = Math.min(this.limits.maxFileBytes, 8 * 1024 * 1024);
+    if (opts.spillDir) {
+      fs.mkdirSync(opts.spillDir, { recursive: true, mode: 448 });
+      fs.chmodSync(opts.spillDir, 448);
+      this.root = opts.spillDir;
+    } else {
+      this.root = null;
+    }
+  }
+  /** Remove every spilled object and the directory. Call on unmount. */
+  close() {
+    for (const [id] of this.entries) {
+      const e = this.entries.get(id);
+      if (e?.objectPath) {
+        try {
+          fs.rmSync(e.objectPath, { force: true });
+        } catch {
+        }
+      }
+    }
+    this.entries.clear();
+    this.resident = 0;
+    if (this.root) {
+      try {
+        fs.rmSync(this.root, { recursive: true, force: true });
+      } catch {
+      }
+    }
+  }
+  objectPathFor(digest) {
+    return this.root ? path2.join(this.root, digest.replace(":", "-")) : null;
+  }
+  /** Write bytes atomically and 0600: a reader never sees a half-written file. */
+  writeObject(digest, bytes) {
+    const p = this.objectPathFor(digest);
+    if (!p) return null;
+    const tmp = `${p}.${process.pid}.partial`;
+    const fd = fs.openSync(tmp, "wx", 384);
+    try {
+      fs.writeSync(fd, bytes);
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    fs.renameSync(tmp, p);
+    return p;
+  }
+  readObject(entry) {
+    if (entry.bytes) return entry.bytes;
+    if (!entry.objectPath) throw new Error("altersend: object is not on disk");
+    const bytes = fs.readFileSync(entry.objectPath);
+    if (digestOf(bytes) !== entry.offer.digest) throw new Error("altersend: object failed its digest on read");
+    return bytes;
+  }
+  /**
+   * Keep the resident window bounded. Anything evicted stays on disk and is
+   * re-read (and re-verified) on demand, so eviction costs a read, not
+   * correctness.
+   */
+  evictFor(incoming) {
+    for (const [, e] of this.entries) {
+      if (this.resident + incoming <= this.residentBytes) break;
+      if (e.bytes && e.objectPath) {
+        this.resident -= e.bytes.byteLength;
+        e.bytes = null;
+      }
+    }
+  }
+  record(id, decision, detail) {
+    const at = this.now().toISOString();
+    const prev = this.receipts[this.receipts.length - 1]?.digest ?? "";
+    const payload = `${prev}|${id}|${decision}|${detail}|${at}`;
+    const receipt = {
+      id,
+      at,
+      decision,
+      detail,
+      digest: `sha256:${createHash2("sha256").update(payload).digest("hex")}`
+    };
+    this.receipts.push(receipt);
+    return receipt;
+  }
+  /** Bytes held by the store, resident or spilled — this is what the quota counts. */
+  get storeBytes() {
+    let n = 0;
+    for (const e of this.entries.values()) n += e.offer.size;
+    return n;
+  }
+  /** Bytes actually in the JS heap. Bounded by the resident window, not the quota. */
+  get residentBytesHeld() {
+    return this.resident;
+  }
+  /** Objects currently on disk, for the operator-facing store report. */
+  get spilledCount() {
+    let n = 0;
+    for (const e of this.entries.values()) if (e.objectPath) n += 1;
+    return n;
+  }
+  /**
+   * Publish a file. Rejects rather than evicts: silently dropping the oldest
+   * entry to make room would mean the sender's offer had been honoured and then
+   * un-honoured, and the receipt would be lying.
+   */
+  offer(file) {
+    const name = safeName(file.name, this.limits.maxNameLength);
+    if (!name.ok) {
+      this.record(":", "refused", name.reason);
+      return name;
+    }
+    if (!Buffer.isBuffer(file.bytes) || file.bytes.byteLength === 0) {
+      this.record(":", "refused", "empty");
+      return { ok: false, reason: "file:empty" };
+    }
+    if (file.bytes.byteLength > this.limits.maxFileBytes) {
+      this.record(":", "refused", "too-large");
+      return { ok: false, reason: `file:too-large (max ${this.limits.maxFileBytes})` };
+    }
+    if (this.entries.size >= this.limits.maxFiles) {
+      this.record(":", "refused", "store-full");
+      return { ok: false, reason: "store:full" };
+    }
+    if (this.storeBytes + file.bytes.byteLength > this.limits.maxStoreBytes) {
+      this.record(":", "refused", "store-bytes");
+      return { ok: false, reason: "store:full" };
+    }
+    const digest = digestOf(file.bytes);
+    const id = contentId(digest);
+    if (this.entries.has(id)) return { ok: false, reason: "file:already-offered" };
+    const offer = {
+      id,
+      name: name.value,
+      size: file.bytes.byteLength,
+      digest,
+      offeredAt: this.now().toISOString(),
+      from: this.peer
+    };
+    const objectPath = this.writeObject(digest, file.bytes);
+    let resident = file.bytes;
+    if (objectPath) {
+      this.evictFor(file.bytes.byteLength);
+      if (file.bytes.byteLength > this.residentBytes) resident = null;
+      else this.resident += file.bytes.byteLength;
+    }
+    this.entries.set(id, { offer, bytes: resident, objectPath, decision: "pending", detail: "" });
+    this.record(id, "pending", `${offer.name} (${offer.size} bytes)`);
+    return { ok: true, value: offer };
+  }
+  list() {
+    return [...this.entries.values()].map((e) => e.offer);
+  }
+  get(id) {
+    const e = this.entries.get(id);
+    return e ? { ok: true, value: e.offer } : { ok: false, reason: "no-such-offer" };
+  }
+  /**
+   * The receiver's decision. This is the only way a file becomes accepted, and
+   * it verifies the bytes against the hash the sender published first — a sender
+   * that lies about the digest is caught here, not at write time.
+   */
+  accept(id) {
+    const e = this.entries.get(id);
+    if (!e) return { ok: false, reason: "no-such-offer" };
+    if (e.decision !== "pending") return { ok: false, reason: `already:${e.decision}` };
+    let current;
+    try {
+      current = this.readObject(e);
+    } catch (err) {
+      e.decision = "refused";
+      e.detail = "unreadable";
+      this.record(id, "refused", err instanceof Error ? err.message : "the object could not be read back");
+      return { ok: false, reason: "file:unreadable" };
+    }
+    if (digestOf(current) !== e.offer.digest) {
+      e.decision = "refused";
+      e.detail = "digest-mismatch";
+      this.record(id, "refused", "the bytes do not match the digest the sender published");
+      return { ok: false, reason: "file:digest-mismatch" };
+    }
+    e.decision = "accepted";
+    this.record(id, "accepted", e.offer.name);
+    return { ok: true, value: e.offer };
+  }
+  refuse(id, why = "the receiver declined") {
+    const e = this.entries.get(id);
+    if (!e) return { ok: false, reason: "no-such-offer" };
+    if (e.decision !== "pending") return { ok: false, reason: `already:${e.decision}` };
+    e.decision = "refused";
+    e.detail = why;
+    this.record(id, "refused", why);
+    return { ok: true, value: e.offer };
+  }
+  /** Hand over the bytes — only ever after accept(). */
+  fetch(id) {
+    const e = this.entries.get(id);
+    if (!e) return { ok: false, reason: "no-such-offer" };
+    if (e.decision !== "accepted") return { ok: false, reason: `not-accepted (${e.decision})` };
+    let bytes;
+    try {
+      bytes = this.readObject(e);
+    } catch (err) {
+      e.decision = "refused";
+      e.detail = "unreadable";
+      this.record(id, "refused", err instanceof Error ? err.message : "the object could not be read back");
+      return { ok: false, reason: "file:unreadable" };
+    }
+    e.decision = "fetched";
+    if (e.bytes) {
+      this.resident -= e.bytes.byteLength;
+      e.bytes = null;
+    }
+    this.record(id, "fetched", e.offer.name);
+    return { ok: true, value: { offer: e.offer, bytes: Buffer.from(bytes) } };
+  }
+  drop(id) {
+    const e = this.entries.get(id);
+    if (!e) return { ok: false, reason: "no-such-offer" };
+    if (e.objectPath) {
+      try {
+        fs.rmSync(e.objectPath, { force: true });
+      } catch {
+      }
+    }
+    if (e.bytes) this.resident -= e.bytes.byteLength;
+    this.entries.delete(id);
+    this.record(id, "refused", "dropped");
+    return { ok: true, value: true };
+  }
+  /** The ledger, for the receipts screen. */
+  ledger() {
+    return [...this.receipts];
+  }
+  /**
+   * Re-walk the chain. Any entry removed or edited from the middle breaks every
+   * later digest — the same property the crash ledger buys, for the same reason.
+   */
+  verifyChain() {
+    let prev = "";
+    for (let i = 0; i < this.receipts.length; i += 1) {
+      const r = this.receipts[i];
+      const payload = `${prev}|${r.id}|${r.decision}|${r.detail}|${r.at}`;
+      const want = `sha256:${createHash2("sha256").update(payload).digest("hex")}`;
+      if (want.length !== r.digest.length || !timingSafeEqual(Buffer.from(want), Buffer.from(r.digest))) {
+        return { ok: false, brokenAt: i };
+      }
+      prev = r.digest;
+    }
+    return { ok: true };
+  }
+};
+
 // src/mission/a2aRuntime.ts
 init_version();
 
@@ -6633,24 +6925,24 @@ var ECDSA2 = { name: "ECDSA", namedCurve: "P-256" };
 async function makeSelfImpulseIdentity() {
   const kp = await crypto.subtle.generateKey(ECDSA2, true, ["sign", "verify"]);
   const publicJwk = await crypto.subtle.exportKey("jwk", kp.publicKey);
-  const fp = createHash2("sha256").update(JSON.stringify(publicJwk)).digest("hex").slice(0, 16);
+  const fp = createHash3("sha256").update(JSON.stringify(publicJwk)).digest("hex").slice(0, 16);
   return { fp, privateKey: kp.privateKey, publicJwk };
 }
 function isExecutable(file) {
   try {
-    const st = fs.statSync(file);
+    const st = fs2.statSync(file);
     return st.isFile() && (st.mode & 73) !== 0;
   } catch {
     return false;
   }
 }
 function resolveBinSync(bin, opts) {
-  if (bin.includes("/") || bin.includes(path2.sep)) return isExecutable(bin) ? bin : null;
+  if (bin.includes("/") || bin.includes(path3.sep)) return isExecutable(bin) ? bin : null;
   const override = opts?.binOverrides?.[bin];
   if (override) return isExecutable(override) ? override : null;
-  const dirs = [...opts?.extraPath ?? [], ...(process.env.PATH ?? "").split(path2.delimiter).filter(Boolean)];
+  const dirs = [...opts?.extraPath ?? [], ...(process.env.PATH ?? "").split(path3.delimiter).filter(Boolean)];
   for (const dir of dirs) {
-    const candidate = path2.join(dir, bin);
+    const candidate = path3.join(dir, bin);
     if (isExecutable(candidate)) return candidate;
   }
   return null;
@@ -6688,7 +6980,7 @@ function spawnCli(bin, argv, cwd, timeoutSecs, onInvoke) {
       if (settled) return;
       settled = true;
       clearTimeout(kill);
-      onInvoke?.(`spawn ${path2.basename(bin)} ${argv.slice(0, 3).join(" ")} \u2192 exit ${code ?? "null"} in ${Date.now() - t0}ms`);
+      onInvoke?.(`spawn ${path3.basename(bin)} ${argv.slice(0, 3).join(" ")} \u2192 exit ${code ?? "null"} in ${Date.now() - t0}ms`);
       resolve2({ exitCode: code, stdout, stderr, durationMs: Date.now() - t0, timedOut });
     });
   });
@@ -6774,8 +7066,8 @@ function nodeRunnerDeps(opts) {
       };
     },
     writeFile: async (absPath, contents) => {
-      fs.mkdirSync(path2.dirname(absPath), { recursive: true });
-      await fs.promises.writeFile(absPath, contents, "utf8");
+      fs2.mkdirSync(path3.dirname(absPath), { recursive: true });
+      await fs2.promises.writeFile(absPath, contents, "utf8");
     },
     verify: async (cwd) => spawnCli(testCmd[0] ?? "npm", testCmd.slice(1), cwd, 300, opts?.onInvoke)
   };
@@ -6827,9 +7119,19 @@ async function startA2ARuntime(opts) {
     invitation = minted.invitation;
     pairingCode = minted.code;
   }
+  const filesSpillDir = opts.files === true ? opts.filesDir ?? path3.join(os.homedir(), ".selfimpulse", "altersend") : null;
+  const files = filesSpillDir ? new AlterSendStore({ peer: opts.selfimpulseUser, spillDir: filesSpillDir }) : null;
   const server = createA2AServer({
     card,
     onMessage: handler,
+    altersend: files ? {
+      store: files,
+      /* The receiver's decision is a REFUSAL by default. There is no
+       * accept-all mode here on purpose: `decide` returning null means the
+       * caller's policy had nothing to object to, and the default policy has
+       * something to object to whenever a human is present to be asked. */
+      decide: (offer) => opts.filesAutoAccept === true ? null : `awaiting review: ${offer.name}`
+    } : void 0,
     pairing: opts.pairing === false ? void 0 : {
       redeem: async (code, peer) => {
         if (!invitation) return { ok: false, reason: "this host is not currently offering a pairing code" };
@@ -6887,6 +7189,14 @@ async function startA2ARuntime(opts) {
   }
   if (!bridge.repoRoot) missing.push("no repository bound");
   const describe = () => ({
+    files: {
+      enabled: files !== null,
+      residentBytes: files?.residentBytesHeld ?? 0,
+      storedBytes: files?.storeBytes ?? 0,
+      objects: files?.list().length ?? 0,
+      spillDir: filesSpillDir,
+      autoAccept: opts.filesAutoAccept === true
+    },
     pairing: pairingCode && invitation ? { offered: true, code: pairingCode, expiresAt: new Date(invitation.expiresAt).toISOString(), state: invitation.state, peers: peers.size } : { offered: false, code: null, expiresAt: null, state: "closed", peers: peers.size },
     mounted: true,
     product: "SelfImpulse",
@@ -6929,6 +7239,7 @@ async function startA2ARuntime(opts) {
     token,
     team,
     server,
+    files,
     describe,
     delegateTo: (o) => delegateViaA2A({
       fromTeam: team,
@@ -6981,7 +7292,7 @@ module.exports = { authorize };
         const t0 = Date.now();
         if (!req.readOnly && applyFix) {
           try {
-            await fs.promises.writeFile(path2.join(req.cwd, target), contents, "utf8");
+            await fs2.promises.writeFile(path3.join(req.cwd, target), contents, "utf8");
           } catch (err) {
             return { exitCode: 1, stdout: "", stderr: `[drill-seat] could not write ${target}: ${String(err)}`, durationMs: Date.now() - t0, timedOut: false };
           }
@@ -7058,10 +7369,12 @@ async function main(argv) {
     process.stdout.write(`[si-host] ${line}
 `);
   };
-  const selfimpulseUser = typeof args.selfimpulse === "string" ? args.selfimpulse : "VH SELFIMPULSE";
+  const selfimpulseUser = typeof args.selfimpulse === "string" ? args.selfimpulse : "SelfImpulse IMPULSE";
   const port = args.port === true ? 0 : Number(args.port ?? 0);
   const host = typeof args.host === "string" ? args.host : "127.0.0.1";
   const pairing = args.pair === true || args.pair === "true";
+  const files = args.files === true || args.files === "true";
+  const filesAutoAccept = args["files-auto"] === true || args["files-auto"] === "true";
   const stopNonce = process.env.HANDLE_STOP_NONCE ?? "";
   const token = typeof args.token === "string" ? args.token : void 0;
   const riskMode = typeof args["risk-mode"] === "string" ? args["risk-mode"] : "high-and-critical";
@@ -7071,7 +7384,7 @@ async function main(argv) {
   const harness = typeof args.harness === "string" ? args.harness : "hermes";
   const reviewerHarness = typeof args["reviewer-harness"] === "string" ? args["reviewer-harness"] : "llm";
   const baseBranch = typeof args["base-branch"] === "string" ? args["base-branch"] : void 0;
-  if (repoRoot && !fs2.existsSync(repoRoot)) fail(`--repo does not exist: ${repoRoot}`);
+  if (repoRoot && !fs3.existsSync(repoRoot)) fail(`--repo does not exist: ${repoRoot}`);
   let bridge;
   if (seatMode === "real") {
     if (repoRoot) {
@@ -7118,6 +7431,8 @@ async function main(argv) {
     teammates: teammatesOf(args),
     host,
     pairing,
+    files,
+    filesAutoAccept,
     stopNonce: stopNonce || void 0,
     port: Number.isFinite(port) ? port : 0,
     token,
@@ -7130,13 +7445,13 @@ async function main(argv) {
   process.stdout.write(`SI-A2A-READY ${JSON.stringify(descriptor)}
 `);
   if (typeof args["write-jwk"] === "string") {
-    fs2.writeFileSync(args["write-jwk"], JSON.stringify({ fp: runtime.identity.fp, publicJwk: runtime.identity.publicJwk }, null, 2));
+    fs3.writeFileSync(args["write-jwk"], JSON.stringify({ fp: runtime.identity.fp, publicJwk: runtime.identity.publicJwk }, null, 2));
     log(`publisher JWK written to ${args["write-jwk"]}`);
   }
   if (typeof args["peer-url"] === "string" && typeof args.send === "string") {
     let peerJwk;
     if (typeof args["peer-jwk"] === "string") {
-      const raw = fs2.readFileSync(args["peer-jwk"], "utf8");
+      const raw = fs3.readFileSync(args["peer-jwk"], "utf8");
       const parsed = JSON.parse(raw);
       peerJwk = parsed.publicJwk ?? parsed;
     }

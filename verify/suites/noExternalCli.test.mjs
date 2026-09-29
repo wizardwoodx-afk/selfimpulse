@@ -3,6 +3,8 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 // probe/noExternalCli.test.ts
 import * as fs from "node:fs";
 import * as path from "node:path";
+var { readdirSync, readFileSync: readFileSync2 } = fs;
+var { join: join2 } = path;
 var ROOT = process.env.SI_ROOT ?? process.cwd();
 var read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 var exists = (rel) => fs.existsSync(path.join(ROOT, rel));
@@ -170,6 +172,37 @@ section("6. the product tells the truth about what it is");
   ok(
     "the build record does not advertise the tier as a feature",
     !/governed external-harness tier/.test(info)
+  );
+  const cliNames = ["claude-code", "@openai/codex", "opencode-ai", "aider", "continue-dev"];
+  const offenders = [];
+  const walkDocs = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const abs = join2(dir, e.name);
+      if (e.isDirectory()) {
+        walkDocs(abs);
+        continue;
+      }
+      if (!e.name.endsWith(".md")) continue;
+      const text = readFileSync2(abs, "utf8");
+      text.split("\n").forEach((line, i) => {
+        if (/npm\s+i\s+-g|pip\s+install|brew\s+install/i.test(line) && cliNames.some((c) => line.toLowerCase().includes(c))) {
+          offenders.push(`${abs}:${i + 1} \u2014 ${line.trim().slice(0, 90)}`);
+        }
+        if (/install a coding (cli|agent)|install (claude code|codex|opencode)\b/i.test(line)) {
+          offenders.push(`${abs}:${i + 1} \u2014 ${line.trim().slice(0, 90)}`);
+        }
+      });
+    }
+  };
+  if (fs.existsSync(path.join(ROOT, "docs"))) walkDocs(path.join(ROOT, "docs"));
+  ok(
+    "no shipped document tells a reader to install an external coding agent",
+    offenders.length === 0,
+    offenders.join(" | ")
+  );
+  ok(
+    "the docs tree still exists to be walked \u2014 a gate over zero files passes everything",
+    fs.existsSync(path.join(ROOT, "docs")) && readdirSync(path.join(ROOT, "docs")).length > 0
   );
 }
 console.log(`

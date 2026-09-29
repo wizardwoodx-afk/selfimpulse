@@ -93,7 +93,7 @@ export async function main(argv: string[]): Promise<void> {
   const args = parseArgv(argv);
   const log = (line: string): void => { process.stdout.write(`[si-host] ${line}\n`); };
 
-  const selfimpulseUser = typeof args.selfimpulse === "string" ? args.selfimpulse : "VH SELFIMPULSE";
+  const selfimpulseUser = typeof args.selfimpulse === "string" ? args.selfimpulse : "SelfImpulse IMPULSE";
   const port = args.port === true ? 0 : Number(args.port ?? 0);
   const host = typeof args.host === "string" ? args.host : "127.0.0.1";
   // --pair mints ONE one-time code and puts it in the READY line. The host's own
@@ -101,6 +101,11 @@ export async function main(argv: string[]): Promise<void> {
   // supervisor reports: the code is what an operator reads to a peer, and it is
   // spent the moment it is used.
   const pairing = args.pair === true || args.pair === "true";
+  // --files mounts AlterSend. Off unless asked for, exactly like pairing: a host
+  // that quietly accepts files from the network is one nobody chose to be.
+  const files = args.files === true || args.files === "true";
+  // --files-auto is a second, louder decision and stays separately named.
+  const filesAutoAccept = args["files-auto"] === true || args["files-auto"] === "true";
   /* The unmount nonce comes from the environment, never argv: a value passed on
    * the command line is visible to every process on the machine through `ps`,
    * and this value is what lets something ask the host to shut down. It is not a
@@ -166,6 +171,8 @@ export async function main(argv: string[]): Promise<void> {
     teammates: teammatesOf(args),
     host,
     pairing,
+    files,
+    filesAutoAccept,
     stopNonce: stopNonce || undefined,
     port: Number.isFinite(port) ? port : 0,
     token,
