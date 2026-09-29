@@ -199,7 +199,7 @@ export function drillScenario(id: string): DrillScenario | null {
 /* ── the built-in deterministic seat (the labeled, swappable part) ───────── */
 function drillCrew(sc: DrillScenario, harness?: HarnessId) {
   const now = new Date().toISOString();
-  const seatHarness = harness ?? ("opencode" as HarnessId);
+  const seatHarness = harness ?? "hermes";
   const desc = harness
     ? `External-model drill crew for the ${sc.id} scenario — REAL seat: ${HARNESS_BY_ID.get(harness)?.name ?? harness}`
     : `Deterministic drill crew for the ${sc.id} scenario — built-in seat (the swappable-brain seam)`;

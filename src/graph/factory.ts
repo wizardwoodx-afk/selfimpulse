@@ -58,13 +58,13 @@ export function createNodeFromDef(def: NodeDefinition, id: string, x: number, y:
     providers: def.providers
       ? structuredClone(def.providers)
       : def.category === "agent"
-        ? [{ kind: "cli-agent", cliProviderId: "hermes" }]
+        ? [{ kind: "builtin-agent" }]
         : [],
     allowedMcpServers: [],
     memoryEnabled: true,
   };
   if (def.category === "agent") {
-    node.config.harness = node.config.harness || "claude";
+    node.config.harness = node.config.harness || "hermes";
     node.permissions.terminalExecute = true;
     node.permissions.filesystemRead = true;
     node.permissions.mcpUse = true;

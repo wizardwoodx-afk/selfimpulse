@@ -264,23 +264,8 @@ function saveKnowledgeProposals(memory2) {
   } catch {
   }
 }
-var HARNESS_DEFAULT_VENDOR = {
-  claude: "Anthropic",
-  codex: "OpenAI",
-  gemini: "Google",
-  grok: "xAI",
-  qwen: "Alibaba Qwen",
-  opencode: "configurable (see opencode's own provider settings)",
-  openclaude: "configurable",
-  cursor: "configurable (Cursor's model picker)"
-};
-var HARNESS_ENV_OVERRIDES = {
-  claude: ["ANTHROPIC_BASE_URL"],
-  codex: ["OPENAI_BASE_URL"],
-  opencode: ["OPENCODE_BASE_URL", "OPENAI_BASE_URL", "ANTHROPIC_BASE_URL"]
-};
 function defaultVendorFor(harness) {
-  return HARNESS_DEFAULT_VENDOR[harness] ?? `${harness}'s configured provider`;
+  return `${harness}'s configured provider`;
 }
 function loopbackHost(host) {
   const h = host.toLowerCase();
@@ -334,7 +319,7 @@ async function proposeKnowledgeSkill(args) {
       } else {
         dataHandling = "provider";
         const vendor = defaultVendorFor(args.llm.harness);
-        const overrideNames = HARNESS_ENV_OVERRIDES[args.llm.harness] ?? [];
+        const overrideNames = [];
         let endpoint;
         if (overrideNames.length > 0 && args.llm.deps.readEnv) {
           try {
@@ -719,7 +704,7 @@ async function main() {
   ok("the two data-handling values are exactly local | provider", /"local"/.test(forgeSrc) && /"provider"/.test(forgeSrc));
   ok("positioning is honest: no claim that extraction proves the knowledge correct", !forgeSrc.includes("the provable way") && /structured knowledge proposals|extract structure, not summaries/.test(forgeSrc), "wording drifted");
   section("3c. 12.2.0 \u2014 provider precision: vendor + endpoint class, no guessing");
-  ok("default vendor mapping is honest (claude\u2192Anthropic, codex\u2192OpenAI, opencode\u2192configurable)", defaultVendorFor("claude") === "Anthropic" && defaultVendorFor("codex") === "OpenAI" && /configurable/.test(defaultVendorFor("opencode")) && defaultVendorFor("mystery") === "mystery's configured provider");
+  ok("vendor labels are provider-neutral \u2014 never guessed from a per-engine table", defaultVendorFor("claude") === "claude's configured provider" && defaultVendorFor("mystery") === "mystery's configured provider");
   ok("loopback detection covers localhost/127.0.0.1/::1", loopbackHost("localhost") && loopbackHost("127.0.0.1") && loopbackHost("::1") && !loopbackHost("api.anthropic.com"));
   const cc1 = classifyEndpoint(null);
   ok("no override \u2192 cloud-default (the harness's default cloud)", cc1.endpointClass === "cloud-default" && /no endpoint override/.test(cc1.note));
@@ -731,16 +716,16 @@ async function main() {
   ok("invalid override URL \u2192 unknown, never a guess", cc4.endpointClass === "unknown");
   const det = await proposeKnowledgeSkill({ content: DOC, sourceName: "detected.md", llm: { harness: "claude", deps: scriptedDeps({ env: { ANTHROPIC_BASE_URL: "http://127.0.0.1:11434" } }) } });
   const detP = det.proposal;
-  ok("a detected loopback override records local-configured with basis=detected", detP.dataHandling === "provider" && detP.providerInfo?.endpointClass === "local-configured" && detP.providerInfo.endpointBasis === "detected" && detP.providerInfo.vendor === "Anthropic", JSON.stringify(detP.providerInfo));
+  ok("endpoint overrides are no longer read per-engine \u2014 the endpoint is honestly unknown/not-visible", detP.dataHandling === "provider" && detP.providerInfo?.endpointClass === "unknown" && detP.providerInfo.endpointBasis === "not-visible", JSON.stringify(detP.providerInfo));
   const cloudDet = await proposeKnowledgeSkill({ content: DOC, sourceName: "detected-cloud.md", llm: { harness: "claude", deps: scriptedDeps({ env: {} }) } });
   const cdP = cloudDet.proposal;
-  ok("detected empty override env \u2192 cloud-default with basis=detected", cdP.providerInfo?.endpointClass === "cloud-default" && cdP.providerInfo.endpointBasis === "detected" && cdP.providerInfo.note.includes("no endpoint override"), JSON.stringify(cdP.providerInfo));
+  ok("with no declaration the endpoint stays unknown/not-visible (never guessed cloud)", cdP.providerInfo?.endpointClass === "unknown" && cdP.providerInfo.endpointBasis === "not-visible", JSON.stringify(cdP.providerInfo));
   const noVis = await proposeKnowledgeSkill({ content: DOC, sourceName: "novis.md", llm: { harness: "claude", deps: scriptedDeps({}) } });
   const nvP = noVis.proposal;
   ok("no env reader + no declaration \u2192 endpoint unknown, basis=not-visible, reason written", nvP.providerInfo?.endpointClass === "unknown" && nvP.providerInfo.endpointBasis === "not-visible" && /cannot see/.test(nvP.providerInfo.note), JSON.stringify(nvP.providerInfo));
   const declL = await proposeKnowledgeSkill({ content: DOC, sourceName: "declared-local.md", llm: { harness: "codex", deps: scriptedDeps({ codexOk: true }), declaredEndpoint: "local" } });
   const dlP = declL.proposal;
-  ok("user-declared local \u2192 local-configured with basis=user-declared", dlP.providerInfo?.endpointClass === "local-configured" && dlP.providerInfo.endpointBasis === "user-declared" && dlP.providerInfo.vendor === "OpenAI", JSON.stringify(dlP.providerInfo));
+  ok("user-declared local \u2192 local-configured with basis=user-declared", dlP.providerInfo?.endpointClass === "local-configured" && dlP.providerInfo.endpointBasis === "user-declared", JSON.stringify(dlP.providerInfo));
   const declC = await proposeKnowledgeSkill({ content: DOC, sourceName: "declared-cloud.md", llm: { harness: "claude", deps: scriptedDeps({ codexOk: false }), declaredEndpoint: "cloud" } });
   const dcP = declC.proposal;
   ok("user-declared cloud \u2192 cloud-default with basis=user-declared", dcP.providerInfo?.endpointClass === "cloud-default" && dcP.providerInfo.endpointBasis === "user-declared");

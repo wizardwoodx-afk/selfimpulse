@@ -24,10 +24,10 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     id: "real-agent-crew",
     name: "Real Agent Crew",
     category: "Engineering",
-    description: "Start → Claude/Codex/OpenCode crew → End. Not an automation platform. Requires those CLIs on PATH.",
+    description: "Start → native agent crew → End. Not an automation platform. Runs in-process on your own provider key.",
     steps: [
       { key: "s", defId: "control.start", x: 80, y: 220 },
-      { key: "crew", defId: "agent.crew", x: 400, y: 180, purpose: "Ship the assigned coding task using the local CLIs as a team." },
+      { key: "crew", defId: "agent.crew", x: 400, y: 180, purpose: "Ship the assigned coding task as a coordinated native team." },
       { key: "e", defId: "control.end", x: 760, y: 220 },
     ],
     wires: [

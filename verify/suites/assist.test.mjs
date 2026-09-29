@@ -663,21 +663,21 @@ var NODE_DEFINITIONS = [
     title: "Agent Crew",
     category: "agent",
     icon: "crown",
-    description: "A working team: one supervisor plus the local CLIs you name (Claude Code, Codex, OpenCode, Cursor, Grok, Cline, Kilo). Not an automation-platform router.",
+    description: "A working team: one supervisor plus native agent workers, all in-process on your own provider key. Not an automation-platform router.",
     inputs: [inP(p("goal", "Goal", "Text", { required: true })), inP(p("context", "Context", "Object"))],
     outputs: [outP(p("result", "Crew Result", "AgentResult", { required: true })), outP(p("log", "Crew Log", "JSON"))],
-    defaultPurpose: "Coordinate the named coding agents as a team against this goal.",
+    defaultPurpose: "Coordinate the native agents as a team against this goal.",
     configSchema: [
-      { key: "harness", label: "Lead harness", type: "select", options: ["claude", "codex", "opencode", "cursor", "grok", "cline", "kilo", "llm"], default: "claude" },
-      { key: "crew", label: "Crew (comma ids)", type: "text", default: "claude,codex,opencode" }
+      { key: "harness", label: "Lead engine", type: "select", options: ["hermes", "llm"], default: "hermes" },
+      { key: "crew", label: "Crew (comma ids)", type: "text", default: "hermes" }
     ],
     permissions: { terminalExecute: true, filesystemRead: true, filesystemWrite: true, mcpUse: true },
     rolePrompt: rp({
-      identity: "You are the SelfImpulse Crew Lead. You coordinate real coding-agent CLIs. You do not pretend to be those agents.",
+      identity: "You are the SelfImpulse Crew Lead. You coordinate native in-process agents running on the owner's own provider key.",
       mission: "Assign work to the crew, merge their outputs, surface conflicts.",
       operatingPrinciples: "Delegate. Never fake a CLI that is not installed. Fail closed.",
       procedures: "1. Restate the goal.\n2. Split work across the crew ids.\n3. Ask each harness to execute.\n4. Merge. Name disagreements.",
-      toolStrategy: "Spawn only installed harnesses.",
+      toolStrategy: "Every seat runs in-process on the owner's own provider key.",
       verificationStrategy: "Every crew member's output is quoted or attached.",
       collaborationRules: "Specialists keep their identity. You do not rewrite their diffs.",
       learningRules: stdLearning("Track which harness pairs worked."),
@@ -1019,7 +1019,7 @@ function packToDef(pack) {
     outputs: [outP(p("deliverable", "Deliverable", "AgentResult", { required: true })), outP(p("notes", "Notes", "JSON"))],
     defaultPurpose: pack.mission,
     configSchema: [
-      { key: "harness", label: "Runtime", type: "select", options: ["hermes", "claude", "codex", "opencode", "cursor", "grok", "cline", "kilo", "llm"], default: "hermes" }
+      { key: "harness", label: "Runtime", type: "select", options: ["hermes", "llm"], default: "hermes" }
     ],
     permissions: { filesystemRead: true, terminalExecute: true, mcpUse: true, memoryWrite: true, skillWrite: true },
     rolePrompt: rp({
@@ -1030,7 +1030,7 @@ function packToDef(pack) {
 2. Use Hermes tools when granted.
 3. Verify against: ${pack.mission}
 4. Emit the deliverable. Call finish.`,
-      toolStrategy: "Use only granted tools. Coding CLIs (Claude/Codex/OpenCode) if harness is set to them.",
+      toolStrategy: "Use only granted tools. Every agent runs in-process on your own provider keys.",
       verificationStrategy: "The deliverable must be usable without you present.",
       collaborationRules: "Peers consume deliverable + notes. Shared team memory if teamMemoryKey is set.",
       learningRules: stdLearning(`Improve ${pack.title} craft from ratings.`),

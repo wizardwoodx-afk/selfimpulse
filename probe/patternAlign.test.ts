@@ -23,8 +23,8 @@ ok("every entry carries provenance: where it was observed and the observed proje
   PATTERN_REGISTRY.every((p) => p.observedIn.length > 5 && p.observedLicense.length > 5));
 ok("every entry states the code-copying prohibition explicitly (patterns, not code)",
   PATTERN_REGISTRY.every((p) => p.observedLicense.includes("no code copied")));
-ok("Anthropic's commerce blueprint is represented — including the skill-loading stance",
-  PATTERN_REGISTRY.some((p) => p.observedIn.includes("Claude Commerce Agents")) &&
+ok("the public commerce-agent blueprint is represented — including the skill-loading stance",
+  PATTERN_REGISTRY.some((p) => p.observedIn.includes("commerce-agent reference designs")) &&
   PATTERN_REGISTRY.some((p) => p.id === "pattern.skill-loading-over-splitting"));
 ok("the cost-honesty pattern is registered (token-only stays dollar-UNKNOWN)",
   PATTERN_REGISTRY.some((p) => p.id === "pattern.harness-cost-honesty"));

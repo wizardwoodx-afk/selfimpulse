@@ -1,8 +1,7 @@
 /**
  * Real-Time Inter-Agent Communication Bus & Shared Blackboard.
  *
- * Enables parallel multi-agent collaboration across heterogeneous coding CLIs
- * (Claude Code, OpenAI Codex, OpenCode, Cursor, Grok, Cline, Hermes, Aider, Gemini, Goose, Qwen, Amazon Q / Kiro).
+ * Enables parallel multi-agent collaboration across the in-process engines.
  *
  * Provides:
  * 1. Pub/Sub Channel Mesh (`#general`, `#architecture`, `#implementation-sync`, `#qa-review`, `#security-audit`)

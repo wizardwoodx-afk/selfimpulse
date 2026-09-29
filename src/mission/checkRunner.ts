@@ -207,9 +207,7 @@ export async function existsNative(path: string): Promise<boolean> {
  * allowlist, no env scrub and no approval gate, and inherited the parent
  * environment wholesale — equivalent to an env leak + un-gated exec). */
 const SHELL_ALLOWED: ReadonlySet<string> = new Set([
-  "hermes", "claude", "codex", "opencode", "openclaude", "copilot", "cursor-agent", "agent",
-  "grok", "cline", "kilo", "qwen", "gemini", "aider", "goose", "amazonq", "amp", "crush",
-  "droid", "kimi", "auggie", "oz",
+  "hermes", "agent",
   "node", "npm", "npx", "python", "python3", "pip", "pip3", "pytest", "cargo", "git", "go",
 ]);
 

@@ -147,9 +147,8 @@ export interface ContextFile {
   forHarness: HarnessId;
 }
 
-// One briefing file, for the one runtime that exists. The per-CLI context files
-// (CLAUDE.md, .clinerules, .cursor/rules, .kilo/rules, …) went with the external
-// harnesses — there is no second process left to hand a different file to.
+// One briefing file, for the one runtime that exists — there is no second
+// process left to hand a different file to.
 const CONTEXT_PATHS: Array<{ harness: HarnessId; path: string }> = [
   { harness: "hermes", path: "AGENTS.md" },
 ];

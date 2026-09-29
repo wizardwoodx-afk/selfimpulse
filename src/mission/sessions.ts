@@ -10,10 +10,10 @@
  *
  * THE TWO RULES THE REAL BINARIES TAUGHT
  *
- * 1. Some CLIs let you choose the session id, some do not. Claude's `--session-id <uuid>` CREATES a
- *    conversation under the id you pass. OpenCode's `--session <id>` LOADS one and exits 1 with
- *    "Error: Session not found" if it does not exist — observed on the real 1.18.25 binary. Assuming
- *    every CLI accepts a chosen id breaks half of them on turn one.
+ * 1. External engines historically disagreed on chosen session ids: one flavour CREATES a
+ *    conversation under the id you pass, another LOADS one and hard-fails with
+ *    "Error: Session not found" if it does not exist. Assuming one flavour breaks the other
+ *    on turn one.
  *
  * 2. Capture the id from the CLI's own output even when you chose it. That confirms the session
  *    actually started, which matters when the first turn died at authentication.
@@ -160,9 +160,9 @@ export type TurnKind = "first" | "follow-up";
 /**
  * Who owns the session id.
  *
- *   si-chosen    VH generated it and the CLI will create a session under it (Claude's --session-id).
- *   cli-chosen   The CLI invents its own id (OpenCode's `ses_...`). VH must NOT pass one on turn one;
- *                passing an unknown id is a hard error, not a no-op.
+ *   si-chosen    The runtime generated it and the session will be created under it.
+ *   cli-chosen   The engine invents its own id. Passing one on turn one was historically a
+ *                hard error on some engines, not a no-op.
  */
 export type SessionIdKind = "si-chosen" | "cli-chosen";
 
@@ -176,17 +176,10 @@ export function sessionArgv(
   harness: HarnessId | string,
   opts: { kind: TurnKind; idKind: SessionIdKind; sessionId: string },
 ): { argv: string[]; continuity: "session" | "continue-latest" | "none"; warning: string | null } {
-  // V11.6.3: session resolution consumes the SAME resolved-harness abstraction as every
-  // other layer (the "one harness truth" pass, completed). A custom harness — registered
-  // or not — has no documented resume shape by definition: the synthetic entry carries
-  // none, so the turn is honestly stateless.
+  // Session resolution consumes the SAME resolved-harness abstraction as every other
+  // layer: unknown ids resolve to the native default, so there is always a documented
+  // resume shape to reason about.
   const rc = resolveCaps(harness);
-  if (rc.custom) {
-    return { argv: [], continuity: "none", warning: "Custom harness: no session continuity — every turn is stateless." };
-  }
-  if (!rc.registered) {
-    return { argv: [], continuity: "none", warning: `Harness "${harness}" is not registered (anymore); this turn is stateless.` };
-  }
   const caps = rc.caps;
 
   // Turn one on a CLI that names its own sessions: emit nothing, then capture the id from the output.
@@ -213,7 +206,7 @@ export function sessionArgv(
     };
   }
 
-  // A resume flag that takes no id (codex's bare `resume`) cannot select WHICH conversation to
+  // A resume form that takes no id cannot select WHICH conversation to
   // continue. Say so rather than emitting a flag that resumes some other session.
   if (!resume.argv.includes("$SESSION")) {
     return {
@@ -228,9 +221,7 @@ export function sessionArgv(
 
 /** Does this CLI let VH choose the session id, or does it assign its own? */
 export function sessionIdKind(harness: HarnessId | string): SessionIdKind {
-  // V11.6.3: through the resolver — a custom harness never names its own session id.
   const rc = resolveCaps(harness);
-  if (rc.custom) return "cli-chosen";
   return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 
@@ -239,16 +230,17 @@ export function sessionIdKind(harness: HarnessId | string): SessionIdKind {
 /**
  * Pull the session id out of a CLI's output.
  *
- * Checked against real output: Claude Code 2.1.197 emits `"session_id":"<uuid>"`, OpenCode 1.18.25
- * emits `"sessionID":"ses_..."` on every NDJSON event. Both confirmed by live runs.
+ * Checked against real output: NDJSON emitters use either `"session_id":"<uuid>"` (snake_case)
+ * or `"sessionID":"ses_..."` (camelCase) on every event. Both confirmed by live runs.
  */
 export function parseSessionId(harness: string, raw: string): string | null {
+  void harness; // the generic NDJSON reader is engine-agnostic
   if (!raw.trim()) return null;
   for (const line of [raw.trim(), ...raw.split(/\r?\n/).map((l) => l.trim())]) {
     if (!line) continue;
     try {
       const obj = JSON.parse(line) as Record<string, unknown>;
-      // Field order matters: OpenCode is camelCase, Claude is snake_case.
+      // Field order matters: camelCase and snake_case emitters both exist.
       const id = obj.session_id ?? obj.sessionID ?? obj.sessionId ?? obj.session;
       if (typeof id === "string" && id.length > 0) return id;
     } catch {
@@ -257,10 +249,6 @@ export function parseSessionId(harness: string, raw: string): string | null {
   }
   const m = /"session_?[iI][dD]"\s*:\s*"([^"]+)"/.exec(raw);
   if (m?.[1]) return m[1];
-  if (harness === "codex") {
-    const c = /(?:^|\s)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\s|$)/i.exec(raw);
-    if (c?.[1]) return c[1];
-  }
   return null;
 }
 

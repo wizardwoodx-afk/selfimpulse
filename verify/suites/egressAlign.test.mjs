@@ -1384,13 +1384,12 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("browser_console", { sessionId });
         return { ok: false, notAttached: true, console: [], networkFailures: [], reason: browserReason };
       },
-      /* External coding-agent CLIs and custom harnesses are REMOVED.
+      /* There is no external execution bridge.
        *
-       * The native handlers that could execute one (cli_invoke, cli_providers_detect,
-       * custom_harness_*, acp_*) are deleted in src-tauri, and every agent now runs
-       * in-process on the owner's own provider key. Nothing here can spawn a third-party
-       * process any more, so these methods are gone rather than stubbed — there is no
-       * native command left to call. probe/noExternalCli.test.ts pins the removal.
+       * Every agent runs in-process on the owner's own provider key. Nothing in this
+       * bridge can spawn a third-party process, and the methods that once did are
+       * gone rather than stubbed — there is no native command left to call.
+       * probe/noExternalCli.test.ts pins the absence.
        */
       /* -------------------------------------------------------------- git
        * Every one of these throws in a browser build rather than returning an empty result. A git panel

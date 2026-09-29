@@ -405,9 +405,9 @@ export interface SuiteRunnerDeps {
 /**
  * Pull a session id out of a CLI's output.
  *
- * `ReportedUsage` deliberately carries no session id — it is about cost. Vendors also disagree on the
- * spelling (Claude uses `session_id`, OpenCode's NDJSON uses `sessionID`), so both are tried rather
- * than assuming one shape and silently recording null.
+ * `ReportedUsage` deliberately carries no session id — it is about cost. Emitters disagree on the
+ * spelling (`session_id` vs `sessionID`), so both are tried rather than assuming one shape
+ * and silently recording null.
  */
 function readSessionId(raw: string): string | null {
   const m = raw.match(/"(?:session_id|sessionID)"\s*:\s*"([^"]+)"/);

@@ -138,7 +138,6 @@ export interface SecurityBoundary {
   network: boolean;
   browser: boolean;
   mcp: boolean;
-  codingAgents: boolean;
   credentials: boolean;
   repositories: string[];
   deploymentTargets: string[];
@@ -154,7 +153,6 @@ export const DEFAULT_BOUNDARY: SecurityBoundary = {
   network: true,
   browser: false,
   mcp: true,
-  codingAgents: true,
   credentials: false,
   repositories: [],
   deploymentTargets: [],
@@ -313,7 +311,6 @@ export interface GrantedPermissions {
   network: boolean;
   browser: boolean;
   mcp: boolean;
-  codingAgents: boolean;
   credentials: boolean;
   memoryWrite: boolean;
   skillWrite: boolean;

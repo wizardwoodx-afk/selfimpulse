@@ -1,9 +1,8 @@
 /**
  * Semantic Structural 3-Way Merge & Interface Union Engine.
  *
- * When multiple heterogeneous coding agents (Claude, Codex, OpenCode, Cursor, Aider, Grok)
- * work simultaneously in parallel git worktrees, standard textual 3-way merge can conflict
- * whenever two agents modify adjacent lines or the same interface.
+ * When multiple agents work simultaneously in parallel git worktrees, standard textual
+ * 3-way merge can conflict whenever two agents modify adjacent lines or the same interface.
  *
  * This engine performs structural source decomposition (lexical partitioning, brace-depth tracking,
  * and interface-member extraction), computes structural member unions, and synthesizes clean,

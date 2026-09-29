@@ -9,10 +9,9 @@
  *   hermes → this loop, with a provider or a local Ollama as the model
  *   llm    → the direct provider seam, with no agent loop of its own
  *
- * There is no third option. The external coding-agent CLIs this file used to
- * list as alternative backends are permanently gone — no binary is spawned, no
- * ACP peer is bridged, no custom harness is registered. `domain/harness.ts`
- * refuses a retired id in words rather than pretending to honour it.
+ * There is no third option and no extension point: no binary is spawned, no
+ * external peer is bridged, nothing user-registered is executed. `domain/harness.ts`
+ * offers exactly these two engines and nothing else can be named.
  */
 import { composeNodePrompt } from "../domain/composer";
 import {
@@ -359,7 +358,7 @@ async function resolveLlm(node: NodeInstance): Promise<{
   provider: string; model: string; secret_ref: string; base_url?: string;
 } | null> {
   const p = node.providers[0];
-  const kind = p?.kind && p.kind !== "cli-agent" ? p.kind : "openai";
+  const kind = p?.kind && p.kind !== "builtin-agent" ? p.kind : "openai";
   const model = p?.model ?? (kind === "anthropic" ? "claude-sonnet-4" : kind === "ollama" ? "llama3.1" : "gpt-4.1");
   const secret_ref = p?.secretRef ?? `provider.${kind === "ollama" ? "ollama.local" : `${kind}.production`}`;
   if (kind === "ollama") {

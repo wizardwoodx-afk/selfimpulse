@@ -3,13 +3,13 @@
  *
  * THE MODELLING DECISION THAT MATTERS
  *
- * A seat is a role — planner, coder, reviewer — not an agent. Binding a harness to a seat is a
- * separate step, which is what lets VH re-arbitrate when a CLI fails without rewriting the plan, and
- * what lets the same team run on Claude today and Codex tomorrow.
+ * A seat is a role — planner, coder, reviewer — not an agent. Binding an engine to a seat is a
+ * separate step, which is what lets the runtime re-arbitrate when an engine fails without
+ * rewriting the plan, and what keeps a team's shape independent of the engine that fills it.
  *
  * THE SAFETY RULE
  *
- * Every claim about isolation is keyed off ENFORCEMENT, never off whether a flag merely exists. A CLI
+ * Every claim about isolation is keyed off ENFORCEMENT, never off whether a flag merely exists. An engine
  * with a `--read-only` flag that it ignores is not a read-only seat, and a reviewer that can edit the
  * code it is reviewing is not a review.
  */
@@ -153,9 +153,9 @@ export const TEAM_BY_ID = new Map(PREBUILT_TEAMS.map((t) => [t.id, t]));
 export interface ComposedInvocation {
   bin: string;
   argv: string[];
-  /** Env vars the CLI needs, e.g. Cline's command permissions. */
+  /** Env vars the engine invocation needs. */
   env: Record<string, string>;
-  /** Files VH must write into the workspace before running, e.g. Cursor's cli-config.json. */
+  /** Files to write into the workspace before the invocation runs. */
   files: Array<{ path: string; contents: string }>;
   /** What VH can honestly claim about this invocation. */
   claims: {
@@ -191,7 +191,7 @@ export function composeSeatArgv(
 ): ComposedInvocation {
   // V11.6.1: ONE resolver (see agentCapabilities.resolveCaps). A custom seat compiles from
   // the user's registered spec via the same synthetic entry the executor now uses, so the
-  // composer and the executor can never disagree about what a custom harness is.
+  // composer and the executor can never disagree about what an engine is.
   // The Rust side re-expands $PROMPT from its own registry at execution time.
   // 19.7.15: the native runtimes are IN-PROCESS, so a seat naming one must not
   // be handed a command line. Returning `bin: "hermes", argv: ["<prompt>"]` was
@@ -212,17 +212,7 @@ export function composeSeatArgv(
     };
   }
   const resolved = resolveCaps(teamSeat.harness);
-  const caps = resolved.registered ? resolved.caps : null;
-  if (!caps) {
-    return {
-      bin: "",
-      argv: [],
-      env: {},
-      files: [],
-      claims: { readOnlyEnforced: false, costKind: "none" },
-      warnings: [`Custom harness "${teamSeat.harness}" is not registered (anymore). Add it in Teams -> Connect, then recompile.`],
-    };
-  }
+  const caps = resolved.caps;
   const warnings: string[] = [];
   const vars: Record<string, string> = {
     $PROMPT: ctx.prompt,
@@ -242,13 +232,13 @@ export function composeSeatArgv(
 
   const wantsReadOnly = ctx.readOnly || !teamSeat.mayWrite;
 
-  // The prompt argv goes FIRST, because for several CLIs it carries the subcommand: `codex exec`,
-  // `opencode run`, `kilo run`. Emitting `--sandbox read-only` ahead of `exec` would not parse.
+  // The prompt argv goes FIRST, matching the invocation shape the composed
+  // engine expects; control flags follow it.
   argv.push(...fill(caps.prompt, vars));
 
   if (wantsReadOnly) {
     // `implicit` means the read-only mode IS the default, so there is nothing to emit. Emitting the
-    // prompt flag a second time would produce `cursor-agent -p <task> -p`, which does not parse.
+    // prompt flag a second time would produce a duplicated flag, which does not parse.
     if (caps.readOnly?.argv?.length) flags.push(...fill(caps.readOnly, vars));
     else if (caps.readOnly?.implicit) {
       /* enforced by default; no flag needed */
@@ -406,9 +396,9 @@ export function parseTeam(raw: string): ParseResult {
       const err = `Seat "${s.id ?? "?"}" has no id or an unknown role "${s.role}".`;
       return { ok: false, team: null, error: err, errors: [err], findings: [] };
     }
-    // V11.6.1: registered customs resolve here too — only an unregistered custom (or a
-    // genuinely unknown id) is rejected, with the same honest message as before.
-    if (!resolveCaps(s.harness).registered) {
+    // Unknown ids are rejected here with an honest message; known ids (the two
+    // in-process engines) resolve through the same resolver every layer uses.
+    if (!(s.harness === "hermes" || s.harness === "llm")) {
       const err = `Seat "${s.id}" names an unknown harness "${s.harness}".`;
       return { ok: false, team: null, error: err, errors: [err], findings: [] };
     }

@@ -5,36 +5,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 // src/domain/harness.ts
-var RETIRED_HARNESSES = /* @__PURE__ */ new Set([
-  "claude",
-  "codex",
-  "opencode",
-  "openclaude",
-  "copilot",
-  "cursor",
-  "cursor-agent",
-  "grok",
-  "cline",
-  "kilo",
-  "aider",
-  "gemini",
-  "antigravity",
-  "amp",
-  "crush",
-  "openhands",
-  "goose",
-  "qwen",
-  "amazonq",
-  "droid",
-  "kimi",
-  "auggie",
-  "warp",
-  "acp",
-  "agent"
-]);
-function isRetiredHarness(id) {
-  return RETIRED_HARNESSES.has(id);
-}
 var HARNESSES = [
   {
     id: "hermes",
@@ -55,13 +25,10 @@ var HARNESSES = [
   }
 ];
 var HARNESS_BY_ID = new Map(HARNESSES.map((h) => [h.id, h]));
-var HARNESS_OPTIONS = HARNESSES.filter((h) => !isRetiredHarness(h.id)).map((h) => h.id);
-function isCustomHarness(_id) {
-  return false;
+function defaultHarness() {
+  return "hermes";
 }
-function getCustomHarness(_id) {
-  return void 0;
-}
+var HARNESS_OPTIONS = HARNESSES.map((h) => h.id);
 
 // src/mission/agentCapabilities.ts
 var AGENT_CAPABILITIES = {
@@ -120,65 +87,11 @@ var AGENT_CAPABILITIES = {
     gotchas: ["No filesystem access and no enforced sandbox. Useful for reasoning, useless for edits."]
   }
 };
-function syntheticCustomCaps(id, spec) {
-  return {
-    id,
-    name: `${spec.name} (custom)`,
-    bins: [spec.bin],
-    install: "Teams -> Connect -> Custom harnesses",
-    prompt: { argv: spec.argv, confidence: "community", source: "user-registered harness \u2014 VH verified none of its flags" },
-    json: null,
-    readOnly: null,
-    write: null,
-    fullAuto: null,
-    maxTurns: null,
-    timeout: null,
-    outputSchema: null,
-    worktree: null,
-    cwd: null,
-    model: null,
-    resume: null,
-    sessionStart: null,
-    noAutoUpdate: null,
-    filters: null,
-    cost: null,
-    enforcedReadOnly: false,
-    gotchas: ["User-registered harness: VH verified none of its flags. Read-only is advisory."]
-  };
-}
-function unregisteredCustomCaps(id) {
-  return {
-    id,
-    name: `Custom harness "${id}"`,
-    bins: [],
-    install: "Teams -> Connect -> Custom harnesses (re-add it, then recompile)",
-    prompt: { argv: [], confidence: "unverified", source: "not registered (anymore)" },
-    json: null,
-    readOnly: null,
-    write: null,
-    fullAuto: null,
-    maxTurns: null,
-    timeout: null,
-    outputSchema: null,
-    worktree: null,
-    cwd: null,
-    model: null,
-    resume: null,
-    sessionStart: null,
-    noAutoUpdate: null,
-    filters: null,
-    cost: null,
-    enforcedReadOnly: false,
-    gotchas: ["This harness is not registered (anymore); it cannot run until re-added in Teams -> Connect."]
-  };
-}
 function resolveCaps(harness) {
-  if (isCustomHarness(harness)) {
-    const spec = getCustomHarness(harness);
-    return spec ? { caps: syntheticCustomCaps(harness, spec), custom: true, registered: true } : { caps: unregisteredCustomCaps(harness), custom: true, registered: false };
-  }
   const caps = AGENT_CAPABILITIES[harness];
-  return caps ? { caps, custom: false, registered: true } : { caps: unregisteredCustomCaps(harness), custom: false, registered: false };
+  if (caps) return { harness, caps };
+  const fallback = defaultHarness();
+  return { harness: fallback, caps: AGENT_CAPABILITIES[fallback] };
 }
 function enforcedReadOnly(id) {
   const caps = AGENT_CAPABILITIES[id];
@@ -187,7 +100,7 @@ function enforcedReadOnly(id) {
 function unverifiedClaims(id) {
   const caps = AGENT_CAPABILITIES[id];
   if (!caps) {
-    return ["Custom harness: every flag is the user's own \u2014 VH verified none of it. Read-only is advisory."];
+    return ["Unknown engine id: no verified capability claims exist for it."];
   }
   const out = [];
   const check = (name, cap) => {
@@ -211,12 +124,6 @@ var EXECUTABLE_HARNESSES = Object.keys(AGENT_CAPABILITIES).filter(
 // src/mission/sessions.ts
 function sessionArgv(harness, opts) {
   const rc = resolveCaps(harness);
-  if (rc.custom) {
-    return { argv: [], continuity: "none", warning: "Custom harness: no session continuity \u2014 every turn is stateless." };
-  }
-  if (!rc.registered) {
-    return { argv: [], continuity: "none", warning: `Harness "${harness}" is not registered (anymore); this turn is stateless.` };
-  }
   const caps = rc.caps;
   if (opts.kind === "first" && opts.idKind === "cli-chosen") {
     return { argv: [], continuity: "session", warning: null };
@@ -247,7 +154,6 @@ function sessionArgv(harness, opts) {
 }
 function sessionIdKind(harness) {
   const rc = resolveCaps(harness);
-  if (rc.custom) return "cli-chosen";
   return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 
@@ -367,17 +273,7 @@ function composeSeatArgv(teamSeat, ctx) {
     };
   }
   const resolved = resolveCaps(teamSeat.harness);
-  const caps = resolved.registered ? resolved.caps : null;
-  if (!caps) {
-    return {
-      bin: "",
-      argv: [],
-      env: {},
-      files: [],
-      claims: { readOnlyEnforced: false, costKind: "none" },
-      warnings: [`Custom harness "${teamSeat.harness}" is not registered (anymore). Add it in Teams -> Connect, then recompile.`]
-    };
-  }
+  const caps = resolved.caps;
   const warnings = [];
   const vars = {
     $PROMPT: ctx.prompt,
@@ -507,7 +403,7 @@ function parseTeam(raw) {
       const err = `Seat "${s.id ?? "?"}" has no id or an unknown role "${s.role}".`;
       return { ok: false, team: null, error: err, errors: [err], findings: [] };
     }
-    if (!resolveCaps(s.harness).registered) {
+    if (!(s.harness === "hermes" || s.harness === "llm")) {
       const err = `Seat "${s.id}" names an unknown harness "${s.harness}".`;
       return { ok: false, team: null, error: err, errors: [err], findings: [] };
     }

@@ -2,17 +2,15 @@
  * §ROLE BOARD — your harnesses, your roles (VH 11.9.9).
  *
  * THE REQUIREMENT THIS EXISTS FOR
- * VH used to ship teams with fixed vendor assignments: Claude plans, Codex reviews, Grok
- * synthesizes. That is a demo configuration, not a product — User 1 has a Claude Code
- * subscription and no Codex; User 2 has Grok Build and nothing else. Both are right. So the
- * role board flips the model: the USER declares which harnesses they actually have
- * (their subscriptions, their installed CLIs, their custom binaries) and the USER decides
- * which harness plays which role. VH never picks a vendor for them; it only warns when a
- * choice weakens the adversarial posture (see verifyGate.ts).
+ * Teams must never ship with fixed vendor assignments — that is a demo configuration, not a
+ * product, because no two owners have the same engines. So the role board flips the model:
+ * the USER declares which engines they actually have (always the in-process ones here) and
+ * the USER decides which engine plays which role. The board never picks for them; it only
+ * warns when a choice weakens the adversarial posture (see verifyGate.ts).
  *
  * HONESTY RULES
  *  - Assigning a harness the user has not declared as owned is an error, never a silent
- *    fallback — a team that runs a CLI the user does not have is a broken promise.
+ *    fallback — a team that runs on an engine the user does not have is a broken promise.
  *  - Assigning the SAME harness to write and to verify is allowed (it may be the only one
  *    the user owns) but is flagged: the Adversarial Verification Gate will then block runs
  *    in STRICT mode, because an author grading its own work is not a review.
@@ -44,7 +42,7 @@ export const VERIFIER_ROLES: ReadonlySet<TeamRole> = new Set(["reviewer", "secur
 
 export interface RoleBoard {
   version: 1;
-  /** Harness ids the user declares they have (registry ids or `custom:<slug>`). */
+  /** Engine ids the user declares they have (the in-process registry ids). */
   owned: string[];
   /** The user's decision: which harness plays which role. Missing key = unassigned. */
   assignments: Partial<Record<TeamRole, string>>;

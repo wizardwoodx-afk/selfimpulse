@@ -249,7 +249,7 @@ export async function runInboundDelegation(
   }
 
   /* ── 2. pre-flight: can this host actually run a seat? ──────────────────────
-     19.7.15: external coding-agent CLIs are removed, so there is no harness
+     there is no external harness path in the product, so there is no harness
      binary to find. The pre-flight now asks the only question that still
      matters — is there a seat runner that can run IN-PROCESS? A host with no
      provider key must refuse in words, exactly as it did when the binary was

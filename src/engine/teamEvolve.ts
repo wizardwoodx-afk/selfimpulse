@@ -1,7 +1,7 @@
 /**
  * SelfImpulse — Team-Evolve (18.1.0): the team itself learns.
  *
- * Two or more users (Member A-VH ↔ Qwen-VH) share a team. Every joint run is
+ * Two or more owners share a team. Every joint run is
  * recorded with its real outcome and the specialists that ran it. With enough
  * real history, VH proposes an EVOLVED team configuration — recommended
  * specialist composition with rationale and provenance — and the proposal

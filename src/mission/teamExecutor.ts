@@ -76,7 +76,7 @@ export interface CliResult {
 export interface TeamRunnerDeps {
   /**
    * Run a seat IN-PROCESS on the owner's own provider key. This is the only
-   * path to real execution now that external coding-agent CLIs are removed.
+   * path to real execution. There is no other path: the product has no external execution tier.
    *
    * Added in 19.7.15. Previously every seat — including the native runtimes —
    * went out through `cliInvoke`, which composed a seat into argv and spawned a
@@ -99,10 +99,9 @@ export interface TeamRunnerDeps {
   }) => Promise<CliResult>;
 
   /**
-   * REMOVED IN 19.7.15. External coding-agent CLIs are out of the product: no
-   * binary is spawned, no argv is composed, and the implementations that could
-   * do either (cli_invoke, the Rust allowlist, the custom-harness registry) are
-   * deleted. A seat that somehow reaches this dep is refused in words with
+   * NOT PART OF THE PRODUCT. No external execution path exists: no binary is
+   * spawned, no argv is composed, and nothing that could do either is shipped.
+   * A seat that somehow reaches this dep is refused in words with
    * exit 127; it is not silently rerouted, because a caller that still thinks
    * it is spawning a process must fail loudly rather than run something else.
    */
@@ -693,16 +692,10 @@ export async function executeTeam(req: TeamRunRequest, deps: TeamRunnerDeps, ses
   for (const w of waves) {
     for (const a of w) {
       if (runnable.has(a.seat.id)) continue;
-      // V11.6.1: the resolver is total — a custom seat gets its synthetic entry (registered)
-      // or an honest unregistered entry, never undefined. The executor can no longer crash
-      // on a `custom:<slug>` seat.
+      // The resolver is total — every seat resolves to one of the two in-process
+      // engines (unknown ids to the native default), never undefined.
       const rc = resolveCaps(a.seat.harness);
       const caps = rc.caps;
-      if (rc.custom && !rc.registered) {
-        runnable.set(a.seat.id, false);
-        notRun.push({ seatId: a.seat.id, reason: `Custom harness "${a.seat.harness}" is not registered (anymore). Add it in Teams -> Connect, then recompile.` });
-        continue;
-      }
       // 19.7.15: an in-process seat has no binary to resolve. It is runnable
       // when the host can run a seat at all — the native loop itself is the
       // capability. Requiring a resolved binary here marked EVERY native seat

@@ -59,7 +59,6 @@ export const AGENT_FRAMEWORKS: AgentFramework[] = [
   { id: "fw.local-offline", name: "Air-gapped Local", category: "local", description: "Planner + local LLM + synthesizer. No cloud.", roster: ["agent.planner", "agent.local", "agent.synthesizer"], pattern: "pipeline", notes: "Harness = llm / Ollama." },
   { id: "fw.enterprise-change", name: "Enterprise Change Advisory", category: "enterprise", description: "PM, architect, security, SRE, legal, CAB human.", roster: ["agent.preset.pm", "agent.architect", "agent.security", "agent.preset.sre", "agent.preset.legal", "control.approval"], pattern: "council", notes: "CAB is the human node." },
   { id: "fw.due-diligence", name: "Due Diligence", category: "enterprise", description: "Research, finance, legal, security, synthesizer, judge.", roster: ["agent.researcher", "agent.preset.data-analyst", "agent.preset.legal", "agent.security", "agent.synthesizer", "agent.judge"], pattern: "map-reduce", notes: "Conflicts stay visible." },
-  { id: "fw.crew-cli", name: "Local CLI Crew", category: "engineering", description: "One Agent Crew node over Claude/Codex/OpenCode.", roster: ["agent.crew"], pattern: "swarm", notes: "Requires those CLIs on PATH." },
 ];
 
 export const FRAMEWORK_COUNT = AGENT_FRAMEWORKS.length;

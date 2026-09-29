@@ -1,5 +1,4 @@
 import type {
-  CustomHarnessEntry,
   Connection,
   ExecutionEventRecord,
   ExecutionRecord,
@@ -89,7 +88,6 @@ interface NativeCommands {
   control_run_workflow: Json;
   control_validate_graph: Json;
   custom_harness_delete: Json;
-  custom_harness_list: CustomHarnessEntry[];
   custom_harness_save: Json;
   db_maintenance: Json;
   dlq_add: Json;
@@ -843,13 +841,12 @@ export const ipc = {
     return { ok: false, notAttached: true, console: [], networkFailures: [], reason: browserReason };
   },
 
-  /* External coding-agent CLIs and custom harnesses are REMOVED.
+  /* There is no external execution bridge.
    *
-   * The native handlers that could execute one (cli_invoke, cli_providers_detect,
-   * custom_harness_*, acp_*) are deleted in src-tauri, and every agent now runs
-   * in-process on the owner's own provider key. Nothing here can spawn a third-party
-   * process any more, so these methods are gone rather than stubbed — there is no
-   * native command left to call. probe/noExternalCli.test.ts pins the removal.
+   * Every agent runs in-process on the owner's own provider key. Nothing in this
+   * bridge can spawn a third-party process, and the methods that once did are
+   * gone rather than stubbed — there is no native command left to call.
+   * probe/noExternalCli.test.ts pins the absence.
    */
 
   /* -------------------------------------------------------------- git

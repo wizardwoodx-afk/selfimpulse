@@ -93,11 +93,16 @@ section("4. the registry offers only in-process engines");
   for (const gone of EXTERNAL_BINS) {
     ok(`the HARNESSES catalog has no ${gone} spec`, !new RegExp(`id: "${gone}"`).test(catalog));
   }
-  ok("every retired id is still refused by name, so a saved graph fails in words",
-    /isRetiredHarness/.test(dom) && /RETIRED_HARNESSES/.test(dom));
-  ok("custom harnesses are refused rather than validated",
-    /Custom harnesses are removed/.test(dom));
-  ok("isCustomHarness can never be true", /return false;/.test(dom.slice(dom.indexOf("export function isCustomHarness"))));
+  ok("no retired-id deny-list remains — unknown ids route straight to the native default",
+    !/RETIRED_HARNESSES/.test(dom) && !/isRetiredHarness/.test(dom));
+  ok("no custom-harness machinery remains anywhere in the file",
+    !/CustomHarness|customHarnessId|validateCustomHarness|isCustomHarness|setCustomHarnesses|getCustomHarness|listCustomHarnesses/.test(dom));
+  ok("no `custom:` id is even constructible",
+    !/custom:\$\{/.test(dom));
+  ok("no removed engine id appears in any node config option list",
+    !/options: \[[^\]]*"(claude|codex|opencode|cursor|grok|cline|kilo)"/.test(read("src/domain/nodeLibrary.ts")));
+  ok("the default harness for a new agent node is the native engine",
+    !/harness \|\| "claude"/.test(read("src/graph/factory.ts")));
 }
 
 section("5. nothing spawns a third-party agent process");

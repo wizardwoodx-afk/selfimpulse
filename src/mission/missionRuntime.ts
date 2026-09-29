@@ -70,7 +70,6 @@ function boundaryStatements(b: Mission["boundary"]): string[] {
     `MAY${b.network ? "" : " NOT"}: use the network`,
     `MAY${b.browser ? "" : " NOT"}: use a browser`,
     `MAY${b.mcp ? "" : " NOT"}: call MCP tools`,
-    `MAY${b.codingAgents ? "" : " NOT"}: spawn coding agents`,
     `MAY${b.credentials ? "" : " NOT"}: touch stored credentials (never read their values)`,
   ];
 }

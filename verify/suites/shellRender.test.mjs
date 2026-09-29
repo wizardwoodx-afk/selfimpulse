@@ -65664,7 +65664,7 @@ function saveKnowledgeProposals(memory) {
   }
 }
 function defaultVendorFor(harness) {
-  return HARNESS_DEFAULT_VENDOR[harness] ?? `${harness}'s configured provider`;
+  return `${harness}'s configured provider`;
 }
 function loopbackHost(host) {
   const h2 = host.toLowerCase();
@@ -65712,7 +65712,7 @@ async function proposeKnowledgeSkill(args) {
       } else {
         dataHandling = "provider";
         const vendor = defaultVendorFor(args.llm.harness);
-        const overrideNames = HARNESS_ENV_OVERRIDES[args.llm.harness] ?? [];
+        const overrideNames = [];
         let endpoint;
         if (overrideNames.length > 0 && args.llm.deps.readEnv) {
           try {
@@ -65831,7 +65831,7 @@ function decideKnowledgeProposal(args) {
   saveKnowledgeProposals(memory);
   return { ok: true, proposal: p2, mirrored };
 }
-var KNOWLEDGE_TOOL, LS_KEY2, RULE_HINTS, ARROW, HARNESS_DEFAULT_VENDOR, HARNESS_ENV_OVERRIDES, LLM_PROMPT, MIN_CONTENT, MAX_CONTENT;
+var KNOWLEDGE_TOOL, LS_KEY2, RULE_HINTS, ARROW, LLM_PROMPT, MIN_CONTENT, MAX_CONTENT;
 var init_knowledgeSkills = __esm({
   "src/mission/knowledgeSkills.ts"() {
     "use strict";
@@ -65841,21 +65841,6 @@ var init_knowledgeSkills = __esm({
     LS_KEY2 = "vh.knowledgeSkills.v1";
     RULE_HINTS = /\b(must|never|always|only|when|if|avoid|prefer|before|after)\b/i;
     ARROW = /→|=>|->|⇒/;
-    HARNESS_DEFAULT_VENDOR = {
-      claude: "Anthropic",
-      codex: "OpenAI",
-      gemini: "Google",
-      grok: "xAI",
-      qwen: "Alibaba Qwen",
-      opencode: "configurable (see opencode's own provider settings)",
-      openclaude: "configurable",
-      cursor: "configurable (Cursor's model picker)"
-    };
-    HARNESS_ENV_OVERRIDES = {
-      claude: ["ANTHROPIC_BASE_URL"],
-      codex: ["OPENAI_BASE_URL"],
-      opencode: ["OPENCODE_BASE_URL", "OPENAI_BASE_URL", "ANTHROPIC_BASE_URL"]
-    };
     LLM_PROMPT = (content) => `You are a book-distiller. Extract STRUCTURE, not a summary, from the document below. Reply with ONLY a JSON object: {"title": string, "summary": string (<=2 lines), "procedure": string (compact step guidance), "decisionRules": string[], "knownFailureModes": string[]}. No markdown fences.
 
 DOCUMENT:
@@ -261208,13 +261193,12 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("browser_console", { sessionId });
         return { ok: false, notAttached: true, console: [], networkFailures: [], reason: browserReason };
       },
-      /* External coding-agent CLIs and custom harnesses are REMOVED.
+      /* There is no external execution bridge.
        *
-       * The native handlers that could execute one (cli_invoke, cli_providers_detect,
-       * custom_harness_*, acp_*) are deleted in src-tauri, and every agent now runs
-       * in-process on the owner's own provider key. Nothing here can spawn a third-party
-       * process any more, so these methods are gone rather than stubbed — there is no
-       * native command left to call. probe/noExternalCli.test.ts pins the removal.
+       * Every agent runs in-process on the owner's own provider key. Nothing in this
+       * bridge can spawn a third-party process, and the methods that once did are
+       * gone rather than stubbed — there is no native command left to call.
+       * probe/noExternalCli.test.ts pins the absence.
        */
       /* -------------------------------------------------------------- git
        * Every one of these throws in a browser build rather than returning an empty result. A git panel

@@ -63486,7 +63486,7 @@ function saveKnowledgeProposals(memory) {
   }
 }
 function defaultVendorFor(harness) {
-  return HARNESS_DEFAULT_VENDOR[harness] ?? `${harness}'s configured provider`;
+  return `${harness}'s configured provider`;
 }
 function loopbackHost(host) {
   const h = host.toLowerCase();
@@ -63534,7 +63534,7 @@ async function proposeKnowledgeSkill(args) {
       } else {
         dataHandling = "provider";
         const vendor = defaultVendorFor(args.llm.harness);
-        const overrideNames = HARNESS_ENV_OVERRIDES[args.llm.harness] ?? [];
+        const overrideNames = [];
         let endpoint;
         if (overrideNames.length > 0 && args.llm.deps.readEnv) {
           try {
@@ -63653,7 +63653,7 @@ function decideKnowledgeProposal(args) {
   saveKnowledgeProposals(memory);
   return { ok: true, proposal: p, mirrored };
 }
-var KNOWLEDGE_TOOL, LS_KEY2, RULE_HINTS, ARROW, HARNESS_DEFAULT_VENDOR, HARNESS_ENV_OVERRIDES, LLM_PROMPT, MIN_CONTENT, MAX_CONTENT;
+var KNOWLEDGE_TOOL, LS_KEY2, RULE_HINTS, ARROW, LLM_PROMPT, MIN_CONTENT, MAX_CONTENT;
 var init_knowledgeSkills = __esm({
   "src/mission/knowledgeSkills.ts"() {
     "use strict";
@@ -63663,21 +63663,6 @@ var init_knowledgeSkills = __esm({
     LS_KEY2 = "vh.knowledgeSkills.v1";
     RULE_HINTS = /\b(must|never|always|only|when|if|avoid|prefer|before|after)\b/i;
     ARROW = /→|=>|->|⇒/;
-    HARNESS_DEFAULT_VENDOR = {
-      claude: "Anthropic",
-      codex: "OpenAI",
-      gemini: "Google",
-      grok: "xAI",
-      qwen: "Alibaba Qwen",
-      opencode: "configurable (see opencode's own provider settings)",
-      openclaude: "configurable",
-      cursor: "configurable (Cursor's model picker)"
-    };
-    HARNESS_ENV_OVERRIDES = {
-      claude: ["ANTHROPIC_BASE_URL"],
-      codex: ["OPENAI_BASE_URL"],
-      opencode: ["OPENCODE_BASE_URL", "OPENAI_BASE_URL", "ANTHROPIC_BASE_URL"]
-    };
     LLM_PROMPT = (content) => `You are a book-distiller. Extract STRUCTURE, not a summary, from the document below. Reply with ONLY a JSON object: {"title": string, "summary": string (<=2 lines), "procedure": string (compact step guidance), "decisionRules": string[], "knownFailureModes": string[]}. No markdown fences.
 
 DOCUMENT:

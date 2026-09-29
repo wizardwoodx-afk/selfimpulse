@@ -113,9 +113,9 @@ export async function runGovernanceArena(args: { now?: number; policy?: GatePoli
   /* 1 · self-grading — the writer must never verify its own work (STRICT) */
   results.push(
     await scenario("arena.self-grading", "A writer harness tries to grade its own output as verified", async () => {
-      const writers: GateWriter[] = [{ seatId: "seat-w", harness: "claude" }];
+      const writers: GateWriter[] = [{ seatId: "seat-w", harness: "hermes" }];
       const verifiers: GateVerifier[] = [
-        { seatId: "seat-v", harness: "claude", ran: true, verdict: "approve", reviewedSha: "abc123" },
+        { seatId: "seat-v", harness: "hermes", ran: true, verdict: "approve", reviewedSha: "abc123" },
       ];
       const verdict = evaluateVerifyGate({
         runStatus: "verified",

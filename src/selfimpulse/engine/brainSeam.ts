@@ -9,7 +9,7 @@
  *
  * HOST AWARENESS (16.9.6 review — the production fix): the 16.9.5/16.9.6 seam
  * spawned via node:child_process, which the web bundle aliases to an honest
- * stub — so a shipped "Claude exited 1" could mean the CLI NEVER RAN. That was
+ * stub — so a shipped failure line could have meant the engine NEVER RAN. That was
  * a false failure report: exactly what this product exists to prevent. The
  * seam now routes by host, through the boundaries that already exist:
  *
@@ -108,14 +108,10 @@ export function resolveBrainHarness(harnessId: string): { name: string; bin: str
 
 
 /**
- * THE WIRE IDENTITY (16.10.0 — the 16.9.7 review fix): the IPC first argument
- * is the BARE allowlisted provider id ("claude"), never the TS-resolved
- * absolute path. The Rust gate matches ALLOWED_CLI_BINS against exact names
- * and THEN resolves the binary itself (which_bin: PATH + login-shell paths —
- * resolution is the server's job, never the webview's). 16.9.7 sent the
- * resolved absolute path, so the production gate refused a perfectly
- * installed harness ("/usr/local/bin/claude" ≠ "claude") — a mismatch the
- * DI probe could not see because its injected invoke never crossed IPC.
+ * THE WIRE IDENTITY: the IPC first argument is the BARE configured provider
+ * id, never a resolved absolute path. Resolution is the server's job, never
+ * the webview's — a label must never point at a binary that is not there,
+ * and the probes pin that identity on both sides of the wire.
  */
 export function bareProviderId(bin: string): string {
   const parts = bin.split(/[\\/]/);
@@ -207,8 +203,8 @@ export async function brainModelRun(
   objective: string,
   deps: BrainInvokeDeps = realBrainDeps,
 ): Promise<BrainModelResult> {
-  const prefOrder = ["gemini", "claude", "codex", "grok", "copilot", "opencode", "cursor", "amp", "llm", "hermes"];
-  let lastRefusal = "real-model brain refused in words: no harness from the registry is installed on this host — the seam never fakes a real-model run.";
+  const prefOrder = ["llm", "hermes"];
+  let lastRefusal = "real-model brain refused in words: no provider is configured on this host — the seam never fakes a real-model run.";
   for (const id of prefOrder) {
     const r = await runModelPrompt(plannerPrompt(objective), id, deps);
     if (r.ok) return r;
@@ -224,7 +220,7 @@ export async function brainModelRun(
  * the human preference says so. ASYNC: decide may await the model. Refusals
  * keep the labeled simulated plan and add the refusal in words. IDENTITY IS
  * TRUTHFUL: live getters — the product cannot say "Brain: Simulated" in one
- * surface while a thought says "REAL model — Claude".
+ * surface while a thought says "REAL model".
  */
 export function wrapRealModelBrain(base: SelfImpulseBrain, deps: BrainInvokeDeps = realBrainDeps, prefOverride?: BrainPref): SelfImpulseBrain {
   return {

@@ -239,11 +239,11 @@ export function nextTurn(account: TurnAccount): TurnAccount {
  * Each shape here was checked against real output rather than a manual. Two nested layouts occur in
  * practice and a flat lookup silently returns null for the second, which would bill those runs at
  * zero:
- *   Claude Code:  { total_cost_usd, num_turns, usage: { input_tokens, output_tokens } }
- *   OpenCode:     { part: { cost, tokens: { total, input, output, reasoning, cache } } }
+ *   { total_cost_usd, num_turns, usage: { input_tokens, output_tokens } }
+ *   { part: { cost, tokens: { total, input, output, reasoning, cache } } }
  *
- * OpenCode's tokens.total is CUMULATIVE across steps (observed 8019 then 8038), so the last value is
- * the run total and summing would multiply-count.
+ * One emitter's tokens.total is CUMULATIVE across steps (observed 8019 then 8038), so the last value
+ * is the run total and summing would multiply-count.
  */
 export function parseReportedUsage(harness: string, raw: string): ReportedUsage {
   const empty: ReportedUsage = { costUsd: null, tokens: null, turns: null, source: harness };
@@ -270,7 +270,6 @@ export function parseReportedUsage(harness: string, raw: string): ReportedUsage 
 
   // A CLI documented as never reporting a price must not have one inferred from a field that happens
   // to share a name.
-  if (harness === "codex") costUsd = null;
   return { costUsd, tokens, turns, source: harness };
 }
 

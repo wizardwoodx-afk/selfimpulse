@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { buildSync } from "esbuild";
 
-const root = "D:\\selfimpulse-work";
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const files = process.argv.slice(2);
 
 for (const file of files) {

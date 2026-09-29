@@ -10,21 +10,18 @@
  *
  * THE LESSON THIS FILE IS BUILT AROUND
  *
- * A doc-shaped capability table looks identical to a tested one until a real binary disagrees. VH
- * shipped `--max-turns` for Claude Code because documentation described it; the shipped 2.1.197
- * binary has no such flag. It shipped `--dangerously-skip-permissions` for OpenCode, which does not
- * exist there at all. Both were found only by running the executable.
+ * A doc-shaped capability table looks identical to a tested one until a real binary disagrees.
+ * Twice in VH history a flag was shipped because documentation described it, and the shipped
+ * executable did not have it at all. Both were found only by running the executable.
  *
- * 2026-09 postscript: the --max-turns story grew a third act. The current vendor CLI reference
- * documents it for print mode while --help still omits it, so the claude entry is docs-graded
- * with the old scan recorded — and probe §10 now pins registry↔policy agreement on turn flags
- * for every harness. The lesson is unchanged: state the evidence, and keep the layers agreeing.
+ * The standing rule outlived every specific finding: state the evidence for each entry, and
+ * keep the registry and the policy layer agreeing — probes pin that agreement.
  *
  * So every entry states its confidence and its source, and `enforcedReadOnly()` is keyed off
  * enforcement rather than off whether a flag merely exists.
  */
 
-import { getCustomHarness, isCustomHarness, type CustomHarnessSpec, type HarnessId } from "../domain/harness";
+import { defaultHarness, type HarnessId } from "../domain/harness";
 
 /**
  * How much weight a claim deserves.
@@ -44,9 +41,9 @@ export interface Capability {
   /** Where the claim came from, so it can be re-checked. */
   source: string;
   /**
-   * True when the control is the CLI's DEFAULT rather than a flag to pass. Cursor's read-only is
-   * exactly this: writes require --force, so plain `-p` cannot modify files. Emitting a flag for it
-   * would duplicate the prompt flag — which is what `-p` already is.
+   * True when the control is the engine's DEFAULT rather than a flag to pass. Read-only can be
+   * exactly this: writes require an explicit opt-in, so a plain run cannot modify files. Emitting
+   * a flag for it would duplicate the run flag — which is what the plain run already is.
    */
   implicit?: boolean;
 }
@@ -92,11 +89,10 @@ export interface AgentCapabilities {
   /**
    * Start a session under an id VH chose, rather than one the CLI invents.
    *
-   * This distinction is not cosmetic. Claude's `--session-id <uuid>` CREATES a conversation under the
-   * id you pass. OpenCode's `--session <id>` LOADS an existing one and hard-fails with
-   * "Error: Session not found" (exit 1) if it does not exist — observed on the real 1.18.25 binary.
-   * Assuming every CLI accepts a chosen id breaks half of them on turn one, before any work is done.
-   * Where this is null, VH lets the CLI choose and captures the id from its output.
+   * This distinction is not cosmetic: external engines disagreed on whether a chosen session id
+   * CREATES a conversation or LOADS an existing one, and assuming one behaviour hard-failed the
+   * other on turn one, before any work was done. Where this is null, the runtime lets the session
+   * be created implicitly and captures the id from the output.
    */
   sessionStart: Capability | null;
   /** Suppress background update checks — without this a CI run can stall on a prompt. */
@@ -181,61 +177,23 @@ export const AGENT_CAPABILITIES: Record<HarnessId, AgentCapabilities> = {
  * ───────────────────────────────────────────────────────────────────────────── */
 
 export interface ResolvedHarness {
+  /** The engine the seat actually runs on. Unknown ids resolve to the native default. */
+  harness: HarnessId;
   caps: AgentCapabilities;
-  /** True when the id is a `custom:<slug>` reference. */
-  custom: boolean;
-  /** False for an unregistered custom (or an unknown id): the seat cannot run. */
-  registered: boolean;
 }
 
-/** Synthetic capability entry for a REGISTERED custom harness: unknown-by-definition. */
-export function syntheticCustomCaps(id: string, spec: CustomHarnessSpec): AgentCapabilities {
-  return {
-    id: id as HarnessId,
-    name: `${spec.name} (custom)`,
-    bins: [spec.bin],
-    install: "Teams -> Connect -> Custom harnesses",
-    prompt: { argv: spec.argv, confidence: "community", source: "user-registered harness — VH verified none of its flags" },
-    json: null, readOnly: null, write: null, fullAuto: null, maxTurns: null, timeout: null,
-    outputSchema: null, worktree: null, cwd: null, model: null, resume: null, sessionStart: null,
-    noAutoUpdate: null, filters: null, cost: null,
-    enforcedReadOnly: false,
-    gotchas: ["User-registered harness: VH verified none of its flags. Read-only is advisory."],
-  } as AgentCapabilities;
-}
-
-/** The honest entry for a custom id (or unknown id) with no registered spec. */
-function unregisteredCustomCaps(id: string): AgentCapabilities {
-  return {
-    id: id as HarnessId,
-    name: `Custom harness "${id}"`,
-    bins: [],
-    install: "Teams -> Connect -> Custom harnesses (re-add it, then recompile)",
-    prompt: { argv: [], confidence: "unverified", source: "not registered (anymore)" },
-    json: null, readOnly: null, write: null, fullAuto: null, maxTurns: null, timeout: null,
-    outputSchema: null, worktree: null, cwd: null, model: null, resume: null, sessionStart: null,
-    noAutoUpdate: null, filters: null, cost: null,
-    enforcedReadOnly: false,
-    gotchas: ["This harness is not registered (anymore); it cannot run until re-added in Teams -> Connect."],
-  } as AgentCapabilities;
-}
-
-/** TOTAL harness resolver — builtin, registered custom, or honest unregistered. Never undefined. */
+/** TOTAL harness resolver — the two in-process engines, with unknown ids
+ *  (e.g. a stale id in a saved graph) resolving to the native default.
+ *  Never undefined, so no execution path can crash on an engine id. */
 export function resolveCaps(harness: string): ResolvedHarness {
-  if (isCustomHarness(harness)) {
-    const spec = getCustomHarness(harness);
-    return spec
-      ? { caps: syntheticCustomCaps(harness, spec), custom: true, registered: true }
-      : { caps: unregisteredCustomCaps(harness), custom: true, registered: false };
-  }
   const caps = AGENT_CAPABILITIES[harness as HarnessId];
-  return caps
-    ? { caps, custom: false, registered: true }
-    : { caps: unregisteredCustomCaps(harness), custom: false, registered: false };
+  if (caps) return { harness: harness as HarnessId, caps };
+  const fallback = defaultHarness();
+  return { harness: fallback, caps: AGENT_CAPABILITIES[fallback] };
 }
 
 /** Is read-only actually enforced by the CLI, or only requested?
- *  Custom harnesses (custom:*) are advisory-only by definition: VH did not verify them. */
+ */
 export function enforcedReadOnly(id: HarnessId | string): boolean {
   const caps = AGENT_CAPABILITIES[id as HarnessId];
   return caps ? caps.enforcedReadOnly : false;
@@ -250,7 +208,7 @@ export function enforcedReadOnly(id: HarnessId | string): boolean {
 export function unverifiedClaims(id: HarnessId | string): string[] {
   const caps = AGENT_CAPABILITIES[id as HarnessId];
   if (!caps) {
-    return ["Custom harness: every flag is the user's own — VH verified none of it. Read-only is advisory."];
+    return ["Unknown engine id: no verified capability claims exist for it."];
   }
   const out: string[] = [];
   const check = (name: string, cap: Capability | null) => {

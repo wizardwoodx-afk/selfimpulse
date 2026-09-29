@@ -112,12 +112,11 @@ export interface NodeContract {
   retryPolicy: RetryPolicy;
 }
 
-export type ProviderKind = "openai" | "anthropic" | "google" | "ollama" | "openrouter" | "cli-agent";
+export type ProviderKind = "openai" | "anthropic" | "google" | "ollama" | "openrouter" | "builtin-agent";
 
 export interface ProviderConfig {
   kind: ProviderKind;
   model?: string;
-  cliProviderId?: string;
   secretRef?: string;
 }
 
@@ -312,21 +311,6 @@ export interface CliProviderEntry {
   invocation: string;
 }
 
-/** V11.6 — a user-registered custom harness (Teams -> Connect). Mirrors the Rust
- * CustomHarness struct; validated on BOTH sides before anything runs. */
-export interface CustomHarnessEntry {
-  /** `custom:<slug>` — the id a seat references. */
-  id: string;
-  name: string;
-  bin: string;
-  /** argv template; $PROMPT marks where the composed prompt goes (exactly once). */
-  argv: string[];
-  notes: string;
-  createdAt: string;
-  /** Detection rides along from the Rust side (and is false in the web preview). */
-  installed?: boolean;
-  executable?: string | null;
-}
 
 export interface WorkflowRecord {
   id: string;

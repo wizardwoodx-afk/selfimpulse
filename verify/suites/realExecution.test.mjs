@@ -3614,13 +3614,12 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("browser_console", { sessionId });
         return { ok: false, notAttached: true, console: [], networkFailures: [], reason: browserReason };
       },
-      /* External coding-agent CLIs and custom harnesses are REMOVED.
+      /* There is no external execution bridge.
        *
-       * The native handlers that could execute one (cli_invoke, cli_providers_detect,
-       * custom_harness_*, acp_*) are deleted in src-tauri, and every agent now runs
-       * in-process on the owner's own provider key. Nothing here can spawn a third-party
-       * process any more, so these methods are gone rather than stubbed — there is no
-       * native command left to call. probe/noExternalCli.test.ts pins the removal.
+       * Every agent runs in-process on the owner's own provider key. Nothing in this
+       * bridge can spawn a third-party process, and the methods that once did are
+       * gone rather than stubbed — there is no native command left to call.
+       * probe/noExternalCli.test.ts pins the absence.
        */
       /* -------------------------------------------------------------- git
        * Every one of these throws in a browser build rather than returning an empty result. A git panel
@@ -4535,21 +4534,21 @@ var NODE_DEFINITIONS = [
     title: "Agent Crew",
     category: "agent",
     icon: "crown",
-    description: "A working team: one supervisor plus the local CLIs you name (Claude Code, Codex, OpenCode, Cursor, Grok, Cline, Kilo). Not an automation-platform router.",
+    description: "A working team: one supervisor plus native agent workers, all in-process on your own provider key. Not an automation-platform router.",
     inputs: [inP(p("goal", "Goal", "Text", { required: true })), inP(p("context", "Context", "Object"))],
     outputs: [outP(p("result", "Crew Result", "AgentResult", { required: true })), outP(p("log", "Crew Log", "JSON"))],
-    defaultPurpose: "Coordinate the named coding agents as a team against this goal.",
+    defaultPurpose: "Coordinate the native agents as a team against this goal.",
     configSchema: [
-      { key: "harness", label: "Lead harness", type: "select", options: ["claude", "codex", "opencode", "cursor", "grok", "cline", "kilo", "llm"], default: "claude" },
-      { key: "crew", label: "Crew (comma ids)", type: "text", default: "claude,codex,opencode" }
+      { key: "harness", label: "Lead engine", type: "select", options: ["hermes", "llm"], default: "hermes" },
+      { key: "crew", label: "Crew (comma ids)", type: "text", default: "hermes" }
     ],
     permissions: { terminalExecute: true, filesystemRead: true, filesystemWrite: true, mcpUse: true },
     rolePrompt: rp({
-      identity: "You are the SelfImpulse Crew Lead. You coordinate real coding-agent CLIs. You do not pretend to be those agents.",
+      identity: "You are the SelfImpulse Crew Lead. You coordinate native in-process agents running on the owner's own provider key.",
       mission: "Assign work to the crew, merge their outputs, surface conflicts.",
       operatingPrinciples: "Delegate. Never fake a CLI that is not installed. Fail closed.",
       procedures: "1. Restate the goal.\n2. Split work across the crew ids.\n3. Ask each harness to execute.\n4. Merge. Name disagreements.",
-      toolStrategy: "Spawn only installed harnesses.",
+      toolStrategy: "Every seat runs in-process on the owner's own provider key.",
       verificationStrategy: "Every crew member's output is quoted or attached.",
       collaborationRules: "Specialists keep their identity. You do not rewrite their diffs.",
       learningRules: stdLearning("Track which harness pairs worked."),
@@ -4891,7 +4890,7 @@ function packToDef(pack) {
     outputs: [outP(p("deliverable", "Deliverable", "AgentResult", { required: true })), outP(p("notes", "Notes", "JSON"))],
     defaultPurpose: pack.mission,
     configSchema: [
-      { key: "harness", label: "Runtime", type: "select", options: ["hermes", "claude", "codex", "opencode", "cursor", "grok", "cline", "kilo", "llm"], default: "hermes" }
+      { key: "harness", label: "Runtime", type: "select", options: ["hermes", "llm"], default: "hermes" }
     ],
     permissions: { filesystemRead: true, terminalExecute: true, mcpUse: true, memoryWrite: true, skillWrite: true },
     rolePrompt: rp({
@@ -4902,7 +4901,7 @@ function packToDef(pack) {
 2. Use Hermes tools when granted.
 3. Verify against: ${pack.mission}
 4. Emit the deliverable. Call finish.`,
-      toolStrategy: "Use only granted tools. Coding CLIs (Claude/Codex/OpenCode) if harness is set to them.",
+      toolStrategy: "Use only granted tools. Every agent runs in-process on your own provider keys.",
       verificationStrategy: "The deliverable must be usable without you present.",
       collaborationRules: "Peers consume deliverable + notes. Shared team memory if teamMemoryKey is set.",
       learningRules: stdLearning(`Improve ${pack.title} craft from ratings.`),
@@ -4998,12 +4997,12 @@ function createNodeFromDef(def, id, x, y) {
       timeoutMs: def.contractTimeoutMs ?? 18e4,
       retryPolicy: { maxAttempts: 2, backoffMs: 1500 }
     },
-    providers: def.providers ? structuredClone(def.providers) : def.category === "agent" ? [{ kind: "cli-agent", cliProviderId: "hermes" }] : [],
+    providers: def.providers ? structuredClone(def.providers) : def.category === "agent" ? [{ kind: "builtin-agent" }] : [],
     allowedMcpServers: [],
     memoryEnabled: true
   };
   if (def.category === "agent") {
-    node.config.harness = node.config.harness || "claude";
+    node.config.harness = node.config.harness || "hermes";
     node.permissions.terminalExecute = true;
     node.permissions.filesystemRead = true;
     node.permissions.mcpUse = true;
@@ -5055,7 +5054,6 @@ var DEFAULT_BOUNDARY = {
   network: true,
   browser: false,
   mcp: true,
-  codingAgents: true,
   credentials: false,
   repositories: [],
   deploymentTargets: [],
@@ -5505,36 +5503,6 @@ var ArtifactStore = class {
 };
 
 // src/domain/harness.ts
-var RETIRED_HARNESSES = /* @__PURE__ */ new Set([
-  "claude",
-  "codex",
-  "opencode",
-  "openclaude",
-  "copilot",
-  "cursor",
-  "cursor-agent",
-  "grok",
-  "cline",
-  "kilo",
-  "aider",
-  "gemini",
-  "antigravity",
-  "amp",
-  "crush",
-  "openhands",
-  "goose",
-  "qwen",
-  "amazonq",
-  "droid",
-  "kimi",
-  "auggie",
-  "warp",
-  "acp",
-  "agent"
-]);
-function isRetiredHarness(id) {
-  return RETIRED_HARNESSES.has(id);
-}
 var HARNESSES = [
   {
     id: "hermes",
@@ -5555,7 +5523,7 @@ var HARNESSES = [
   }
 ];
 var HARNESS_BY_ID = new Map(HARNESSES.map((h) => [h.id, h]));
-var HARNESS_OPTIONS = HARNESSES.filter((h) => !isRetiredHarness(h.id)).map((h) => h.id);
+var HARNESS_OPTIONS = HARNESSES.map((h) => h.id);
 
 // src/mission/agentCapabilities.ts
 var AGENT_CAPABILITIES = {
@@ -5998,7 +5966,7 @@ var ApprovalGateService = class {
 // src/mission/organization.ts
 init_id();
 var ROLE_REQUIREMENTS = {
-  "agent.coder": { filesystemRead: true, filesystemWrite: true, shell: true, codingAgents: true, memoryWrite: true },
+  "agent.coder": { filesystemRead: true, filesystemWrite: true, shell: true, memoryWrite: true },
   "agent.tester": { filesystemRead: true, shell: true, memoryWrite: true },
   "agent.security": { filesystemRead: true, shell: false, network: true, memoryWrite: true },
   "agent.reviewer": { filesystemRead: true, memoryWrite: true },
@@ -6022,7 +5990,6 @@ function grantPermissions(boundary, definitionId, requested) {
     ["network", "network"],
     ["browser", "browser"],
     ["mcp", "mcp"],
-    ["codingAgents", "codingAgents"],
     ["credentials", "credentials"],
     ["memoryWrite", null],
     ["skillWrite", null],
@@ -6912,7 +6879,7 @@ var OrganizationSupervisor = class {
 // src/mission/harnessAdapters.ts
 var LocalTestHarness = class {
   id = "local-test";
-  name = "Local Test Harness (simulated \u2014 not a real coding agent)";
+  name = "Local Test Harness (simulated \u2014 not a real agent)";
   simulated = true;
   installHint = "Built in. Used only when a mission explicitly allows simulated execution.";
   languages = ["any"];
@@ -6955,7 +6922,7 @@ var LocalTestHarness = class {
         `Kind: ${task.kind}`,
         `Languages: ${task.languages.join(", ") || "n/a"}`,
         "",
-        "This output was produced by VH's labelled test double, not by a coding agent.",
+        "This output was produced by the labelled test double, not by a real agent.",
         "It is recorded as simulated and is NOT counted as independently verified."
       ].join("\n"),
       exitCode: 0,
@@ -7088,10 +7055,6 @@ function selectHarness(ctx, ledger) {
     const installState = ctx.installed[h.id] ?? null;
     if (installState === false) {
       rejected.push({ harness: h.id, reason: "not installed on this machine" });
-      continue;
-    }
-    if (!ctx.mission.boundary.codingAgents && !h.simulated) {
-      rejected.push({ harness: h.id, reason: "mission boundary disables coding agents" });
       continue;
     }
     const components = {};
@@ -8248,27 +8211,7 @@ async function existsNative(path3) {
 }
 var SHELL_ALLOWED = /* @__PURE__ */ new Set([
   "hermes",
-  "claude",
-  "codex",
-  "opencode",
-  "openclaude",
-  "copilot",
-  "cursor-agent",
   "agent",
-  "grok",
-  "cline",
-  "kilo",
-  "qwen",
-  "gemini",
-  "aider",
-  "goose",
-  "amazonq",
-  "amp",
-  "crush",
-  "droid",
-  "kimi",
-  "auggie",
-  "oz",
   "node",
   "npm",
   "npx",
@@ -8572,8 +8515,7 @@ var AGENT_FRAMEWORKS = [
   { id: "fw.security-gate", name: "Security Gate", category: "security", description: "Threat model, secure review, judge, human.", roster: ["agent.security", "agent.reviewer", "agent.judge", "control.approval"], pattern: "gate", notes: "Fail closed." },
   { id: "fw.local-offline", name: "Air-gapped Local", category: "local", description: "Planner + local LLM + synthesizer. No cloud.", roster: ["agent.planner", "agent.local", "agent.synthesizer"], pattern: "pipeline", notes: "Harness = llm / Ollama." },
   { id: "fw.enterprise-change", name: "Enterprise Change Advisory", category: "enterprise", description: "PM, architect, security, SRE, legal, CAB human.", roster: ["agent.preset.pm", "agent.architect", "agent.security", "agent.preset.sre", "agent.preset.legal", "control.approval"], pattern: "council", notes: "CAB is the human node." },
-  { id: "fw.due-diligence", name: "Due Diligence", category: "enterprise", description: "Research, finance, legal, security, synthesizer, judge.", roster: ["agent.researcher", "agent.preset.data-analyst", "agent.preset.legal", "agent.security", "agent.synthesizer", "agent.judge"], pattern: "map-reduce", notes: "Conflicts stay visible." },
-  { id: "fw.crew-cli", name: "Local CLI Crew", category: "engineering", description: "One Agent Crew node over Claude/Codex/OpenCode.", roster: ["agent.crew"], pattern: "swarm", notes: "Requires those CLIs on PATH." }
+  { id: "fw.due-diligence", name: "Due Diligence", category: "enterprise", description: "Research, finance, legal, security, synthesizer, judge.", roster: ["agent.researcher", "agent.preset.data-analyst", "agent.preset.legal", "agent.security", "agent.synthesizer", "agent.judge"], pattern: "map-reduce", notes: "Conflicts stay visible." }
 ];
 var FRAMEWORK_COUNT = AGENT_FRAMEWORKS.length;
 
@@ -9305,7 +9247,6 @@ function boundaryStatements(b) {
     `MAY${b.network ? "" : " NOT"}: use the network`,
     `MAY${b.browser ? "" : " NOT"}: use a browser`,
     `MAY${b.mcp ? "" : " NOT"}: call MCP tools`,
-    `MAY${b.codingAgents ? "" : " NOT"}: spawn coding agents`,
     `MAY${b.credentials ? "" : " NOT"}: touch stored credentials (never read their values)`
   ];
 }

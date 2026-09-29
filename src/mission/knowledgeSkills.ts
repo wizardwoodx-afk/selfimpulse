@@ -10,11 +10,10 @@
  *     standard Agent-Skills SKILL.md document) is distilled into a compact,
  *     structured skill (frameworks, decision rules, patterns, failure modes)
  *     by a deterministic MECHANICAL extractor, optionally enhanced by an LLM
- *     pass that runs through VH's OWN installed harness CLIs (claude, codex,
- *     opencode, …) — same local-first boundary as seats: no SI-side API
- *     keys and no VH network layer. The harness CLI's OWN provider terms
- *     govern where its prompts go (cloud provider, or a local model the
- *     user configured) — see DATA HANDLING below.
+ *     pass that runs on the OWNER'S OWN configured provider — same local-first
+ *     boundary as seats: no SI-side API keys and no VH network layer. The
+ *     owner's provider terms govern where prompts go (cloud provider, or a
+ *     local model the user configured) — see DATA HANDLING below.
  *   - An honest knowledge channel: the result is a PROPOSAL of origin
  *     "knowledge" that NEVER claims measured effect (it was not learned from
  *     a verified mission). A human approves or discards it; only approved
@@ -25,18 +24,17 @@
  *
  *   DATA HANDLING — stated precisely (12.1.1, after the 12.1.0 review):
  *   the MECHANICAL extractor is fully local — content never leaves the
- *   machine. The OPTIONAL LLM pass invokes an installed harness CLI
- *   (claude/codex/opencode…); that CLI sends the prompt to the model
- *   provider IT is configured for (e.g. Anthropic for claude) unless the
- *   user pointed the harness at a local model (ANTHROPIC_BASE_URL etc.).
+ *   machine. The OPTIONAL LLM pass runs on the owner's own configured
+ *   provider — a cloud endpoint they signed into, or a local model they
+ *   pointed the app at.
  *   Every proposal records dataHandling: "local" | "provider" reflecting
  *   what actually happened, and the UI discloses it before a cloud pass.
  *
  *   PROVIDER PRECISION (12.2.0, after the 12.1.1 review): when the content
  *   goes to a provider, the proposal also records providerInfo:
  *     vendor        — the harness's DEFAULT vendor when unconfigured
- *                     (claude → Anthropic, codex → OpenAI, opencode →
- *                     configurable…). Honest label: defaults can be
+ *                     it reflects the owner's own configuration. Honest
+ *                     label: what is shown can be
  *                     overridden by the user's own configuration.
  *     endpointClass — cloud-default | local-configured | unknown
  *     endpointBasis — how VH knows: "detected" (an override was visible to
@@ -103,7 +101,7 @@ export interface KnowledgeProposal {
   id: string;
   /** 12.1.1 — what actually happened to the content: "local" = never left
    *  the machine (mechanical, or an LLM pass that never invoked a CLI);
-   *  "provider" = the content was sent to the selected harness CLI's
+   *  "provider" = the content was sent to the selected provider's
    *  configured model provider. Disclosure, not marketing. */
   dataHandling: "local" | "provider";
   /** 12.2.0 — present only when dataHandling === "provider". */
@@ -202,31 +200,9 @@ export function saveKnowledgeProposals(memory: KnowledgeProposal[]): void {
 
 /** Same boundary shape as TeamRunnerDeps.cliInvoke — the forge reuses the
  *  executor's real CLI contract so host deps drop in unchanged. */
-/** DEFAULT vendor per harness when the user has not overridden anything.
- *  Honest by construction: opencode is model-agnostic (bring-your-own-key),
- *  so its vendor is "configurable", not a guess. Unknown harnesses fall
- *  back to "<harness>'s configured provider". */
-const HARNESS_DEFAULT_VENDOR: Record<string, string> = {
-  claude: "Anthropic",
-  codex: "OpenAI",
-  gemini: "Google",
-  grok: "xAI",
-  qwen: "Alibaba Qwen",
-  opencode: "configurable (see opencode's own provider settings)",
-  openclaude: "configurable",
-  cursor: "configurable (Cursor's model picker)",
-};
-/** Well-known endpoint override vars VH can look for when a host exposes
- *  environment reads. Only vars VH is confident about are listed — an
- *  unlisted override still means "unknown", never a guess. */
-const HARNESS_ENV_OVERRIDES: Record<string, string[]> = {
-  claude: ["ANTHROPIC_BASE_URL"],
-  codex: ["OPENAI_BASE_URL"],
-  opencode: ["OPENCODE_BASE_URL", "OPENAI_BASE_URL", "ANTHROPIC_BASE_URL"],
-};
 
 export function defaultVendorFor(harness: string): string {
-  return HARNESS_DEFAULT_VENDOR[harness] ?? `${harness}'s configured provider`;
+  return `${harness}'s configured provider`;
 }
 
 export function loopbackHost(host: string): boolean {
@@ -275,7 +251,7 @@ export interface ProposeArgs {
   content: string;
   /** Optional human-facing source name (file/book/chapter title). */
   sourceName?: string | null;
-  /** Optional LLM enhancement through an VH harness CLI (local). */
+  /** Optional LLM enhancement on the owner's own configured provider. */
   llm?: { harness: string; deps: ForgeDeps; declaredEndpoint?: "cloud" | "local" | null } | null;
   nowIso?: string;
 }
@@ -304,7 +280,7 @@ export async function proposeKnowledgeSkill(args: ProposeArgs): Promise<ProposeR
   const sha = await sha256Hex(content);
 
   // G5 — best-effort LLM pass with an honest fallback. dataHandling is set
-  // by what ACTUALLY happened: invoking the harness CLI sends the prompt to
+  // by what ACTUALLY happened: invoking the provider sends the prompt to
   // that harness's configured model provider; only a pass that never invoked
   // a CLI stays "local".
   let distiller: Distiller = { kind: "mechanical", note: null };
@@ -322,7 +298,7 @@ export async function proposeKnowledgeSkill(args: ProposeArgs): Promise<ProposeR
         // 12.2.0 — provider precision: vendor (default) + endpoint class by
         // what VH can actually see; never a guess.
         const vendor = defaultVendorFor(args.llm.harness);
-        const overrideNames = HARNESS_ENV_OVERRIDES[args.llm.harness] ?? [];
+        const overrideNames: string[] = [];
         let endpoint: { endpointClass: EndpointClass; endpointBasis: EndpointBasis; note: string };
         if (overrideNames.length > 0 && args.llm.deps.readEnv) {
           try {

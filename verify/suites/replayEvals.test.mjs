@@ -514,7 +514,6 @@ function parseReportedUsage(harness, raw) {
     const n = findNumber(obj, ["num_turns", "turns", "total_turns"], 0);
     if (n !== null) turns = n;
   }
-  if (harness === "codex") costUsd = null;
   return { costUsd, tokens, turns, source: harness };
 }
 function jsonChunks(raw) {

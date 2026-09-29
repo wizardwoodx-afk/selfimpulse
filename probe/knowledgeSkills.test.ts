@@ -185,7 +185,7 @@ async function main(): Promise<void> {
   ok("positioning is honest: no claim that extraction proves the knowledge correct", !forgeSrc.includes("the provable way") && /structured knowledge proposals|extract structure, not summaries/.test(forgeSrc), "wording drifted");
 
   section("3c. 12.2.0 — provider precision: vendor + endpoint class, no guessing");
-  ok("default vendor mapping is honest (claude→Anthropic, codex→OpenAI, opencode→configurable)", defaultVendorFor("claude") === "Anthropic" && defaultVendorFor("codex") === "OpenAI" && /configurable/.test(defaultVendorFor("opencode")) && defaultVendorFor("mystery") === "mystery's configured provider");
+  ok("vendor labels are provider-neutral — never guessed from a per-engine table", defaultVendorFor("claude") === "claude's configured provider" && defaultVendorFor("mystery") === "mystery's configured provider");
   ok("loopback detection covers localhost/127.0.0.1/::1", loopbackHost("localhost") && loopbackHost("127.0.0.1") && loopbackHost("::1") && !loopbackHost("api.anthropic.com"));
   const cc1 = classifyEndpoint(null);
   ok("no override → cloud-default (the harness's default cloud)", cc1.endpointClass === "cloud-default" && /no endpoint override/.test(cc1.note));
@@ -197,16 +197,16 @@ async function main(): Promise<void> {
   ok("invalid override URL → unknown, never a guess", cc4.endpointClass === "unknown");
   const det = await proposeKnowledgeSkill({ content: DOC, sourceName: "detected.md", llm: { harness: "claude", deps: scriptedDeps({ env: { ANTHROPIC_BASE_URL: "http://127.0.0.1:11434" } }) } });
   const detP = (det as { ok: true; proposal: import("../src/mission/knowledgeSkills").KnowledgeProposal }).proposal;
-  ok("a detected loopback override records local-configured with basis=detected", detP.dataHandling === "provider" && detP.providerInfo?.endpointClass === "local-configured" && detP.providerInfo.endpointBasis === "detected" && detP.providerInfo.vendor === "Anthropic", JSON.stringify(detP.providerInfo));
+  ok("endpoint overrides are no longer read per-engine — the endpoint is honestly unknown/not-visible", detP.dataHandling === "provider" && detP.providerInfo?.endpointClass === "unknown" && detP.providerInfo.endpointBasis === "not-visible", JSON.stringify(detP.providerInfo));
   const cloudDet = await proposeKnowledgeSkill({ content: DOC, sourceName: "detected-cloud.md", llm: { harness: "claude", deps: scriptedDeps({ env: {} }) } });
   const cdP = (cloudDet as { ok: true; proposal: import("../src/mission/knowledgeSkills").KnowledgeProposal }).proposal;
-  ok("detected empty override env → cloud-default with basis=detected", cdP.providerInfo?.endpointClass === "cloud-default" && cdP.providerInfo.endpointBasis === "detected" && cdP.providerInfo.note.includes("no endpoint override"), JSON.stringify(cdP.providerInfo));
+  ok("with no declaration the endpoint stays unknown/not-visible (never guessed cloud)", cdP.providerInfo?.endpointClass === "unknown" && cdP.providerInfo.endpointBasis === "not-visible", JSON.stringify(cdP.providerInfo));
   const noVis = await proposeKnowledgeSkill({ content: DOC, sourceName: "novis.md", llm: { harness: "claude", deps: scriptedDeps({}) } });
   const nvP = (noVis as { ok: true; proposal: import("../src/mission/knowledgeSkills").KnowledgeProposal }).proposal;
   ok("no env reader + no declaration → endpoint unknown, basis=not-visible, reason written", nvP.providerInfo?.endpointClass === "unknown" && nvP.providerInfo.endpointBasis === "not-visible" && /cannot see/.test(nvP.providerInfo.note), JSON.stringify(nvP.providerInfo));
   const declL = await proposeKnowledgeSkill({ content: DOC, sourceName: "declared-local.md", llm: { harness: "codex", deps: scriptedDeps({ codexOk: true }), declaredEndpoint: "local" } });
   const dlP = (declL as { ok: true; proposal: import("../src/mission/knowledgeSkills").KnowledgeProposal }).proposal;
-  ok("user-declared local → local-configured with basis=user-declared", dlP.providerInfo?.endpointClass === "local-configured" && dlP.providerInfo.endpointBasis === "user-declared" && dlP.providerInfo.vendor === "OpenAI", JSON.stringify(dlP.providerInfo));
+  ok("user-declared local → local-configured with basis=user-declared", dlP.providerInfo?.endpointClass === "local-configured" && dlP.providerInfo.endpointBasis === "user-declared", JSON.stringify(dlP.providerInfo));
   const declC = await proposeKnowledgeSkill({ content: DOC, sourceName: "declared-cloud.md", llm: { harness: "claude", deps: scriptedDeps({ codexOk: false }), declaredEndpoint: "cloud" } });
   const dcP = (declC as { ok: true; proposal: import("../src/mission/knowledgeSkills").KnowledgeProposal }).proposal;
   ok("user-declared cloud → cloud-default with basis=user-declared", dcP.providerInfo?.endpointClass === "cloud-default" && dcP.providerInfo.endpointBasis === "user-declared");

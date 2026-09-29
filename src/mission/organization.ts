@@ -61,7 +61,7 @@ export interface TaskInput {
 
 /** What each node category needs to do its job, before the boundary is applied. */
 const ROLE_REQUIREMENTS: Record<string, Partial<GrantedPermissions>> = {
-  "agent.coder": { filesystemRead: true, filesystemWrite: true, shell: true, codingAgents: true, memoryWrite: true },
+  "agent.coder": { filesystemRead: true, filesystemWrite: true, shell: true, memoryWrite: true },
   "agent.tester": { filesystemRead: true, shell: true, memoryWrite: true },
   "agent.security": { filesystemRead: true, shell: false, network: true, memoryWrite: true },
   "agent.reviewer": { filesystemRead: true, memoryWrite: true },
@@ -91,7 +91,6 @@ export function grantPermissions(boundary: SecurityBoundary, definitionId: strin
     ["network", "network"],
     ["browser", "browser"],
     ["mcp", "mcp"],
-    ["codingAgents", "codingAgents"],
     ["credentials", "credentials"],
     ["memoryWrite", null],
     ["skillWrite", null],

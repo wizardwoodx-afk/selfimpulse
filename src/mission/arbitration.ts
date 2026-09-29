@@ -140,7 +140,7 @@ function median(values: number[]): number {
  * §6 Decide which harness runs a step.
  *
  * Returns the full scoring table, not just a winner: the flight recorder stores the
- * rationale, and the UI can show "why Codex and not Claude" for any task.
+ * rationale, and the UI can show why any engine won or lost for any task.
  */
 export function selectHarness(ctx: ArbitrationContext, ledger: HarnessLedger): ArbitrationDecision {
   const candidates = allHarnesses().filter((h) => {
@@ -161,11 +161,6 @@ export function selectHarness(ctx: ArbitrationContext, ledger: HarnessLedger): A
       rejected.push({ harness: h.id, reason: "not installed on this machine" });
       continue;
     }
-    if (!ctx.mission.boundary.codingAgents && !h.simulated) {
-      rejected.push({ harness: h.id, reason: "mission boundary disables coding agents" });
-      continue;
-    }
-
     const components: Record<string, number> = {};
 
     // Capability match: fraction of required capabilities the adapter actually provides.

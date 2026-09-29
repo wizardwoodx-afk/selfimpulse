@@ -3,7 +3,7 @@
  *
  * An earlier version of this file held a table of argv templates and described
  * itself as "the source of truth for how to invoke each CLI". There are no
- * CLIs. External coding-agent CLIs were removed from SelfImpulse in 19.7.15, and
+ * CLIs. There is no external execution tier in SelfImpulse, and
  * every agent now runs in-process on the owner's own provider key. What
  * survived is the part that was never about binaries:
  *
@@ -105,7 +105,7 @@ export interface CodingAgentHarness {
  */
 export class LocalTestHarness implements CodingAgentHarness {
   readonly id = "local-test" as const;
-  readonly name = "Local Test Harness (simulated — not a real coding agent)";
+  readonly name = "Local Test Harness (simulated — not a real agent)";
   readonly simulated = true;
   readonly installHint = "Built in. Used only when a mission explicitly allows simulated execution.";
   readonly languages = ["any"];
@@ -153,7 +153,7 @@ export class LocalTestHarness implements CodingAgentHarness {
         `Kind: ${task.kind}`,
         `Languages: ${task.languages.join(", ") || "n/a"}`,
         "",
-        "This output was produced by VH's labelled test double, not by a coding agent.",
+        "This output was produced by the labelled test double, not by a real agent.",
         "It is recorded as simulated and is NOT counted as independently verified.",
       ].join("\n"),
       exitCode: 0,
@@ -174,21 +174,13 @@ export class LocalTestHarness implements CodingAgentHarness {
 
 export const localTestHarness = new LocalTestHarness();
 
-/* ── §V11.6.2: custom:<slug> adapters, built from the resolver (no second registry) ── */
-
-/**
- * A user-registered custom harness as a mission adapter. Unlike CliHarness it does NOT go
- * through harnessPolicy (the policy layer is builtin-only): the user's own argv is the
- * contract, read-only is advisory, and the Rust side re-expands $PROMPT from its own
- * saved registry at spawn time — the same trust boundary the team executor uses.
- */
 
 const registry = new Map<AgentRuntimeId, CodingAgentHarness>();
 registry.set("local-test", localTestHarness);
 
 
 export function getHarness(id: AgentRuntimeId): CodingAgentHarness | null {
-  // External coding-agent adapters and custom harnesses are removed. A seat that
+  // There are no external adapters. A seat that
   // names one resolves to null, and callers route to the native runtime.
   return registry.get(id) ?? null;
 }

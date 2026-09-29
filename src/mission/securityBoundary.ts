@@ -18,7 +18,6 @@ export type BoundaryCapability =
   | "network"
   | "browser"
   | "mcp"
-  | "codingAgents"
   | "credentials";
 
 export interface BoundaryCheck {
@@ -91,7 +90,6 @@ export function intersectWithBoundary(granted: GrantedPermissions, boundary: Sec
     ["network", "network"],
     ["browser", "browser"],
     ["mcp", "mcp"],
-    ["codingAgents", "codingAgents"],
     ["credentials", "credentials"],
   ];
   const permissions = { ...granted };
@@ -117,7 +115,6 @@ export function describeBoundary(boundary: SecurityBoundary): Array<{ capability
     ["network", "Make network calls"],
     ["browser", "Drive a browser session"],
     ["mcp", "Call MCP servers"],
-    ["codingAgents", "Spawn coding-agent CLIs"],
     ["credentials", "Resolve stored credentials"],
   ];
   return rows.map(([cap, note]) => ({

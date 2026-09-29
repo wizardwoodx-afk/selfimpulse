@@ -21,7 +21,7 @@ const unavailable = (fn: string): never => {
       `processes. Sandbox probing and checkRunner are desktop capabilities. In the desktop build ` +
       `this call reaches the Tauri shell_exec command, which runs the dev-tool allowlist ` +
       `(node, npm, cargo, git, …). There is no command that can spawn an agent CLI: external ` +
-      `coding-agent CLIs were removed from the product, and every agent runs in-process.`,
+      `every agent runs in-process on the owner's own provider key; nothing is spawned.`,
   );
 };
 

@@ -115,7 +115,7 @@ export const dialogFilter = (): string =>
   `All files (*.*)|*.*`;
 
 export type AcceptResult =
-  | { ok: true; kind: FileKind }
+  | { ok: true; kind: FileKind; reason?: string | null }
   | { ok: false; reason: string; kind?: FileKind };
 
 /**

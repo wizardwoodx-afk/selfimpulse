@@ -1384,13 +1384,12 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("browser_console", { sessionId });
         return { ok: false, notAttached: true, console: [], networkFailures: [], reason: browserReason };
       },
-      /* External coding-agent CLIs and custom harnesses are REMOVED.
+      /* There is no external execution bridge.
        *
-       * The native handlers that could execute one (cli_invoke, cli_providers_detect,
-       * custom_harness_*, acp_*) are deleted in src-tauri, and every agent now runs
-       * in-process on the owner's own provider key. Nothing here can spawn a third-party
-       * process any more, so these methods are gone rather than stubbed — there is no
-       * native command left to call. probe/noExternalCli.test.ts pins the removal.
+       * Every agent runs in-process on the owner's own provider key. Nothing in this
+       * bridge can spawn a third-party process, and the methods that once did are
+       * gone rather than stubbed — there is no native command left to call.
+       * probe/noExternalCli.test.ts pins the absence.
        */
       /* -------------------------------------------------------------- git
        * Every one of these throws in a browser build rather than returning an empty result. A git panel
@@ -1468,36 +1467,6 @@ import { execFileSync } from "node:child_process";
 init_id();
 
 // src/domain/harness.ts
-var RETIRED_HARNESSES = /* @__PURE__ */ new Set([
-  "claude",
-  "codex",
-  "opencode",
-  "openclaude",
-  "copilot",
-  "cursor",
-  "cursor-agent",
-  "grok",
-  "cline",
-  "kilo",
-  "aider",
-  "gemini",
-  "antigravity",
-  "amp",
-  "crush",
-  "openhands",
-  "goose",
-  "qwen",
-  "amazonq",
-  "droid",
-  "kimi",
-  "auggie",
-  "warp",
-  "acp",
-  "agent"
-]);
-function isRetiredHarness(id) {
-  return RETIRED_HARNESSES.has(id);
-}
 var HARNESSES = [
   {
     id: "hermes",
@@ -1518,13 +1487,10 @@ var HARNESSES = [
   }
 ];
 var HARNESS_BY_ID = new Map(HARNESSES.map((h) => [h.id, h]));
-var HARNESS_OPTIONS = HARNESSES.filter((h) => !isRetiredHarness(h.id)).map((h) => h.id);
-function isCustomHarness(_id) {
-  return false;
+function defaultHarness() {
+  return "hermes";
 }
-function getCustomHarness(_id) {
-  return void 0;
-}
+var HARNESS_OPTIONS = HARNESSES.map((h) => h.id);
 
 // src/mission/agentCapabilities.ts
 var AGENT_CAPABILITIES = {
@@ -1583,65 +1549,11 @@ var AGENT_CAPABILITIES = {
     gotchas: ["No filesystem access and no enforced sandbox. Useful for reasoning, useless for edits."]
   }
 };
-function syntheticCustomCaps(id, spec) {
-  return {
-    id,
-    name: `${spec.name} (custom)`,
-    bins: [spec.bin],
-    install: "Teams -> Connect -> Custom harnesses",
-    prompt: { argv: spec.argv, confidence: "community", source: "user-registered harness \u2014 VH verified none of its flags" },
-    json: null,
-    readOnly: null,
-    write: null,
-    fullAuto: null,
-    maxTurns: null,
-    timeout: null,
-    outputSchema: null,
-    worktree: null,
-    cwd: null,
-    model: null,
-    resume: null,
-    sessionStart: null,
-    noAutoUpdate: null,
-    filters: null,
-    cost: null,
-    enforcedReadOnly: false,
-    gotchas: ["User-registered harness: VH verified none of its flags. Read-only is advisory."]
-  };
-}
-function unregisteredCustomCaps(id) {
-  return {
-    id,
-    name: `Custom harness "${id}"`,
-    bins: [],
-    install: "Teams -> Connect -> Custom harnesses (re-add it, then recompile)",
-    prompt: { argv: [], confidence: "unverified", source: "not registered (anymore)" },
-    json: null,
-    readOnly: null,
-    write: null,
-    fullAuto: null,
-    maxTurns: null,
-    timeout: null,
-    outputSchema: null,
-    worktree: null,
-    cwd: null,
-    model: null,
-    resume: null,
-    sessionStart: null,
-    noAutoUpdate: null,
-    filters: null,
-    cost: null,
-    enforcedReadOnly: false,
-    gotchas: ["This harness is not registered (anymore); it cannot run until re-added in Teams -> Connect."]
-  };
-}
 function resolveCaps(harness) {
-  if (isCustomHarness(harness)) {
-    const spec = getCustomHarness(harness);
-    return spec ? { caps: syntheticCustomCaps(harness, spec), custom: true, registered: true } : { caps: unregisteredCustomCaps(harness), custom: true, registered: false };
-  }
   const caps = AGENT_CAPABILITIES[harness];
-  return caps ? { caps, custom: false, registered: true } : { caps: unregisteredCustomCaps(harness), custom: false, registered: false };
+  if (caps) return { harness, caps };
+  const fallback = defaultHarness();
+  return { harness: fallback, caps: AGENT_CAPABILITIES[fallback] };
 }
 function enforcedReadOnly(id) {
   const caps = AGENT_CAPABILITIES[id];
@@ -1650,7 +1562,7 @@ function enforcedReadOnly(id) {
 function unverifiedClaims(id) {
   const caps = AGENT_CAPABILITIES[id];
   if (!caps) {
-    return ["Custom harness: every flag is the user's own \u2014 VH verified none of it. Read-only is advisory."];
+    return ["Unknown engine id: no verified capability claims exist for it."];
   }
   const out = [];
   const check = (name, cap) => {
@@ -1756,12 +1668,6 @@ function hashPrompt(p) {
 }
 function sessionArgv(harness, opts) {
   const rc = resolveCaps(harness);
-  if (rc.custom) {
-    return { argv: [], continuity: "none", warning: "Custom harness: no session continuity \u2014 every turn is stateless." };
-  }
-  if (!rc.registered) {
-    return { argv: [], continuity: "none", warning: `Harness "${harness}" is not registered (anymore); this turn is stateless.` };
-  }
   const caps = rc.caps;
   if (opts.kind === "first" && opts.idKind === "cli-chosen") {
     return { argv: [], continuity: "session", warning: null };
@@ -1792,10 +1698,10 @@ function sessionArgv(harness, opts) {
 }
 function sessionIdKind(harness) {
   const rc = resolveCaps(harness);
-  if (rc.custom) return "cli-chosen";
   return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 function parseSessionId(harness, raw) {
+  void harness;
   if (!raw.trim()) return null;
   for (const line of [raw.trim(), ...raw.split(/\r?\n/).map((l) => l.trim())]) {
     if (!line) continue;
@@ -1808,10 +1714,6 @@ function parseSessionId(harness, raw) {
   }
   const m = /"session_?[iI][dD]"\s*:\s*"([^"]+)"/.exec(raw);
   if (m?.[1]) return m[1];
-  if (harness === "codex") {
-    const c = /(?:^|\s)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\s|$)/i.exec(raw);
-    if (c?.[1]) return c[1];
-  }
   return null;
 }
 function detectResumeFailure(raw) {
@@ -1960,17 +1862,7 @@ function composeSeatArgv(teamSeat, ctx) {
     };
   }
   const resolved = resolveCaps(teamSeat.harness);
-  const caps = resolved.registered ? resolved.caps : null;
-  if (!caps) {
-    return {
-      bin: "",
-      argv: [],
-      env: {},
-      files: [],
-      claims: { readOnlyEnforced: false, costKind: "none" },
-      warnings: [`Custom harness "${teamSeat.harness}" is not registered (anymore). Add it in Teams -> Connect, then recompile.`]
-    };
-  }
+  const caps = resolved.caps;
   const warnings = [];
   const vars = {
     $PROMPT: ctx.prompt,
@@ -3699,9 +3591,9 @@ async function runGovernanceArena(args = {}) {
   const results = [];
   results.push(
     await scenario("arena.self-grading", "A writer harness tries to grade its own output as verified", async () => {
-      const writers = [{ seatId: "seat-w", harness: "claude" }];
+      const writers = [{ seatId: "seat-w", harness: "hermes" }];
       const verifiers = [
-        { seatId: "seat-v", harness: "claude", ran: true, verdict: "approve", reviewedSha: "abc123" }
+        { seatId: "seat-v", harness: "hermes", ran: true, verdict: "approve", reviewedSha: "abc123" }
       ];
       const verdict = evaluateVerifyGate({
         runStatus: "verified",
@@ -4082,7 +3974,6 @@ function parseReportedUsage(harness, raw) {
     const n = findNumber(obj, ["num_turns", "turns", "total_turns"], 0);
     if (n !== null) turns = n;
   }
-  if (harness === "codex") costUsd = null;
   return { costUsd, tokens: tokens2, turns, source: harness };
 }
 function jsonChunks(raw) {
@@ -5050,11 +4941,6 @@ ${lessonLines.map((l) => `- ${l}`).join("\n")}
       if (runnable.has(a.seat.id)) continue;
       const rc = resolveCaps(a.seat.harness);
       const caps = rc.caps;
-      if (rc.custom && !rc.registered) {
-        runnable.set(a.seat.id, false);
-        notRun.push({ seatId: a.seat.id, reason: `Custom harness "${a.seat.harness}" is not registered (anymore). Add it in Teams -> Connect, then recompile.` });
-        continue;
-      }
       if (typeof deps.nativeInvoke === "function") {
         runnable.set(a.seat.id, true);
         continue;
@@ -5796,7 +5682,7 @@ async function verifyProofReceipt(rc) {
 // src/mission/harnessAdapters.ts
 var LocalTestHarness = class {
   id = "local-test";
-  name = "Local Test Harness (simulated \u2014 not a real coding agent)";
+  name = "Local Test Harness (simulated \u2014 not a real agent)";
   simulated = true;
   installHint = "Built in. Used only when a mission explicitly allows simulated execution.";
   languages = ["any"];
@@ -5839,7 +5725,7 @@ var LocalTestHarness = class {
         `Kind: ${task.kind}`,
         `Languages: ${task.languages.join(", ") || "n/a"}`,
         "",
-        "This output was produced by VH's labelled test double, not by a coding agent.",
+        "This output was produced by the labelled test double, not by a real agent.",
         "It is recorded as simulated and is NOT counted as independently verified."
       ].join("\n"),
       exitCode: 0,

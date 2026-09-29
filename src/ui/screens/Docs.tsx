@@ -22,7 +22,7 @@
  * and `dataHandling` is "local") or through an LLM harness (`distiller.kind ===
  * "llm"`, which reports its vendor and endpoint class). This door currently takes
  * the MECHANICAL path only: it calls `proposeKnowledgeSkill` without the optional
- * `llm` harness, because a harness CLI is a desktop-host capability and the web
+ * direct provider call, because local execution is a desktop-host capability and the web
  * build has none. That is a deliberate product posture for a security-first tool —
  * the document is not sent anywhere to be understood — and it is stated on the
  * surface rather than left for the user to infer. Wiring the LLM path belongs on

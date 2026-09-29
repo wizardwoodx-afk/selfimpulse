@@ -97,8 +97,7 @@ export interface NodeDepsOptions {
   /** The bound repository's own test command. The verdict comes from the repo. */
   testCommand?: string[];
   /**
-   * Explicit harness→executable pins, e.g. `{ codex: "/opt/bin/codex" }`. An
-   * override is used verbatim; PATH search is the fallback.
+   * Explicit engine→executable pins, used verbatim; PATH search is the fallback.
    */
   binOverrides?: Record<string, string>;
   /** Extra directories searched before $PATH. */
@@ -106,9 +105,9 @@ export interface NodeDepsOptions {
   /** Per-invocation log hook (the host prints these so a run is observable). */
   onInvoke?: (line: string) => void;
   /**
-   * The owner's own provider key, for in-process seats. 19.7.15: external
-   * coding-agent CLIs are removed, so a federated seat no longer spawns a
-   * binary — it calls the owner's provider directly from this host process.
+   * The owner's own provider key, for in-process seats. A federated seat
+   * never spawns a binary — it calls the owner's provider directly from this
+   * host process.
    * Without a key the host still mounts and still serves its card, but a seat
    * refuses in words rather than pretending to have run.
    */
@@ -195,9 +194,8 @@ function spawnCli(
 export function nodeRunnerDeps(opts?: NodeDepsOptions): TeamRunnerDeps {
   const testCmd = opts?.testCommand ?? ["npm", "test"];
   return {
-    // 19.7.15: no agent binary is resolved any more. git and the repository's own
-    // test still run as real dev-tool subprocesses (they are the verdict, and
-    // they are not agents), but nothing resolves a coding-agent CLI.
+    // Only real dev-tool subprocesses resolve (git, npm, node — they carry the
+    // verdict and are not agents). No agent binary is ever resolved.
     resolveBin: async (bin) => (bin === "git" || bin === "npm" || bin === "node" ? resolveBinSync(bin, opts) : null),
     // Seats run in-process against the owner's provider key. No spawn, no argv.
     nativeInvoke: async (req) => {
@@ -624,9 +622,9 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
   if (tokenMinted) log(`a2a: no --token supplied, so this listener minted one — peers must present it (see describe().token)`);
 
   const bridge = opts.bridge ?? {};
-  /* 19.7.15: can this host actually RUN a seat? External coding-agent CLIs are
-     removed, so there is no binary to resolve and `executable` no longer means
-     "a harness is on the PATH". It now means the one thing that still gates a
+  /* Can this host actually RUN a seat? There is no binary to resolve, so
+     `executable` no longer means "an engine is on the PATH". It means the one
+     thing that still gates a
      real run: an in-process seat runner exists (i.e. a provider key is
      configured). The descriptor must say that truthfully in both directions —
      a host that cannot run seats says so before anything is delegated. */

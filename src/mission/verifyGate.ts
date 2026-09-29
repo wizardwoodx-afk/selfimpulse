@@ -43,8 +43,8 @@ export interface GateVerifier {
   verdict: "approve" | "reject" | "none";
   /**
    * 11.10 — WHAT the verifier looked at. The team runner records the review-snapshot sha
-   * on every read-only seat; when present here, the gate can say not just "Codex ran" but
-   * "Codex ran against snapshot abc123" — the writer-to-verifier evidence link.
+   * on every read-only seat; when present here, the gate can say not just "a writer ran" but
+   * "a writer ran against snapshot abc123" — the writer-to-verifier evidence link.
    */
   reviewedSha?: string | null;
 }
@@ -130,8 +130,8 @@ export function saveGatePolicy(policy: GatePolicy): void {
  * 11.10 — EVIDENCE BINDING. When snapshot input is supplied (the team executor always
  * does), a verifier only counts toward cross-verification if it RAN and its recorded
  * reviewedSha EQUALS the snapshot sha — i.e. it demonstrably looked at the writers' merged
- * work, not the base and not nothing. "Codex completed" is no longer sufficient; the gate
- * now says "Codex ran against snapshot <sha> and approved it." Writers present but no
+ * work, not the base and not nothing. "a writer completed" is no longer sufficient; the gate
+ * now says "a writer ran against snapshot <sha> and approved it." Writers present but no
  * snapshot built means nobody can prove they reviewed anything: unverified.
  */
 export function evaluateVerifyGate(input: GateInput): GateVerdict {

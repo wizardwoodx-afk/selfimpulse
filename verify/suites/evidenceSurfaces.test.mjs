@@ -1384,13 +1384,12 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("browser_console", { sessionId });
         return { ok: false, notAttached: true, console: [], networkFailures: [], reason: browserReason };
       },
-      /* External coding-agent CLIs and custom harnesses are REMOVED.
+      /* There is no external execution bridge.
        *
-       * The native handlers that could execute one (cli_invoke, cli_providers_detect,
-       * custom_harness_*, acp_*) are deleted in src-tauri, and every agent now runs
-       * in-process on the owner's own provider key. Nothing here can spawn a third-party
-       * process any more, so these methods are gone rather than stubbed — there is no
-       * native command left to call. probe/noExternalCli.test.ts pins the removal.
+       * Every agent runs in-process on the owner's own provider key. Nothing in this
+       * bridge can spawn a third-party process, and the methods that once did are
+       * gone rather than stubbed — there is no native command left to call.
+       * probe/noExternalCli.test.ts pins the absence.
        */
       /* -------------------------------------------------------------- git
        * Every one of these throws in a browser build rather than returning an empty result. A git panel
@@ -1466,36 +1465,6 @@ import assert from "node:assert/strict";
 init_id();
 
 // src/domain/harness.ts
-var RETIRED_HARNESSES = /* @__PURE__ */ new Set([
-  "claude",
-  "codex",
-  "opencode",
-  "openclaude",
-  "copilot",
-  "cursor",
-  "cursor-agent",
-  "grok",
-  "cline",
-  "kilo",
-  "aider",
-  "gemini",
-  "antigravity",
-  "amp",
-  "crush",
-  "openhands",
-  "goose",
-  "qwen",
-  "amazonq",
-  "droid",
-  "kimi",
-  "auggie",
-  "warp",
-  "acp",
-  "agent"
-]);
-function isRetiredHarness(id) {
-  return RETIRED_HARNESSES.has(id);
-}
 var HARNESSES = [
   {
     id: "hermes",
@@ -1516,7 +1485,7 @@ var HARNESSES = [
   }
 ];
 var HARNESS_BY_ID = new Map(HARNESSES.map((h) => [h.id, h]));
-var HARNESS_OPTIONS = HARNESSES.filter((h) => !isRetiredHarness(h.id)).map((h) => h.id);
+var HARNESS_OPTIONS = HARNESSES.map((h) => h.id);
 
 // src/mission/agentCapabilities.ts
 var AGENT_CAPABILITIES = {
@@ -2225,7 +2194,7 @@ async function verifyProofReceipt(rc) {
 // src/mission/harnessAdapters.ts
 var LocalTestHarness = class {
   id = "local-test";
-  name = "Local Test Harness (simulated \u2014 not a real coding agent)";
+  name = "Local Test Harness (simulated \u2014 not a real agent)";
   simulated = true;
   installHint = "Built in. Used only when a mission explicitly allows simulated execution.";
   languages = ["any"];
@@ -2268,7 +2237,7 @@ var LocalTestHarness = class {
         `Kind: ${task.kind}`,
         `Languages: ${task.languages.join(", ") || "n/a"}`,
         "",
-        "This output was produced by VH's labelled test double, not by a coding agent.",
+        "This output was produced by the labelled test double, not by a real agent.",
         "It is recorded as simulated and is NOT counted as independently verified."
       ].join("\n"),
       exitCode: 0,

@@ -245,9 +245,8 @@ console.log("\n== GAP (c): cost / turn / wall-clock caps ==\n");
   const ndjson = ['{"type":"x"}', '{"total_cost_usd":0.5}', "not json at all"].join("\n");
   ok(parseReportedUsage("cline", ndjson).costUsd === 0.5, "NDJSON is parsed line by line and malformed lines are skipped");
 
-  const codex = parseReportedUsage("codex", JSON.stringify({ total_cost_usd: 9.99, total_tokens: 1000 }));
-  ok(codex.costUsd === null, "codex's cost is forced to null even if a field by that name appears");
-  ok(codex.tokens === 1000, "but its tokens are still recorded");
+  ok(parseReportedUsage("anyengine", JSON.stringify({ total_cost_usd: 9.99, total_tokens: 1000 })).tokens === 1000,
+    "the same parse rules apply to every engine id — no engine-specific suppression exists");
 
   const none = parseReportedUsage("hermes", "");
   ok(none.costUsd === null && none.tokens === null, "empty output yields nothing, not zero");
