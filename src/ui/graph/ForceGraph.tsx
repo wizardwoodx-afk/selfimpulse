@@ -69,20 +69,26 @@ export type GraphMode = "work" | "memory";
 export interface FgNode { id: string; name: string; kind: string; val?: number; live?: boolean; sub?: string }
 export interface FgLink { source: string; target: string; live?: boolean }
 
+/* MONOCHROME CUT — nodes are white/grey only; role reads through lightness and
+ * geometry, not hue. Two functional colours survive: `live` (teal — something
+ * is happening RIGHT NOW) and `refused` (muted red — a safety fact that must
+ * never be styled away). Everything else is a studio-grey ramp. */
 const PALETTE: Record<"dark" | "light", Record<string, string>> = {
   dark: {
-    session: "#7FC79A", keyword: "#9BB8B0", receipt: "#5E9C7A",
-    you: "#F0D89A", captain: "#D5B26B", agent: "#E8C98A", tool: "#8C7A55",
-    gate: "#E0A55C", wreceipt: "#B8A67A", refused: "#E27B73",
-    link: "rgba(127,199,154,.22)", wlink: "rgba(240,216,154,.38)",
-    bg: "#0D1010", fg: "#F2F0E6",
+    session: "#E9EBEE", keyword: "#C3C7CC", receipt: "#9BA1A8",
+    you: "#FFFFFF", captain: "#F4F5F7", agent: "#D9DCE0", tool: "#A6ABB1",
+    gate: "#EDEEF0", wreceipt: "#B4B9BF", refused: "#C25B4E",
+    live: "#4FB3AF",
+    link: "rgba(255,255,255,.13)", wlink: "rgba(255,255,255,.30)",
+    bg: "#0B0C0E", fg: "#EDEEF0",
   },
   light: {
-    session: "#2F8E58", keyword: "#4D5653", receipt: "#3E7A55",
-    you: "#9B7A2F", captain: "#B08F3A", agent: "#B8985A", tool: "#8A7A55",
-    gate: "#B0771C", wreceipt: "#8F7F55", refused: "#C24A42",
-    link: "rgba(47,142,88,.28)", wlink: "rgba(155,122,47,.40)",
-    bg: "#FAEBD7", fg: "#141919",
+    session: "#5B6168", keyword: "#74797F", receipt: "#868B91",
+    you: "#1A1D21", captain: "#3A3E44", agent: "#6B7076", tool: "#9AA0A6",
+    gate: "#2B2E33", wreceipt: "#868B91", refused: "#A03F31",
+    live: "#006E6C",
+    link: "rgba(20,22,26,.16)", wlink: "rgba(20,22,26,.34)",
+    bg: "#FAF7F1", fg: "#1A1D21",
   },
 };
 
@@ -127,12 +133,12 @@ export function ForceGraph({ mode, nodes, links, onNodeDoubleClick, onNodeClick,
           const x = n;
           return `<div style="font:12px Geist,system-ui;background:${c.bg};color:${c.fg};padding:7px 10px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.4);max-width:280px;border-left:3px solid ${c[x.kind] ?? c.keyword}">${esc(x.name)}${x.sub ? `<br><span style="opacity:.7">${esc(x.sub)}</span>` : ""}<br><span style="opacity:.55;font-family:Geist Mono,monospace;font-size:10px;letter-spacing:.08em">${x.kind.toUpperCase()}${x.live ? " · LIVE" : ""}</span></div>`;
         })
-        .linkColor((l: FgLink) => (l.live ? (work ? c.you : c.session) : (work ? c.wlink : c.link)))
+        .linkColor((l: FgLink) => (l.live ? c.live : (work ? c.wlink : c.link)))
         .linkWidth((l: FgLink) => (l.live ? 1.8 : work ? 1.05 : 0.55))
         .linkOpacity(0.95)
-        .linkDirectionalArrowLength(work ? 3.5 : 0).linkDirectionalArrowRelPos(1).linkDirectionalArrowColor(() => c.you)
+        .linkDirectionalArrowLength(work ? 3.5 : 0).linkDirectionalArrowRelPos(1).linkDirectionalArrowColor(() => c.live)
         .linkDirectionalParticles((l: FgLink) => (work ? (l.live ? 5 : 2) : 0))
-        .linkDirectionalParticleWidth(work ? 1.8 : 0).linkDirectionalParticleColor(() => c.you)
+        .linkDirectionalParticleWidth(work ? 1.8 : 0).linkDirectionalParticleColor(() => c.live)
         .linkDirectionalParticleSpeed((l: FgLink) => (l.live ? 0.014 : 0.005))
         .dagMode(work ? "td" : (null as unknown as "td")).dagLevelDistance(work ? 48 : 0)
         .warmupTicks(work ? 48 : 80)
@@ -185,7 +191,7 @@ export function ForceGraph({ mode, nodes, links, onNodeDoubleClick, onNodeClick,
     const obs = new MutationObserver(() => {
       const inst = g.current; if (!inst) return;
       const c = PALETTE[currentTheme()]; const work = mode === "work";
-      inst.linkColor((l) => (l.live ? (work ? c.you : c.session) : (work ? c.wlink : c.link)));
+      inst.linkColor((l) => (l.live ? c.live : (work ? c.wlink : c.link)));
     });
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     return () => obs.disconnect();
@@ -213,21 +219,21 @@ function makeNode(THREE: ThreeLib, n: FgNode, c: Record<string, string>, work: b
   const mat = work
     ? new THREE.MeshStandardMaterial({
       color,
-      metalness: 0.72,
-      roughness: 0.28,
+      metalness: 0.22,
+      roughness: 0.42,
       emissive: color,
-      emissiveIntensity: n.live ? 0.55 : 0.12,
+      emissiveIntensity: n.live ? 0.5 : 0.05,
     })
     : new THREE.MeshPhysicalMaterial({
       color,
-      metalness: 0.08,
-      roughness: 0.38,
-      transmission: 0.18,
+      metalness: 0.04,
+      roughness: 0.32,
+      transmission: 0.12,
       thickness: 0.6,
-      clearcoat: 0.85,
-      clearcoatRoughness: 0.2,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.16,
       emissive: color,
-      emissiveIntensity: n.kind === "session" ? 0.35 : 0.12,
+      emissiveIntensity: n.kind === "session" ? 0.28 : 0.06,
     });
   const mesh = new THREE.Mesh(geom, mat);
   if (!work && n.kind === "session") {
@@ -242,12 +248,14 @@ function makeNode(THREE: ThreeLib, n: FgNode, c: Record<string, string>, work: b
 
 function lightScene(THREE: ThreeLib, live: FgInst, work: boolean, c: Record<string, string>): void {
   const scene = live.scene();
-  const ambient = new THREE.AmbientLight(0xffffff, work ? 0.45 : 0.55);
-  const key = new THREE.DirectionalLight(work ? 0xffe6b0 : 0xc8ffe0, work ? 1.15 : 0.7);
+  const ambient = new THREE.AmbientLight(0xffffff, work ? 0.62 : 0.7);
+  const key = new THREE.DirectionalLight(0xffffff, work ? 1.05 : 0.85);
   key.position.set(work ? 40 : -30, work ? 120 : 40, 80);
-  const fill = new THREE.DirectionalLight(work ? 0x8899aa : 0x88aacc, 0.35);
+  const fill = new THREE.DirectionalLight(0xdfe3e8, 0.4);
   fill.position.set(-80, 20, -40);
-  scene.add(ambient, key, fill);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.35);
+  rim.position.set(30, -60, -90);
+  scene.add(ambient, key, fill, rim);
   if (!work) {
     scene.fog = new THREE.FogExp2(hexToInt(c.bg.replace("#", "") ? c.bg : "#0D1010"), 0.0045);
   }

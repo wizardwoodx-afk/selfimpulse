@@ -22,7 +22,7 @@ export function Work(): React.ReactElement {
 
   return (
     <>
-      <header className="top"><h2>Work</h2><span className="sub">{busy ? "1 running" : lastResp ? `last run · ${lastResp.outcome}` : "idle"}</span>
+      <header className="top"><h2>Work</h2><span className="sub">{busy ? "your crew is working now" : lastResp ? `last run · ${lastResp.outcome}` : "watch your crew work, live"}</span>
         <div className="right">{busy && <span className="pill accent">live</span>}<button className="btn sm" onClick={() => go("steward")}>New mission</button></div></header>
 
       {!lastResp && !busy && !gate ? (
@@ -43,7 +43,7 @@ export function Work(): React.ReactElement {
                 <div><span>Waiting on you</span><span>{gate ? 1 : 0}</span></div>
                 {savedTokens > 0 && <div><span>Tokens saved</span><span>{savedTokens}</span></div>}
               </div>
-              <div className="legend work"><span><i style={{ background: "#D5B26B" }} />you</span><span><i style={{ background: "#E8C98A" }} />agents</span><span><i style={{ background: "#8C7A55" }} />tools</span><span><i style={{ background: "#E0A55C" }} />gate</span></div>
+              <div className="legend work"><span><i style={{ background: "#FFFFFF" }} />you</span><span><i style={{ background: "#F4F5F7" }} />captain</span><span><i style={{ background: "#D9DCE0" }} />agents</span><span><i style={{ background: "#A6ABB1" }} />tools</span><span><i style={{ background: "#EDEEF0" }} />gate</span><span><i style={{ background: "#4FB3AF" }} />live</span></div>
             </div></div>
             {lastResp && (
               <div className="card"><div className="card-b">

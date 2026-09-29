@@ -28,7 +28,7 @@ export function Memory(): React.ReactElement {
 
   return (
     <>
-      <header className="top"><h2>Memory</h2><span className="sub">{sessions.length} conversation{sessions.length === 1 ? "" : "s"} · {stats.nodes} topics</span>
+      <header className="top"><h2>Memory</h2><span className="sub">everything the crew remembers · {sessions.length} conversation{sessions.length === 1 ? "" : "s"}</span>
         <div className="right"><span className={`pill ${sec.mode === "sealed" ? "ok" : "warn"}`}>{sec.mode === "sealed" ? "encrypted at rest" : sec.mode === "locked" ? "vault locked" : vault.status === "no-passphrase" ? "on device · no vault" : "plaintext on device"}</span><label className="switch"><input type="checkbox" checked={memOn} onChange={(e) => setMemory(e.target.checked)} /><i /><span>Remember</span></label></div></header>
       {nodes.length === 0 ? (
         <div className="scroll"><div className="empty" style={{ height: "100%" }}><h3>Nothing remembered yet</h3><p>{memOn ? "Conversations you have with the Captain will cluster here by topic — nothing leaves this device." : "Memory is off. Turn it on to keep conversations on this device."}</p></div></div>
@@ -44,7 +44,7 @@ export function Memory(): React.ReactElement {
                 <div><span>Links</span><span>{stats.edges}</span></div>
                 <div><span>At rest</span><span>{sec.mode}</span></div>
               </div>
-              <div className="legend memory"><span><i style={{ background: "#7FC79A" }} />conversations</span><span><i style={{ background: "#AEB8B5" }} />topics</span></div>
+              <div className="legend memory"><span><i style={{ background: "#E9EBEE" }} />conversations</span><span><i style={{ background: "#AEB8B5" }} />topics</span></div>
             </div></div>
           </div>
           <div className="hud-r">

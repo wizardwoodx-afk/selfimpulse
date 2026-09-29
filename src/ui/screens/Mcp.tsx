@@ -43,6 +43,17 @@ function parseJson(text: string): { ok: true; value: unknown } | { ok: false; er
   }
 }
 
+/** One-command presets for the official reference MCP servers. Any runnable
+ * command works — a preset is just a filled-in form, never a special path. */
+const PRESETS: Array<{ id: string; label: string; desc: string; command: string; args: string }> = [
+  { id: "filesystem", label: "Files", desc: "read & write files in a folder you choose", command: "npx", args: "-y @modelcontextprotocol/server-filesystem ." },
+  { id: "memory", label: "Memory", desc: "a persistent knowledge graph the crew can query", command: "npx", args: "-y @modelcontextprotocol/server-memory" },
+  { id: "git", label: "Git", desc: "commits, branches and history in your repo", command: "uvx", args: "mcp-server-git --repository ." },
+  { id: "fetch", label: "Fetch", desc: "let the crew read a web page you point at", command: "uvx", args: "mcp-server-fetch" },
+  { id: "time", label: "Time", desc: "clocks and timezones, done right", command: "uvx", args: "mcp-server-time" },
+  { id: "thinking", label: "Deep think", desc: "step-by-step structured reasoning tool", command: "npx", args: "-y @modelcontextprotocol/server-sequential-thinking" },
+];
+
 export function Mcp(): React.ReactElement {
   const native = useTauri();
   const [servers, setServers] = useState<McpServerEntry[] | null>(null);
@@ -130,10 +141,12 @@ export function Mcp(): React.ReactElement {
   return (
     <>
       <section className="sgroup">
-        <h3>MCP servers</h3>
+        <h3>Tool servers (MCP)</h3>
         <p className="lead">
-          Servers the crew may call. Each is a real process: connecting spawns it,
-          performs the handshake, and counts the tools it actually returned.
+          Give your crew extra abilities — read files, use git, check the time.
+          Pick a ready-made one below, or connect <b>any</b> MCP server: if it can
+          run as a command on this machine, one line is all it takes. Tools are
+          counted only after a real handshake, never promised in advance.
         </p>
 
         {!native && (
@@ -227,18 +240,26 @@ export function Mcp(): React.ReactElement {
 
         <div className="acts">
           <button className="btn ghost" onClick={() => setAdding(!adding)}>
-            {adding ? "Cancel" : "Add a server"}
+            {adding ? "Cancel" : "+ Connect a tool server"}
           </button>
         </div>
 
         {adding && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+            <div className="chips" role="listbox" aria-label="Ready-made servers">
+              {PRESETS.map((p) => (
+                <button key={p.id} type="button" className="chip" title={`${p.command} ${p.args}`}
+                        onClick={() => setDraft({ name: p.label, command: p.command, args: p.args.split(/\s+/) })}>
+                  <b>{p.label}</b><span>{p.desc}</span>
+                </button>
+              ))}
+            </div>
             <label className="field"><span>Name</span>
               <input className="input" value={draft.name}
                      onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
             </label>
-            <label className="field"><span>Command</span>
-              <input className="input" value={draft.command ?? ""}
+            <label className="field"><span>Command <small className="hint" style={{ textTransform: "none", letterSpacing: 0 }}>(anything runnable: npx, uvx, ./your-server)</small></span>
+              <input className="input mono" value={draft.command ?? ""}
                      onChange={(e) => setDraft({ ...draft, command: e.target.value })} />
             </label>
             <label className="field"><span>Arguments (space separated)</span>

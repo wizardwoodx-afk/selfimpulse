@@ -127,7 +127,7 @@ export function Docs(): React.ReactElement {
 
   return (
     <>
-      <header className="top"><h2>Docs</h2><span className="sub">{rows.length ? `${rows.length} proposal${rows.length === 1 ? "" : "s"}` : "teach it from your own documents"}</span></header>
+      <header className="top"><h2>Docs</h2><span className="sub">teach the crew from your own files — you approve every lesson</span></header>
       <div className="scroll"><div className="page narrow">
         <div className="kpis">
           <div><b>{proposed.length}</b><span>Waiting on you</span></div>

@@ -111,7 +111,7 @@ export default function Federation(): React.ReactElement {
       <header className="si-screen-head">
         <h2>Federation</h2>
         <p className="si-sub">
-          Let other SelfImpulse nodes delegate work to this one over the A2A wire.
+          Team up with other SelfImpulse owners — every handoff is signed and receipted.
         </p>
       </header>
 

@@ -194,7 +194,7 @@ export function Specialists(): React.ReactElement {
       <header className="top">
         <h2>Specialists</h2>
         <span className="sub">
-          {DOMAINS.length} domain teams · {toolCount} tools · {specialistCount} specialists · MoE caps a run at 25
+          {DOMAINS.length} teams of in-house experts · up to 25 work at once · no outside software needed
         </span>
         <div className="right"><span className="pill mono">computed on this machine</span></div>
       </header>

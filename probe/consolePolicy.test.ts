@@ -62,7 +62,7 @@ ok("session-only never seals (persist=false returns before any vault call)", /if
 ok("remember-on-this-machine REQUIRES an unlocked vault", /const v = vaultStatus\(\);\s*if \(v\.status !== "unlocked"\) return/.test(storeSrc));
 ok("persist seals with vaultSeal only after that check", /vaultSeal\(PROVIDER_STORAGE_KEY, JSON\.stringify\(cfg\)\)/.test(storeSrc));
 ok("removing the provider removes the stored copy", /forgetProvider:\s*\(\)\s*=>\s*\{\s*vaultRemove\(PROVIDER_STORAGE_KEY\)/.test(storeSrc));
-ok("the Settings checkbox is the persist switch and says what it does", settingsSrc.includes("Remember on this device") && settingsSrc.includes("requires an unlocked vault"));
+ok("the Settings checkbox is the persist switch and says what it does", settingsSrc.includes("Remember on this device") && settingsSrc.includes("Needs an unlocked Key vault"));
 ok("boot purges a legacy plaintext key and never re-stores it", /purgePlain\(PROVIDER_STORAGE_KEY\)/.test(storeSrc) && !/localStorage\.setItem\(PROVIDER_STORAGE_KEY/.test(storeSrc));
 
 console.log("== the fleet's maturity contract ==");

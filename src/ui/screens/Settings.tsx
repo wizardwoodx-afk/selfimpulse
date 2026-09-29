@@ -23,9 +23,15 @@ import { readCrashes, verifyCrashChain, lastCrash, exportCrashReport, clearCrash
 import { toast } from "../../panels/Toast";
 
 type Sect = "provider" | "vault" | "autonomy" | "mcp" | "federation" | "appearance" | "identity" | "about";
-const SECTS: Array<[Sect, string]> = [["provider", "Provider"], ["vault", "Vault"], ["autonomy", "Autonomy"], ["mcp", "MCP"], ["federation", "Federation"], ["appearance", "Appearance"], ["identity", "Identity"], ["about", "About"]];
+const SECTS: Array<[Sect, string]> = [["provider", "AI connection"], ["vault", "Key vault"], ["autonomy", "Independence"], ["mcp", "Tools (MCP)"], ["federation", "Federation"], ["appearance", "Appearance"], ["identity", "Identity"], ["about", "About"]];
 const KINDS: Array<[ProviderKind, string]> = [["openai-compatible", "OpenAI-compatible"], ["anthropic", "Anthropic"], ["gemini", "Gemini"]];
 const MODEL_HINT: Record<ProviderKind, string> = { "openai-compatible": "gpt-4o-mini", anthropic: "claude-3-5-haiku-latest", gemini: "gemini-2.0-flash" };
+/** Plain-language help per provider: what the key looks like, where to get it. */
+const KEY_HINT: Record<ProviderKind, string> = {
+  "openai-compatible": "Starts with “sk-”. Any OpenAI-compatible endpoint works — including a local server.",
+  anthropic: "Starts with “sk-ant-”. Get one at console.anthropic.com.",
+  gemini: "Starts with “AIza”. Get one at aistudio.google.com.",
+};
 
 export function Settings(): React.ReactElement {
   const [sect, setSect] = useState<Sect>("provider");
@@ -51,6 +57,7 @@ export function Settings(): React.ReactElement {
 
 function Provider() {
   const { provider, setProvider, forgetProvider, securityNote, vault } = useVh();
+  const [showKey, setShowKey] = useState(false);
   const [kind, setKind] = useState<ProviderKind>(provider?.kind ?? "openai-compatible");
   const [baseUrl, setBase] = useState(provider?.baseUrl ?? PROVIDER_DEFAULTS["openai-compatible"]);
   const [model, setModel] = useState(provider?.model ?? "");
@@ -61,13 +68,20 @@ function Provider() {
   const save = async () => { const r = await setProvider({ kind, baseUrl: baseUrl.trim(), apiKey: key.trim(), model: model.trim() || MODEL_HINT[kind] }, persist); setNote(r.note); setKey(""); };
   return (
     <section className="sgroup">
-      <h3>Provider</h3><p className="lead">Without a provider the Captain plans but never executes. With one, every step is gated and receipted. Keys never leave this device.</p>
+      <h3>AI connection</h3><p className="lead">This is the brain your crew thinks with. Without it the Captain can only plan; with it, every step is gated and receipted. Your key never leaves this device.</p>
       {provider && <div className="row"><span className="led ok" /><b>{KINDS.find((k) => k[0] === provider.kind)?.[1]}</b><span className="faint mono">{provider.model}</span><button className="btn sm ghost danger" style={{ marginLeft: "auto" }} onClick={forgetProvider}>Remove key</button></div>}
       <div className="seg">{KINDS.map(([k, l]) => <button key={k} aria-pressed={kind === k} onClick={() => pick(k)}>{l}</button>)}</div>
       <label className="field"><span>Base URL</span><input className="input" value={baseUrl} onChange={(e) => setBase(e.target.value)} /></label>
       <label className="field"><span>Model</span><input className="input" placeholder={MODEL_HINT[kind]} value={model} onChange={(e) => setModel(e.target.value)} /></label>
-      <label className="field"><span>API key</span><input className="input" type="password" autoComplete="off" placeholder={provider ? "•••••••• (leave blank to keep)" : "paste your key"} value={key} onChange={(e) => setKey(e.target.value)} /></label>
-      <label className="check"><input type="checkbox" checked={persist} onChange={(e) => setPersist(e.target.checked)} /><span>Remember on this device <small>{vault.status === "unlocked" ? "sealed in the vault, AES-256-GCM" : "requires an unlocked vault — otherwise the key lives in memory for this session only"}</small></span></label>
+      <label className="field"><span>API key</span>
+        <div className="keyrow">
+          <input className="input keyinput" type={showKey ? "text" : "password"} autoComplete="off" spellCheck={false} placeholder={provider ? "••••••••••••  (leave blank to keep the saved key)" : "paste your key here"} value={key} onChange={(e) => setKey(e.target.value)} />
+          <button type="button" className="btn sm ghost" onClick={() => setShowKey(!showKey)}>{showKey ? "Hide" : "Show"}</button>
+        </div>
+        <small className="hint">{KEY_HINT[kind]}</small>
+      </label>
+      <label className="check"><input type="checkbox" checked={persist} onChange={(e) => setPersist(e.target.checked)} /><span>Remember on this device <small>{vault.status === "unlocked" ? "Encrypted in your vault (AES-256-GCM). Nothing is ever uploaded." : "Needs an unlocked Key vault — otherwise the key stays in memory for this session only and is forgotten when you close the app."}</small></span></label>
+      <p className="hint">Prefer the terminal? Set <code>HANDLE_OPENAI_API_KEY</code>, <code>HANDLE_ANTHROPIC_API_KEY</code> or <code>HANDLE_GEMINI_API_KEY</code> in your environment and the app picks it up — no paste needed.</p>
       <div className="acts"><button className="btn primary" disabled={!key.trim() && !provider} onClick={() => void save()}>{provider ? "Update" : "Connect"}</button>{note && <span className="hint">{note}</span>}</div>
     </section>
   );

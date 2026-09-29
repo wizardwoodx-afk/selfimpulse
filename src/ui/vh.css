@@ -355,7 +355,7 @@ select.input{appearance:none}
 .hud-r .card{pointer-events:auto;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .mode-tag{display:inline-flex;align-items:center;gap:7px;font:10.5px var(--pixel);letter-spacing:.08em;text-transform:uppercase;color:var(--fg-3);margin-bottom:6px}
 .mode-tag i{width:8px;height:8px;border-radius:2px}
-.mode-tag.work i{background:var(--accent)}.mode-tag.memory i{background:#7FC79A;border-radius:50%}
+.mode-tag.work i{background:var(--accent)}.mode-tag.memory i{background:#9BA1A8;border-radius:50%}
 .prog{height:4px;border-radius:2px;background:var(--s3);margin:10px 0 6px;overflow:hidden}
 .prog i{display:block;height:100%;background:var(--accent);border-radius:2px;transition:width 300ms var(--ease)}
 .klist{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--fg-2)}
@@ -456,3 +456,28 @@ label.switch:has(input:checked){background:none;box-shadow:none}
 .rails li{display:flex;justify-content:space-between;gap:14px;padding:9px 2px;border-top:1px solid var(--line);font-size:13px;color:var(--fg-2)}
 .rails li:first-child{border-top:0}
 .rails li small{font:10.5px var(--pixel);letter-spacing:.06em;text-transform:uppercase;color:var(--fg-3);white-space:nowrap;align-self:center}
+
+/* ── UI/UX pass: key holder, chips, focus, scrollbars ───────────────────── */
+.keyrow{display:flex;gap:8px;align-items:center}
+.keyrow .input{flex:1}
+.keyinput{font-family:var(--mono);letter-spacing:.12em;font-size:12.5px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:9px 12px;border-radius:10px;background:var(--s1);box-shadow:var(--shadow-1);font-size:12.5px;color:var(--fg-2);max-width:210px;transition:box-shadow var(--t),color var(--t),transform var(--t)}
+.chip:hover{box-shadow:0 0 0 1px var(--accent),var(--shadow-1);color:var(--fg);transform:translateY(-1px)}
+.chip b{font-weight:500;color:var(--fg);font-size:13px}
+.chip span{font-size:11.5px;color:var(--fg-3);line-height:1.35}
+/* calm, themed scrollbars */
+*{scrollbar-width:thin;scrollbar-color:var(--s3) transparent}
+*::-webkit-scrollbar{width:9px;height:9px}
+*::-webkit-scrollbar-thumb{background:var(--s3);border-radius:8px;border:2px solid var(--bg)}
+*::-webkit-scrollbar-thumb:hover{background:var(--fg-3)}
+*::-webkit-scrollbar-track{background:transparent}
+/* buttons: visible keyboard focus + gentler motion */
+.btn{will-change:transform}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary:hover{transform:translateY(-1px);filter:brightness(1.05)}
+/* inputs: soft accent ring instead of a hard outline */
+.input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+/* empty states breathe */
+.empty{padding:34px 22px;text-align:center;color:var(--fg-3)}
+.empty h3{color:var(--fg-2);margin-bottom:4px}

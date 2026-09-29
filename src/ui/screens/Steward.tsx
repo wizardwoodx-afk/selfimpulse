@@ -26,6 +26,7 @@ export function Steward(): React.ReactElement {
     <>
       <header className="top">
         <h2>Captain</h2>
+        <span className="sub">Say what you want in plain words — it plans, runs the crew, and hands you a receipt</span>
         <div className="right">
           {/* The state of the machine belongs in the header, where you look for
               it. It used to be a pill in the corner and a banner at the bottom. */}
