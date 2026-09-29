@@ -1,8 +1,8 @@
 {
-  "name": "eleven-handle",
+  "name": "selfimpulse",
   "private": true,
   "version": "1.0.0",
-  "description": "11Handle — your agents, with receipts. Built on the MJ engine.",
+  "description": "SelfImpulse — agentic impulse, for all.",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
@@ -18,7 +18,7 @@
     "mcp": "node tools/mcp.mjs",
     "mcp:build": "node tools/build-mcp.mjs",
     "unit": "node tools/run-unit.mjs",
-    "host": "node tools/vh-host.mjs",
+    "host": "node tools/si-host.mjs",
     "host:build": "node tools/build-host.mjs",
     "web:build": "vite build && rm -rf web-build && cp -r dist web-build"
   },

@@ -19,12 +19,12 @@ import assert from "node:assert/strict";
 import {
   REACH_BATCH_DOMAINS, REACH_BATCH_PROVENANCE, REACH_BATCH_STATIONS, STATION_RISK,
   batchEntryId, buildReachBatch, reachBatchCensus,
-} from "../src/vh19/reach/batchSpec";
-import { REACH_BATCH_SPECIALISTS } from "../src/vh19/reach/reachBatch";
-import { SPECIALISTS, listSpecialists, catalogStats } from "../src/vh19/registry";
-import { BROADER_SPECIALISTS } from "../src/vh19/broaderBench";
-import { REACH_SPECIALISTS } from "../src/vh19/reachBench";
-import { MATURED_SPECIALISTS } from "../src/vh19/maturityBench";
+} from "../src/engine/reach/batchSpec";
+import { REACH_BATCH_SPECIALISTS } from "../src/engine/reach/reachBatch";
+import { SPECIALISTS, listSpecialists, catalogStats } from "../src/engine/registry";
+import { BROADER_SPECIALISTS } from "../src/engine/broaderBench";
+import { REACH_SPECIALISTS } from "../src/engine/reachBench";
+import { MATURED_SPECIALISTS } from "../src/engine/maturityBench";
 
 test("reach batch — 200 industry specialists that do not disturb the fleet", async (t) => {
   await t.test("§1 the snapshot is exactly what the spec builds", () => {

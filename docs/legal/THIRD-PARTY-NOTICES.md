@@ -31,10 +31,10 @@ record, outside the distributed tree.
 ### jszip — ZIP container and PPTX parts
 
 - Project: https://github.com/Stuk/jszip
-- Used: to inflate archive members that 11Handle's own central-directory scan has
+- Used: to inflate archive members that SelfImpulse's own central-directory scan has
   already approved by name and by size. jszip is not the security gate;
   `src/mission/archiveScan.ts` is.
-- License: **dual MIT or GPL-3.0-or-later, at the licensee's choice. 11Handle
+- License: **dual MIT or GPL-3.0-or-later, at the licensee's choice. SelfImpulse
   uses it under the MIT license.** Copyright (c) 2009 Stuart Knightley, David
   Duponchel, Franz Buchinger, António Afonso. Both license texts are reproduced
   verbatim in `LICENSES/jszip-MIT-OR-GPL-3.txt`.
@@ -44,10 +44,10 @@ record, outside the distributed tree.
 - Project: https://github.com/ag-ui-protocol/ag-ui
 - Adopted: the AG-UI event vocabulary and base event contract, read from the
   upstream versioned `spec/` schema directory and re-expressed as first-party
-  TypeScript in `src/vh19/aguiProtocol.ts`. No runtime dependency was added;
-  the module is 11Handle's own code implementing an adopted specification.
+  TypeScript in `src/engine/aguiProtocol.ts`. No runtime dependency was added;
+  the module is SelfImpulse's own code implementing an adopted specification.
 - Commit adopted: `b8ebd02c84a3` (31 event types; upstream protocol revision
-  one point oh — this is the AG-UI protocol's own revision, not a 11Handle
+  one point oh — this is the AG-UI protocol's own revision, not a SelfImpulse
   release number).
 - License: MIT License. Copyright (c) 2025 AG-UI contributors.
 - MIT license text: https://github.com/ag-ui-protocol/ag-ui/blob/main/LICENSE
@@ -56,10 +56,10 @@ record, outside the distributed tree.
 
 ---
 
-11Handle (built on the MJ engine) includes clean-room TypeScript implementations of token-
+SelfImpulse (built on the MJ engine) includes clean-room TypeScript implementations of token-
 compression techniques proven in the open-source community. The following
 projects informed the design of LOTUS (Lean Optimal Token Utilisation System,
-`src/vh19/lotus.ts`); no source code from either project is included — the
+`src/engine/lotus.ts`); no source code from either project is included — the
 implementations in this repository were written for VH's audited pipeline —
 but their MIT licenses require this notice, and their authors have our thanks.
 

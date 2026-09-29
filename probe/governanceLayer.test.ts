@@ -23,7 +23,7 @@ import {
   type AuthorityEnvelope, type HitlRequest, type HitlTier,
 } from "../src/security/actionGraph";
 
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 
 let passed = 0;
 let failed = 0;

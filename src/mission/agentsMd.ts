@@ -1,5 +1,5 @@
 /**
- * §13.1 AGENTS.md round-trip (V11, VH-11.0-PROPOSAL W4).
+ * §13.1 AGENTS.md round-trip (V11, SI-11.0-PROPOSAL W4).
  *
  * AGENTS.md — plain Markdown, no schema, read natively by 30+ coding tools and stewarded by
  * the Agentic AI Foundation — is how the rest of the ecosystem gives agents project context.

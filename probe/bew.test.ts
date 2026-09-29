@@ -11,8 +11,8 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 let passed = 0;
 let failed = 0;
@@ -33,13 +33,13 @@ class MemStore implements Storage {
 }
 (globalThis as { localStorage?: Storage }).localStorage = new MemStore();
 
-import { BEW_PHASES, BEW_ERROR_CLASSES, BEW_TASK_LADDERS, BEW_BLOCK, hasBew, BewRun } from "../src/vh19/bew";
-import { buildSpecialistPrompt, skillsFor } from "../src/vh19/skills";
-import { SPECIALISTS } from "../src/vh19/registry";
+import { BEW_PHASES, BEW_ERROR_CLASSES, BEW_TASK_LADDERS, BEW_BLOCK, hasBew, BewRun } from "../src/engine/bew";
+import { buildSpecialistPrompt, skillsFor } from "../src/engine/skills";
+import { SPECIALISTS } from "../src/engine/registry";
 
 const fs = await import("node:fs");
-const skillsSrc = fs.readFileSync(path.join(ROOT, "src/vh19/skills.ts"), "utf8");
-const bewSrc = fs.readFileSync(path.join(ROOT, "src/vh19/bew.ts"), "utf8");
+const skillsSrc = fs.readFileSync(path.join(ROOT, "src/engine/skills.ts"), "utf8");
+const bewSrc = fs.readFileSync(path.join(ROOT, "src/engine/bew.ts"), "utf8");
 
 function main(): void {
   ok("six phases named in order", JSON.stringify(BEW_PHASES) === JSON.stringify(["intake", "plan", "act", "verify", "recover", "report"]));
@@ -67,9 +67,9 @@ function main(): void {
   ok("BEW rides a sample across the fleet (seed, middle, last)",
     sampled.every((s) => hasBew(buildSpecialistPrompt(s))));
 
-  const fin = SPECIALISTS.find((s) => s.id.startsWith("finance.in.gstr3b-filer"))!;
+  const fin = SPECIALISTS.find((s) => s.id.startsWith("legal."))!;
   const sic = SPECIALISTS.find((s) => s.id.startsWith("silicon.soc-architect"))!;
-  ok("finance + silicon specialists carry BEW", hasBew(buildSpecialistPrompt(fin)) && hasBew(buildSpecialistPrompt(sic)));
+  ok("legal + silicon specialists carry BEW", hasBew(buildSpecialistPrompt(fin)) && hasBew(buildSpecialistPrompt(sic)));
 
   ok("BEW comes AFTER doctrine and skills in the composed prompt",
     buildSpecialistPrompt(fin).indexOf("Operator doctrine") < buildSpecialistPrompt(fin).indexOf("Behaviour Enforcement Workflow")
@@ -92,7 +92,7 @@ function main(): void {
   ok("an ordered run reports done with a clean trail",
     cleanReceipt.verdict === "done" && cleanReceipt.violations.length === 0 && cleanReceipt.verify === "pass" && cleanReceipt.enforced === true);
 
-  const skip = new BewRun("finance.in.gstr3b-filer");
+  const skip = new BewRun("legal.contract-reviewer");
   skip.to("plan"); skip.to("act");
   const skipReceipt = skip.finish("done"); // never verified
   ok("a run that never verified CANNOT claim done — the machine downgrades to partial and records why",
@@ -115,13 +115,13 @@ function main(): void {
   ok("BEW line renders trail + verify + verdict in words", /BEW intake→plan.*verify (pass|na).*verdict/.test(clean.line(cleanReceipt)));
 
   /* the loop actually carries the machine */
-  const loopSrc = fs.readFileSync(path.join(ROOT, "src/vh19/agentLoop.ts"), "utf8");
+  const loopSrc = fs.readFileSync(path.join(ROOT, "src/engine/agentLoop.ts"), "utf8");
   ok("runMemberAgent creates a BewRun and records plan/act/verify/recover",
     loopSrc.includes("new BewRun(specialist.id)") && loopSrc.includes('bew.to("plan")') && loopSrc.includes('bew.to("act")') && loopSrc.includes('bew.to("verify")') && loopSrc.includes('bew.to("recover")'));
   ok("truncated loops finish partial — a step-limited run cannot claim done",
     loopSrc.includes("truncated: true,") && /bew: bew\.finish\("partial"\)/.test(loopSrc));
   ok("every MemberRun carries a bew receipt (type-required)", /bew: bew\.finish\(/.test(loopSrc) && loopSrc.includes("bew: BewReceipt;"));
-  const genSrcBew = fs.readFileSync(path.join(ROOT, "src/vh19/generalist.ts"), "utf8");
+  const genSrcBew = fs.readFileSync(path.join(ROOT, "src/engine/generalist.ts"), "utf8");
   ok("the generalist surfaces the BEW receipt on member sections and rides it into member digests",
     genSrcBew.includes("[bew ${run.bew.phases.join") && genSrcBew.includes("bew: run.bew"));
 

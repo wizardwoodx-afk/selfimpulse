@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-var root = process.env.HANDLE_ROOT ? path.resolve(process.env.HANDLE_ROOT) : process.cwd();
+var root = process.env.SI_ROOT ? path.resolve(process.env.SI_ROOT) : process.cwd();
 var SERVICE = path.join(root, "src-tauri", "browser-service");
 var checks = 0;
 var ok = (cond, msg) => {
@@ -54,7 +54,7 @@ var call = async (route, body) => {
 };
 try {
   const health = await call("/health");
-  ok(health.ok === true && health.service === "11handle-browser", "health reports the bundled service identity");
+  ok(health.ok === true && health.service === "selfimpulse-browser", "health reports the bundled service identity");
   const create = await call("/session/create", { key: "probe" });
   if (create.ok === true) {
     ok(typeof create.sessionId === "string" && create.sessionId, "with a real browser attached, sessions are real");

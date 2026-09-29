@@ -1,4 +1,4 @@
-# 11Handle — The Story (one spine, one artifact, four readers)
+# SelfImpulse — The Story (one spine, one artifact, four readers)
 
 > This is the narrative document every pitch, demo, and page should align to.
 > If a feature cannot be told as a chapter of THIS story, it does not go in the deck.
@@ -89,7 +89,7 @@ FinOps, Assurance Score, Black Box, receipts, vault, egress ledger — these are
 ## Language discipline (say it exactly this way)
 
 - ✅ "evidence / assurance score" — ❌ "safety guarantee" or "trust score"
-- ✅ "VH-governed artifacts leave through an auditable egress path" — ❌ "nothing can
+- ✅ "SelfImpulse-governed artifacts leave through an auditable egress path" — ❌ "nothing can
   leave the laptop except through VH"
 - ✅ "measured" / "unmeasured" — ❌ estimated numbers presented as fact
 - ✅ "verifiable without VH" — ❌ "unhackable", "tamper-proof"

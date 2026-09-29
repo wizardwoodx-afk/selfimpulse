@@ -4,10 +4,10 @@
  * Two reviewer findings live here.
  *
  * 19.6.0 pinned that Bridge must not mint its own ephemeral identity beside the
- * harbor's durable authority layer: the federation identity IS the authority
+ * selfimpulse's durable authority layer: the federation identity IS the authority
  * identity (same owner, same key, same keystore path).
  *
- * 19.6.1 closed the second finding: the FACE was seeded from `harbor:<owner>`,
+ * 19.6.1 closed the second finding: the FACE was seeded from `selfimpulse:<owner>`,
  * so the same owner with a rotated key kept the same mark while the docs called
  * the mark "derived from the identity". The decision, now implemented: the mark
  * a counterparty pins is derived from the CANONICAL PUBLIC KEY. Rotation yields
@@ -19,11 +19,11 @@ import assert from "node:assert/strict";
 import {
   ANCHOR_FORMAT, KEY_FACE_PREFIX, federationIdentity, issueAnchor, verifyAnchor, anchorCanonical, anchorDigest, anchorSummary, anchorFace,
   faceForKey, faceSeedForKey, keyHandle, keyHandleFromJwk, faceFromJwk, canonicalKeyMaterial, publicKeyPemFromJwk,
-} from "../src/vh19/federation/identity";
-import { authorityOwnerIdentity } from "../src/vh19/missionAuthority";
-import { fingerprintOf, sigilOf } from "../src/vh19/federation/sigil";
-import { pureSha256 } from "../src/vh19/pureHash";
-import { generateOwnerKeysWeb } from "../src/vh19/authorityWeb";
+} from "../src/engine/federation/identity";
+import { authorityOwnerIdentity } from "../src/engine/missionAuthority";
+import { fingerprintOf, sigilOf } from "../src/engine/federation/sigil";
+import { pureSha256 } from "../src/engine/pureHash";
+import { generateOwnerKeysWeb } from "../src/engine/authorityWeb";
 
 /** A memory keystore seam, exactly as the authority layer expects it. */
 function memStore(): { get(): string | null; set(v: string): void } {
@@ -31,7 +31,7 @@ function memStore(): { get(): string | null; set(v: string): void } {
   return { get: () => v, set: (x: string) => { v = x; } };
 }
 
-test("federation identity — the harbor's own authority keys, with proof of possession", async (t) => {
+test("federation identity — the selfimpulse's own authority keys, with proof of possession", async (t) => {
   await t.test("§1 the identity IS the authority identity, not a second one", async () => {
     const storage = memStore();
     const fed = await federationIdentity({ storage, identity: "priya" });
@@ -68,10 +68,10 @@ test("federation identity — the harbor's own authority keys, with proof of pos
   await t.test("§3 the two kinds of mark are different strings, so neither can impersonate the other", async () => {
     const keys = await generateOwnerKeysWeb();
     const keyMark = keyHandle(keys.publicKeyPem);
-    const subjectMark = fingerprintOf("harbor:priya");
+    const subjectMark = fingerprintOf("selfimpulse:priya");
     assert.notEqual(keyMark, subjectMark, "a key handle and a subject handle are domain-separated");
     assert.match(keyMark, /^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/, "…but they read the same way to a human");
-    assert.notDeepEqual(faceForKey(keys.publicKeyPem), sigilOf("harbor:priya"), "…and they draw differently");
+    assert.notDeepEqual(faceForKey(keys.publicKeyPem), sigilOf("selfimpulse:priya"), "…and they draw differently");
 
     /* A JWK and a PEM of the SAME key derive the SAME mark: one canonical
        encoding, so the mark beside a peer's name in the door is the mark on
@@ -143,7 +143,7 @@ test("federation identity — the harbor's own authority keys, with proof of pos
     assert.equal(anchorDigest(anchor).length, 64);
     assert.equal(anchorDigest(anchor), pureSha256(`vh.fed.anchor.v1:${anchorCanonical(anchor)}|${anchor.selfSignature}`));
     assert.match(anchorSummary(fed), /ana — /);
-    assert.ok(anchorFace(fed, "sealed", 40).includes("vh-sigil--sealed"));
+    assert.ok(anchorFace(fed, "sealed", 40).includes("si-sigil--sealed"));
   });
 
   await t.test("§5 a session-scoped anchor is refused when durability is required", async () => {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 11Handle — external-model validation (16.7.0).
+ * SelfImpulse — external-model validation (16.7.0).
  *
  * The standing, honest mechanism for the review's "real external-model
  * validation": inventory the product's 25-harness registry on this host's
@@ -44,7 +44,7 @@ let tmp = null;
 let out = precompiled;
 try {
   if (buildSync) {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "vh-extval-"));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "si-extval-"));
     out = path.join(tmp, "external-model-validation.mjs");
     buildSync({
       entryPoints: [entry],

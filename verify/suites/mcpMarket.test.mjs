@@ -20435,7 +20435,7 @@ var init_guardrail = __esm({
   }
 });
 
-// src/vh19/mcpMarket.ts
+// src/engine/mcpMarket.ts
 var mcpMarket_exports = {};
 __export(mcpMarket_exports, {
   MCP_CATALOG: () => MCP_CATALOG,
@@ -20585,11 +20585,11 @@ function clearMarket() {
 }
 var REGISTRY_KEY, MCP_CATALOG, McpServerSchema, memRegistry;
 var init_mcpMarket = __esm({
-  "src/vh19/mcpMarket.ts"() {
+  "src/engine/mcpMarket.ts"() {
     "use strict";
     init_zod();
     init_guardrail();
-    REGISTRY_KEY = "vh19.mcpmarket.v1";
+    REGISTRY_KEY = "engine.mcpmarket.v1";
     MCP_CATALOG = [
       { id: "filesystem", name: "Filesystem", category: "workspace", description: "Read/write/search files under a rooted directory you name.", transport: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "<ROOT>"] },
       { id: "git", name: "Git", category: "workspace", description: "Repo status, diffs, log and commits through MCP tools.", transport: "stdio", command: "uvx", args: ["mcp-server-git", "--repository", "<PATH>"] },

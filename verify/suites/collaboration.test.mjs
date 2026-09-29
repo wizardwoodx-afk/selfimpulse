@@ -11,7 +11,7 @@ function planWorktrees(team, opts) {
   for (const seat2 of team.seats) {
     if (!seat2.mayWrite) {
       if (opts.deferReview && hasWriter) {
-        const path2 = `${root}-vh-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+        const path2 = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
         plans.push({
           seatId: seat2.id,
           branch: "",
@@ -37,7 +37,7 @@ function planWorktrees(team, opts) {
       continue;
     }
     const branch = `vh/${opts.missionSlug}/${branchSafe(seat2.id)}`;
-    const path = `${root}-vh-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+    const path = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
     plans.push({
       seatId: seat2.id,
       branch,
@@ -320,7 +320,7 @@ var HARNESSES = [
     name: "Native agent (in-process)",
     bins: [],
     argv: [],
-    install: "Nothing to install \u2014 the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+    install: "Nothing to install \u2014 the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
     notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
     source: "src/engine/hermesRuntime.ts"
   },
@@ -346,7 +346,7 @@ var AGENT_CAPABILITIES = {
     // does not exist; every caller that read them was reasoning about a seat
     // that could not run.
     bins: [],
-    install: "bundled with 11Handle; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
+    install: "bundled with SelfImpulse; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
     prompt: { argv: [], confidence: "docs", source: "in-process runtime: no argv exists by construction" },
     json: null,
     readOnly: null,
@@ -520,7 +520,7 @@ console.log("\n== 1. worktree isolation ==\n");
   ok(readers.length === balanced.seats.length - 1, "everyone read-only shares the base checkout");
   ok(writers[0].branch === "vh/rate-limiter/impl", `the branch is namespaced by mission and seat, got ${writers[0].branch}`);
   ok(!writers[0].path.startsWith("/repo/app/"), `the worktree is a SIBLING of the repo, not inside it, got ${writers[0].path}`);
-  ok(writers[0].path.startsWith("/repo/app-vh-"), `sibling path is ${writers[0].path}`);
+  ok(writers[0].path.startsWith("/repo/app-si-"), `sibling path is ${writers[0].path}`);
   ok(readers.every((r) => r.path === "/repo/app"), "read-only seats point at the real repo, so they review what is actually there");
   ok(/review a tree nobody is writing to/.test(readers[0].reason), "and the reason explains why they are not isolated");
   const argv = writers[0].createArgv[0];
@@ -721,7 +721,7 @@ console.log("\n== 9. a REPEATED mission gets its own worktree (the collision bug
   );
   ok(
     "the path is still a sibling of the repo, never inside it",
-    writerPath(second).startsWith("/repo/app-vh-") && !writerPath(second).startsWith("/repo/app/")
+    writerPath(second).startsWith("/repo/app-si-") && !writerPath(second).startsWith("/repo/app/")
   );
   ok(
     "the BRANCH was always mission-scoped, and still is",

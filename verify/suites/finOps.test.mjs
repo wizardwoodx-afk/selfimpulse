@@ -62,7 +62,7 @@ async function computeChargeback(inputs, issuedAt) {
     simulatedSeatsTotal: rows.reduce((a, r) => a + r.simulatedSeats, 0)
   };
   const digest = await sha256hex(canon({ rows, totals }));
-  return { format: "vh-chargeback/1", issuedAt: issuedAt ?? (/* @__PURE__ */ new Date()).toISOString(), rows, totals, digest };
+  return { format: "si-chargeback/1", issuedAt: issuedAt ?? (/* @__PURE__ */ new Date()).toISOString(), rows, totals, digest };
 }
 async function verifyChargebackDigest(cb) {
   const { digest, ...rest } = cb;

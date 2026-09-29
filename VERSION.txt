@@ -1,7 +1,7 @@
-11Handle — version of record
+SelfImpulse — version of record
 Product release: 1.0.0
 Engine release: MJ 19.7.15 ("Handle")
-Org: User → Captain → 30 desks (Lead+HR = 60) → 1,850 workers
+Org: User → Captain → 30 desks (Lead+HR = 60) → 1,500 workers
 Floor: 11WORKSPACE, Agentic MoE cap 25
 Source: packed from the working tree including 11WORKSPACE.
 Install: unzip, npm ci, npm test / npm run dev

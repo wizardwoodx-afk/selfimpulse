@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/vh19/tokenOptim.ts
+// src/engine/tokenOptim.ts
 var tokenOptim_exports = {};
 __export(tokenOptim_exports, {
   PROMPT_BUDGET: () => PROMPT_BUDGET,
@@ -261,9 +261,9 @@ function clearTokenLedger() {
 }
 var LEDGER_KEY, LEDGER_CAP, PROMPT_BUDGET, WIRE_BUDGET, EVENT_CAP, wireEvents, wireSeq, lastPrefix;
 var init_tokenOptim = __esm({
-  "src/vh19/tokenOptim.ts"() {
+  "src/engine/tokenOptim.ts"() {
     "use strict";
-    LEDGER_KEY = "vh19.tokens.v1";
+    LEDGER_KEY = "engine.tokens.v1";
     LEDGER_CAP = 500;
     PROMPT_BUDGET = 6e3;
     WIRE_BUDGET = 24e3;
@@ -335,7 +335,7 @@ var init_guardrail = __esm({
   }
 });
 
-// src/vh19/providers.ts
+// src/engine/providers.ts
 var providers_exports = {};
 __export(providers_exports, {
   DEFAULT_TIMEOUT_MS: () => DEFAULT_TIMEOUT_MS,
@@ -460,7 +460,7 @@ async function complete(cfg2, system, user, opts = {}) {
 }
 var PROVIDER_DEFAULTS, DEFAULT_TIMEOUT_MS, ENV_SOURCES;
 var init_providers = __esm({
-  "src/vh19/providers.ts"() {
+  "src/engine/providers.ts"() {
     "use strict";
     init_guardrail();
     init_tokenOptim();
@@ -523,14 +523,17 @@ var c = collapseRepeatedLines2(rep);
 ok("a line seen >2\xD7 collapses to the first two + a marker", c.collapsed === 1 && c.text.includes("repeats 1 more time") && c.text.includes("repeats elided by the token optimizer"));
 ok("structural lines never collapse", collapseRepeatedLines2("# Header\n# Header").collapsed === 0);
 console.log("== fnv1a determinism ==");
-ok("same text, same hash; different text, different hash", fnv1a2("vouch") === fnv1a2("vouch") && fnv1a2("vouch") !== fnv1a2("harbor"));
+ok(
+  "same text, same hash; different text, different hash",
+  fnv1a2("mission alpha") === fnv1a2("mission alpha") && fnv1a2("mission alpha") !== fnv1a2("mission beta")
+);
 console.log("== the wire pipeline ==");
 resetWireCacheState2();
 var seq0 = wireEventSeq2();
-var sys = "You are VH-19.\n\n\n\nStay honest.   \nStay honest.";
+var sys = "You are SelfImpulse.\n\n\n\nStay honest.   \nStay honest.";
 var usr = "plan a mission";
 var w1 = optimizeWirePair2(sys, usr, { model: "m1", kind: "probe" });
-ok("pipeline returns usable texts", w1.system.includes("You are VH-19.") && w1.user === "plan a mission");
+ok("pipeline returns usable texts", w1.system.includes("You are SelfImpulse.") && w1.user === "plan a mission");
 ok("pipeline report is labelled an estimate", w1.report.est === true);
 ok("first call is NOT cache-aligned (no prefix history)", w1.report.cacheAligned === false);
 var w2 = optimizeWirePair2(sys, usr, { model: "m1", kind: "probe" });
@@ -551,9 +554,9 @@ var fakeFetch = (async (_url, init) => {
   seenBody = init?.body ?? "";
   return new Response(JSON.stringify({ choices: [{ message: { content: "the answer" } }] }), { status: 200, headers: { "content-type": "application/json" } });
 });
-var r = await complete2(cfg, "You are VH-19, the 11Handle generalist.", "hello", { fetchImpl: fakeFetch });
+var r = await complete2(cfg, "You are SelfImpulse, the SelfImpulse generalist.", "hello", { fetchImpl: fakeFetch });
 ok("complete() succeeds through the pipeline", r.ok === true && r.text === "the answer");
-ok("the wire body still carries the system + user roles", seenBody.includes("You are VH-19") && seenBody.includes("hello"));
+ok("the wire body still carries the system + user roles", seenBody.includes("You are SelfImpulse") && seenBody.includes("hello"));
 var d1 = optimDelta2(seq1);
 ok("the call landed exactly one pipeline event", d1.calls === 1 && d1.beforeTokens > 0);
 console.log("== the composed-prompt fitter still honors skills ==");

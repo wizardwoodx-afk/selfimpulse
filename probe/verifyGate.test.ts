@@ -203,7 +203,7 @@ describe("verifyGate — snapshot evidence binding (11.10)", () => {
     assert.equal(v.evidence?.reviewedBy[0].matchesSnapshot, true);
   });
 
-  it("a verifier that ran but reviewed a DIFFERENT ref cannot vouch → BLOCKED", () => {
+  it("a verifier that ran but reviewed a DIFFERENT ref cannot selfimpulse → BLOCKED", () => {
     const v = evaluateVerifyGate(
       base({
         snapshot: snap,
@@ -216,7 +216,7 @@ describe("verifyGate — snapshot evidence binding (11.10)", () => {
     assert.match(v.reasons.join("\n"), /does not match the snapshot/);
   });
 
-  it("a verifier with no recorded ref cannot vouch either", () => {
+  it("a verifier with no recorded ref cannot selfimpulse either", () => {
     const v = evaluateVerifyGate(
       base({
         snapshot: snap,

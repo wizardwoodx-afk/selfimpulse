@@ -31,8 +31,8 @@ import fs            from "node:fs";
 import os            from "node:os";
 import path          from "node:path";
 import { fileURLToPath } from "node:url";
-import * as VH       from "../src/core/vh-crypto.js";
-import { VHClient }  from "../src/client/vh-sdk.js";
+import * as VH       from "../src/core/si-crypto.js";
+import { VHClient }  from "../src/client/si-sdk.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -88,12 +88,12 @@ console.log(" ADVERSARIAL CAMPAIGN — can we still get around Warrant?");
 console.log(" protocol v0.10.7 · RULES 3–6 · live harbour · real envelopes, real ledger");
 console.log(line + "\n");
 
-let url = null, harborProc = null, dataDir = null;
+let url = null, selfimpulseProc = null, dataDir = null;
 const operatorIdentity = await VH.generateIdentity();
 {
   const port = await freePort();
-  dataDir    = fs.mkdtempSync(path.join(os.tmpdir(), "vh-campaign-"));
-  harborProc = spawn(process.execPath, [path.join(ROOT, "protocol/src/server/harbor.js")], {
+  dataDir    = fs.mkdtempSync(path.join(os.tmpdir(), "si-campaign-"));
+  selfimpulseProc = spawn(process.execPath, [path.join(ROOT, "protocol/src/server/selfimpulse.js")], {
     env: {
       ...process.env,
       PORT: String(port),
@@ -103,11 +103,11 @@ const operatorIdentity = await VH.generateIdentity();
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  harborProc.stderr.on("data", (b) => process.stderr.write(`[harbor] ${b}`));
+  selfimpulseProc.stderr.on("data", (b) => process.stderr.write(`[selfimpulse] ${b}`));
   url = `http://127.0.0.1:${port}`;
   if (!(await waitForPort(port))) {
     console.error("campaign: harbour did not come up");
-    harborProc.kill("SIGTERM");
+    selfimpulseProc.kill("SIGTERM");
     process.exit(2);
   }
   console.log(`  harbour      ${url}`);
@@ -169,7 +169,7 @@ await approver.declareCapability(["write:purchase_orders", "delegate:procurement
 await sleep(600);
 const controlGrant = await give("campaign_buyer", "write:purchase_orders", { scope: "resource://campaign/governed", via: approver });
 await sleep(900);
-const controlCommit = await buyer.vouchAction({ action: "write:purchase_orders", tool: "record_purchase_order", purpose: "control", result: "success" });
+const controlCommit = await buyer.selfimpulseAction({ action: "write:purchase_orders", tool: "record_purchase_order", purpose: "control", result: "success" });
 /* the approver is now attested (endorsed) AND holds its tokens as a grant, so its
    own grant to the buyer passes RULE 1 (standing) + RULE 3 (it holds exactly
    write:purchase_orders) + RULE 5 (the grant is real authority). */
@@ -194,7 +194,7 @@ await sleep(1200);
 const pForS = await peerOf(sybil, "pawn_recipient");
 const wildcardGrant = await sybil.authorize(pForS?.id, "*", { scope: "*", ttlMs: 3_600_000 });
 await sleep(900);
-const pawnCommit = await pawn.vouchAction({ action: "write:purchase_orders", tool: "record_purchase_order", purpose: "commit under a self-declared '*' grant", result: "success" });
+const pawnCommit = await pawn.selfimpulseAction({ action: "write:purchase_orders", tool: "record_purchase_order", purpose: "commit under a self-declared '*' grant", result: "success" });
 row("ATTACK 1 · self-declared '*' ⇒ may not mint '*' authority",
   !(wildcardGrant?.ok !== false && pawnCommit?.ok === true),
   `declaration=${show(decl)} grant=${show(wildcardGrant)} commit=${show(pawnCommit)}`);
@@ -236,7 +236,7 @@ await sleep(1200);
 const ppForC = await peerOf(claimer, "payroll_pawn");
 const payrollGrant = await claimer.authorize(ppForC?.id, "write:payroll", { scope: "payroll", ttlMs: 3_600_000 });
 await sleep(800);
-const payrollCommit = await payrollPawn.vouchAction({ action: "write:payroll", tool: "pay_salaries", purpose: "commit under a self-declared payroll claim", result: "success" });
+const payrollCommit = await payrollPawn.selfimpulseAction({ action: "write:payroll", tool: "pay_salaries", purpose: "commit under a self-declared payroll claim", result: "success" });
 row("ATTACK 3 · self-declared 'write:payroll' ⇒ may not mint payroll authority",
   payrollGrant?.ok === false && payrollGrant?.reason === "policy:capability-claim-is-not-authority" &&
   !(payrollCommit?.ok === true),
@@ -297,7 +297,7 @@ const raceGrant = await broker.authorize(gForB?.id, "write:offers", { scope: "of
 await sleep(700);
 const revocation = await operator.revoke({ fp: (await peerOf(operator, "campaign_broker"))?.fp, action: "write:offers" }, "authority withdrawn");
 await sleep(900);
-const afterRevoke = await granted.vouchAction({ action: "write:offers", tool: "publish_offer", purpose: "commit after issuer revocation", result: "success" });
+const afterRevoke = await granted.selfimpulseAction({ action: "write:offers", tool: "publish_offer", purpose: "commit after issuer revocation", result: "success" });
 row("ATTACK 6 · grant whose issuer's authority was revoked ⇒ refused at consumption",
   !(raceGrant?.ok === true && afterRevoke?.ok === true),
   `issuer grant=${show(raceGrant)} revocation=${show(revocation)} commit=${show(afterRevoke)}`);
@@ -312,7 +312,7 @@ await expiredUser.join("campaign_expired_user", "ops");
 await sleep(1200);
 const shortGrant = await give("campaign_expired_user", "write:notes", { scope: "notes", ttlMs: 1200 });
 await sleep(2600);
-const afterExpiry = await expiredUser.vouchAction({ action: "write:notes", tool: "write_note", purpose: "commit after expiry", result: "success" });
+const afterExpiry = await expiredUser.selfimpulseAction({ action: "write:notes", tool: "write_note", purpose: "commit after expiry", result: "success" });
 row("ATTACK 7 · expired grant ⇒ refused", !(shortGrant?.ok === true && afterExpiry?.ok === true),
   `grant=${show(shortGrant)} commit=${show(afterExpiry)}`);
 expiredUser.disconnect();
@@ -368,7 +368,7 @@ scoped.disconnect(); scopedVictim.disconnect();
    different action (write:payroll) hoping the grant is not action-bound.
    ══════════════════════════════════════════════════════════════════════════ */
 console.log("\n── ATTACK 10 · action substitution under a real grant ─────────\n");
-const substituted = await buyer.vouchAction({ action: "write:payroll", tool: "pay_payroll", purpose: "substitute action under a purchase-order grant", result: "success" });
+const substituted = await buyer.selfimpulseAction({ action: "write:payroll", tool: "pay_payroll", purpose: "substitute action under a purchase-order grant", result: "success" });
 row("ATTACK 10 · grant for write:purchase_orders ⇒ no payroll authority", substituted?.ok === false, show(substituted));
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -376,7 +376,7 @@ row("ATTACK 10 · grant for write:purchase_orders ⇒ no payroll authority", sub
    reported rather than scored: it is a design choice, not a bypass)
    ══════════════════════════════════════════════════════════════════════════ */
 console.log("\n── POSTURE · grant reuse within its validity window ───────────\n");
-const second = await buyer.vouchAction({ action: "write:purchase_orders", tool: "record_purchase_order", purpose: "second commit under the same grant", result: "success" });
+const second = await buyer.selfimpulseAction({ action: "write:purchase_orders", tool: "record_purchase_order", purpose: "second commit under the same grant", result: "success" });
 row("POSTURE · one live grant backs more than one commit (session semantics, by design)", second?.ok === true, show(second), { info: true });
 buyer.disconnect(); approver.disconnect(); operator.disconnect();
 
@@ -391,9 +391,9 @@ console.log(`  legitimate path still works : ${control.pass ? "YES ✅" : "NO �
 if (dataDir) console.log(`  evidence: ${dataDir}/ledger.jsonl`);
 console.log(line);
 
-if (harborProc) {
-  harborProc.kill("SIGTERM");
+if (selfimpulseProc) {
+  selfimpulseProc.kill("SIGTERM");
   await sleep(600);
-  if (!harborProc.killed) harborProc.kill("SIGKILL");
+  if (!selfimpulseProc.killed) selfimpulseProc.kill("SIGKILL");
 }
 process.exit(failed.length === 0 && control.pass ? 0 : 1);

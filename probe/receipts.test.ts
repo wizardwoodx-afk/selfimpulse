@@ -61,7 +61,7 @@ describe("receipts — build and verify", () => {
 });
 
 /**
- * 11.10.1 — receipts are now issuer-signed (vh-proof-receipt/2 since 16.1.0). These assertions run
+ * 11.10.1 — receipts are now issuer-signed (si-proof-receipt/2 since 16.1.0). These assertions run
  * against whichever branch the runtime honestly takes: Ed25519 available → the receipt is
  * signed and the signature is checked; Ed25519 unavailable → the receipt says so in
  * signatureNote and still verifies via chain + seal. Faking is never an option either way.
@@ -69,7 +69,7 @@ describe("receipts — build and verify", () => {
 describe("receipts — issuer signature (11.10.1)", () => {
   it("every new receipt is v2, and is either signed or honestly explains why not", async () => {
     const rc = await buildProofReceipt({ mission: "mission-sig", teamId: "team-x", startedAt: "a", finishedAt: "b", mjVersion: "11.10.1", edition: "pro", report });
-    assert.equal(rc.format, "vh-proof-receipt/2");
+    assert.equal(rc.format, "si-proof-receipt/2");
     if (signingSupported() && rc.signature) {
       assert.match(rc.signature, /^[0-9a-f]{128}$/, "Ed25519 signature is 64 bytes of hex");
       assert.ok(rc.issuer && rc.issuer.publicKeyHex.length === 64, "the verifying public key rides with the receipt");

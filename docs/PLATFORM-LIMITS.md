@@ -1,4 +1,4 @@
-# 11Handle — Platform limits
+# SelfImpulse — Platform limits
 
 Known environment-specific limits, documented so they are never mistaken for
 regressions.
@@ -41,7 +41,7 @@ rather than failures:
 - Windows filename rules differ (the wrapper-permission probes assume POSIX).
 - Smoke tests need a real coding CLI binary on PATH.
 
-All other suites pass identically; see `docs/history/VH-11.8.1-WINDOWS-CI.md` (archived engine record) for
+All other suites pass identically; see `docs/history/SI-11.8.1-WINDOWS-CI.md` (archived engine record) for
 the recorded run.
 
 ## This development environment

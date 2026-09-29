@@ -1,8 +1,8 @@
-# 11Handle
+# SelfImpulse
 
-**Your agents, with receipts.**
+**Agentic impulse, for all.**
 
-11Handle is an on-device AI captain. You describe the outcome you want; a
+SelfImpulse is an on-device AI captain. You describe the outcome you want; a
 crew of specialist agents does the work on your own machine, under your own
 provider key; every action — and every refusal — is signed into a receipt you
 can verify later. Built on the **MJ** engine.
@@ -20,7 +20,7 @@ can verify later. Built on the **MJ** engine.
   and more). The Captain picks ≤3 candidates per mission; execution expands
   to at most twenty-five live seats on the floor (see
   [`docs/design/specialist-routing.md`](docs/design/specialist-routing.md)).
-- **Federation** — let other 11Handle nodes delegate work to this one over the
+- **Federation** — let other SelfImpulse nodes delegate work to this one over the
   A2A wire protocol. Mounting is explicit: the screen says what the bundled host
   does (bind a port, publish a signed agent card, verify its own engine pin
   before listening) and you turn it on. The host is **supervised**, not fired as
@@ -87,7 +87,7 @@ can verify later. Built on the **MJ** engine.
   verified work. The guard runs on both sides of every call, because a tool that
   was authorized can still return something that warrants stopping.
 - **The A2A host ships inside the app bundle.** Federation is not a feature you
-  install separately: `tools/vh-host.mjs` and its byte-pinned engine are
+  install separately: `tools/si-host.mjs` and its byte-pinned engine are
   declared in `bundle.resources`, and the app reports the resolved path and
   whether the bundle is actually present.
 
@@ -126,7 +126,7 @@ it. The verification record for this build is in
 
 ## The engine
 
-11Handle is the product. **MJ** is the engine underneath: the
+SelfImpulse is the product. **MJ** is the engine underneath: the
 specialist registry and routing, the human gate, the receipt chain, the
 memory graph, the vault, federation between owners, and the self-improvement
 loop with its external verifier. The engine keeps its own build identity in
@@ -141,9 +141,9 @@ Engine documentation, design notes and the complete release history live in
 ```
 src/ui/          the product — Shell, screens, store, one stylesheet (vh.css)
 src/brand.ts     the product's name and tagline (one source of truth)
-src/vh19/        the engine — routing, gate, receipts, memory, vault, federation, RSI
+src/engine/        the engine — routing, gate, receipts, memory, vault, federation, RSI
 src/mission/     custody, egress, capability and privacy guards
-src/vouch/       the vouch engine, drills and harness seams
+src/selfimpulse/       the selfimpulse engine, drills and harness seams
 probe/           the test suites (every guarantee above has one)
 verify/          the zero-dependency offline pack
 tools/           builders: MCP engine, host engine, offline pack, version bump
@@ -152,7 +152,7 @@ src-tauri/       the desktop shell
 
 ## License
 
-Copyright © 2024–2026 K.S. / 11Handle. All rights reserved.
+Copyright © 2024–2026 K.S. / SelfImpulse. All rights reserved.
 Third-party notices: [`docs/legal/THIRD-PARTY-NOTICES.md`](docs/legal/THIRD-PARTY-NOTICES.md).
 
 ## Security

@@ -215,7 +215,7 @@ describe("merge executor — signed attestation", () => {
     assert.equal(result.executed, true);
 
     const att = await buildMergeAttestation(result, "11.10.1");
-    assert.equal(att.format, "vh-merge-attestation/1");
+    assert.equal(att.format, "si-merge-attestation/1");
     assert.equal(att.mergeCommitSha, result.mergeCommitSha, "the attestation must carry the exact sha the executor recorded");
     assert.equal(att.executed, true);
     assert.ok(att.signature, "attestation must be signed on this runtime");

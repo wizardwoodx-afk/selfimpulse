@@ -264,7 +264,7 @@ export function Canvas({ onOpenLibrary }: { onOpenLibrary: () => void }) {
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const defId = e.dataTransfer.getData("application/vh-node") || e.dataTransfer.getData("text/plain");
+    const defId = e.dataTransfer.getData("application/si-node") || e.dataTransfer.getData("text/plain");
     if (!defId) return;
     const w = toWorld(e.clientX, e.clientY);
     store.addNode(defId, snapCoord(w.x), snapCoord(w.y));
@@ -326,7 +326,7 @@ export function Canvas({ onOpenLibrary }: { onOpenLibrary: () => void }) {
       <div className="canvas-grid" style={{ backgroundPosition: `${vp.x}px ${vp.y}px` }} />
       <svg className="wires-layer" style={{ transform: `translate(${vp.x}px, ${vp.y}px) scale(${vp.zoom})`, transformOrigin: "0 0", width: "100%", height: "100%" }}>
         <defs>
-          <filter id="vh-glow"><feGaussianBlur stdDeviation="2.2" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+          <filter id="si-glow"><feGaussianBlur stdDeviation="2.2" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
         </defs>
         {wires.map(({ c, d, mid, color }) => (
           <g key={c.id} className="wire-group" onClick={() => store.disconnect(c.id)}>

@@ -284,7 +284,7 @@ export interface FederationStatus {
   port: number | null;
   cardUrl: string | null;
   interfaceUrl: string | null;
-  harbor: string | null;
+  selfimpulse: string | null;
   identityFp: string | null;
   cardSigned: boolean;
   tokenMinted: boolean;
@@ -338,7 +338,7 @@ export const ipc = {
     if (!useTauri()) {
       return {
         state: "unavailable", bundled: false, hostPath: null, running: false,
-        pid: null, port: null, cardUrl: null, interfaceUrl: null, harbor: null,
+        pid: null, port: null, cardUrl: null, interfaceUrl: null, selfimpulse: null,
         identityFp: null, cardSigned: false, tokenMinted: false,
         bindScope: null, bindAddress: null, pairingCode: null, pairingExpires: null,
         detail: "Federation is a desktop capability. This build has no bundled A2A host.",
@@ -364,7 +364,7 @@ export const ipc = {
         port: typeof st.port === "number" ? st.port : null,
         cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
         interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-        harbor: typeof st.harbor === "string" ? st.harbor : null,
+        selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
         identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
         cardSigned: st.cardSigned === true,
         tokenMinted: st.tokenMinted === true,
@@ -379,7 +379,7 @@ export const ipc = {
         state: bundled ? "stopped" : "unavailable",
         ...base,
         running: false, pid: null, port: null, cardUrl: null, interfaceUrl: null,
-        harbor: null, identityFp: null, cardSigned: false, tokenMinted: false,
+        selfimpulse: null, identityFp: null, cardSigned: false, tokenMinted: false,
         bindScope: null, bindAddress: null, pairingCode: null, pairingExpires: null,
         detail: `Could not read the A2A host state: ${String(err)}`,
       };
@@ -387,7 +387,7 @@ export const ipc = {
   },
 
   federationMount: async (opts: {
-    harbor: string;
+    selfimpulse: string;
     port?: number;
     /** Explicit, and defaulted to the narrowest choice. */
     bind?: "local" | "lan";
@@ -407,7 +407,7 @@ export const ipc = {
       // verifies the engine's SHA-256 before it will listen, and the child is
       // kept — not waited on — so it outlives this call.
       const r = (await tauriInvoke("a2a_host_start", {
-        harbor: opts.harbor || "11Handle",
+        selfimpulse: opts.selfimpulse || "SelfImpulse",
         port: opts.port ?? 0,
         bind: opts.bind ?? "local",
         pair: opts.pair === true,
@@ -433,7 +433,7 @@ export const ipc = {
     if (vacuum) {
       /* no-op compact */
     }
-    const raw = localStorage.getItem("vouch.v3.db") ?? "";
+    const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
     return { vacuumed: vacuum, sizeBytes: raw.length };
   },
 
@@ -676,7 +676,7 @@ export const ipc = {
   }): Promise<{ content: string; model: string; usage: { input_tokens: number; output_tokens: number }; duration_ms: number }> => {
     // Egress guard at the IPC boundary. Every provider call in the engine passes
     // through here, so the policy is applied once, at the choke point, rather than
-    // per call site. Before this, only vh19/providers.ts complete() checked
+    // per call site. Before this, only engine/providers.ts complete() checked
     // checkEgressUrl — the Hermes autonomous loop (engine/hermesRuntime.ts) called
     // llmChat directly with a caller-supplied base_url, so an SSRF to link-local /
     // RFC1918 / a cloud metadata endpoint, and an exfiltration of the provider key

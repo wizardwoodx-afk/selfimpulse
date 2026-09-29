@@ -100,7 +100,7 @@ describe("provenance statements — commit-bound AI authorship", () => {
     assert.equal(st.subject[0].digest.gitCommit, merge.mergeCommitSha, "the subject digest must be the REAL merge-commit sha");
     // And that sha must really be HEAD of the base branch in the repo.
     assert.equal(git(repo, ["rev-parse", base]).out.trim(), merge.mergeCommitSha);
-    assert.equal(st.predicate.builder.id, "11handle@11.10.5");
+    assert.equal(st.predicate.builder.id, "selfimpulse@11.10.5");
     assert.equal(st.predicate.merge.mergeCommitSha, merge.mergeCommitSha);
     assert.equal(st.predicate.verification.gateTier, "cross-vendor");
     assert.equal(st.predicate.verification.snapshotSha, PASS_GATE.evidence?.snapshotSha);

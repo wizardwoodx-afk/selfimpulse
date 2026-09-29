@@ -3,15 +3,15 @@
  *
  * WHY THIS SUITE EXISTS
  *
- * 17.10.0 fixed `harborRerate()`, which returned `60 + seats * 3` — assurance that
+ * 17.10.0 fixed `selfimpulseRerate()`, which returned `60 + seats * 3` — assurance that
  * rose every time you added an agent. Its tests passed. Its release notes said the
  * fabricated number was fixed.
  *
- * It wasn't. A SECOND implementation survived in `src/app/harbor.tsx`:
+ * It wasn't. A SECOND implementation survived in `src/app/selfimpulse.tsx`:
  *
  *     assuranceScore: Math.min(96, 60 + s.receipts.length * 2 + s.skills.length * 3)
  *
- * ...and it was rendered by TWO live surfaces (Harbor "Safe harbor", Register
+ * ...and it was rendered by TWO live surfaces (SelfImpulse "Safe selfimpulse", Register
  * "Assurance score"). The authoritative scorer had been fixed; a parallel
  * presentation path still invented a number. The new module's tests could not
  * see it, because the defect was never in that module.
@@ -34,13 +34,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-declare const HANDLE_ROOT: string;
-const root = HANDLE_ROOT ?? process.cwd();
+declare const SI_ROOT: string;
+const root = SI_ROOT ?? process.cwd();
 
 /* The only files allowed to take part in producing an assurance figure. */
 const SANCTIONED = new Set([
   "src/mission/assuranceScore.ts",   // the scorer — the ONLY place a score is computed
-  "src/vouch/engine/bridge.ts",      // the adapter — gathers evidence, delegates to the scorer
+  "src/selfimpulse/engine/bridge.ts",      // the adapter — gathers evidence, delegates to the scorer
 ]);
 
 /* Surfaces: anything that renders. These must never compute, only read. */
@@ -117,10 +117,10 @@ test("scoreSourceOfTruth — one metric has exactly one producer and one rendere
     definers.length === 1, definers.join(", "));
 
   /* ── 4 · the adapter delegates rather than computes ──────────────────────── */
-  const bridge = read("src/vouch/engine/bridge.ts");
-  ok("harborRerate delegates to scoreAssurance()",
+  const bridge = read("src/selfimpulse/engine/bridge.ts");
+  ok("selfimpulseRerate delegates to scoreAssurance()",
     /scoreAssurance\(/.test(bridge), "the adapter must call the scorer, not re-implement it");
-  ok("harborRerate calls assuranceEvidence() (real evidence, not counting)",
+  ok("selfimpulseRerate calls assuranceEvidence() (real evidence, not counting)",
     /assuranceEvidence\(\)/.test(bridge), "no evidence gatherer found");
 
   /* ── 5 · every surface renders through the one formatter ─────────────────── */
@@ -130,17 +130,17 @@ test("scoreSourceOfTruth — one metric has exactly one producer and one rendere
      themselves (e.g. panels/ExecutivePanels.tsx) are a different, sanctioned
      shape: they take the evidence as input and never synthesise it. The rule is
      about who OWNS the number, so it is scoped to live-state surfaces. */
-  /* 19.7.12 (UI): the legacy live-state KPI pages (useHarbor) are deleted. The
+  /* 19.7.12 (UI): the legacy live-state KPI pages (useSelfImpulse) are deleted. The
      rule is now stricter: NO surface renders an assurance figure at all unless
      it comes through assuranceKpi(); today none does. */
   const kpiViews = files.filter((f) =>
-    /Safe harbor|Assurance score/.test(read(f)) && /useHarbor\(|state\.totals|assuranceKpi\(/.test(read(f)));
-  ok("no retired live-state KPI page survives (useHarbor is gone from the tree)", !files.some((f) => /useHarbor\(/.test(read(f))), files.filter((f) => /useHarbor\(/.test(read(f))).join(", "));
+    /Safe selfimpulse|Assurance score/.test(read(f)) && /useSelfImpulse\(|state\.totals|assuranceKpi\(/.test(read(f)));
+  ok("no retired live-state KPI page survives (useSelfImpulse is gone from the tree)", !files.some((f) => /useSelfImpulse\(/.test(read(f))), files.filter((f) => /useSelfImpulse\(/.test(read(f))).join(", "));
   const bypassing = kpiViews.filter((f) => !/assuranceKpi\(/.test(read(f)));
   ok("every live-state assurance KPI renders via assuranceKpi()",
     bypassing.length === 0, bypassing.join(", "));
   const sanctionedPure = files.filter((f) =>
-    /Assurance score/.test(read(f)) && /AssuranceScore/.test(read(f)) && !/useHarbor\(/.test(read(f)));
+    /Assurance score/.test(read(f)) && /AssuranceScore/.test(read(f)) && !/useSelfImpulse\(/.test(read(f)));
   ok("pure panels take the score as input rather than computing it from counts",
     sanctionedPure.every((f) => /scoreAssurance\(/.test(read(f))),
     sanctionedPure.join(", "));
@@ -152,8 +152,8 @@ test("scoreSourceOfTruth — one metric has exactly one producer and one rendere
 
   /* ── 7 · surfaces never reach past the app layer for it ──────────────────── */
   const reaching = files
-    .filter((f) => SURFACE_DIRS.some((d) => f.startsWith(d)) && f !== "src/app/harbor.tsx")
-    .filter((f) => /from ['"][^'"]*vouch\/engine\/bridge['"]/.test(read(f)));
+    .filter((f) => SURFACE_DIRS.some((d) => f.startsWith(d)) && f !== "src/app/selfimpulse.tsx")
+    .filter((f) => /from ['"][^'"]*selfimpulse\/engine\/bridge['"]/.test(read(f)));
   ok("no surface imports the engine directly for assurance",
     reaching.length === 0, reaching.join(", "));
 

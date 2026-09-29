@@ -33,7 +33,7 @@ export interface DossierReceiptEntry {
 }
 
 export interface IncidentDossier {
-  format: "vh-incident-dossier/1";
+  format: "si-incident-dossier/1";
   incidentId: string;
   mission: string;
   teamId: string;
@@ -93,7 +93,7 @@ export async function buildIncidentDossier(args: {
   const sealedAt = args.sealedAt ?? new Date().toISOString();
   const { digest, ...body } = await (async () => {
     const dossierNoDigest = {
-      format: "vh-incident-dossier/1" as const,
+      format: "si-incident-dossier/1" as const,
       incidentId: args.incidentId,
       mission: args.mission,
       teamId: args.teamId,
@@ -113,7 +113,7 @@ export async function verifyIncidentDossier(
   d: IncidentDossier,
 ): Promise<{ ok: true } | { ok: false; reasons: string[] }> {
   const reasons: string[] = [];
-  if (d.format !== "vh-incident-dossier/1" && d.format !== "mj-incident-dossier/1") reasons.push(`unknown format ${d.format}`);
+  if (d.format !== "si-incident-dossier/1" && d.format !== "mj-incident-dossier/1") reasons.push(`unknown format ${d.format}`);
   // "mj-incident-dossier/1" = pre-16.1 legacy export; older dossiers stay verifiable.
   const { digest, ...rest } = d;
   if ((await sha256hex(canon(rest))) !== digest) reasons.push("digest mismatch — the dossier was edited after sealing");

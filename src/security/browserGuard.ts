@@ -33,7 +33,7 @@
  *      where "no flag" means "the operator chose not to restrict me", and wrong
  *      for a governed runtime where the safe default is "reach nothing". Ours
  *      refuses everything until a host is explicitly allowed.
- *   2. 11Handle naming. No upstream identifier survives; this is first-party
+ *   2. SelfImpulse naming. No upstream identifier survives; this is first-party
  *      code and the naming probe holds it to that.
  *   3. The guard reports refusals through a global hook so the host process can
  *      record WHY a request was blocked, rather than only observing a thrown
@@ -74,7 +74,7 @@ export const GUARD_CDP_METHODS = [
 ] as const;
 
 /** The name of the in-page global the host process reads blocked events from. */
-export const GUARD_REPORT_GLOBAL = "__11handleGuardReport";
+export const GUARD_REPORT_GLOBAL = "__selfimpulseGuardReport";
 
 /**
  * Build the expression the host process evaluates to install the guard.
@@ -94,7 +94,7 @@ export function buildNetworkGuardScript(
   const report = onBlocked ?? "undefined";
   return `globalThis.${GUARD_REPORT_GLOBAL} = globalThis.${GUARD_REPORT_GLOBAL} || [];
 (${report});
-__install11HandleNetworkGuard(${domains});`;
+__installSelfImpulseNetworkGuard(${domains});`;
 }
 
 /**

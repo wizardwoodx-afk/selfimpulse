@@ -1,8 +1,8 @@
 /**
- * probe/reachBeacon.test.ts — the harbor light (additive to 19.5.6 "Reach").
+ * probe/reachBeacon.test.ts — the selfimpulse light (additive to 19.5.6 "Reach").
  *
  * Beacon is the one surface in the reach pack that is a *reading*, not a
- * record: it answers "what does the harbor look like right now, and is
+ * record: it answers "what does the selfimpulse look like right now, and is
  * anything waiting on me" from a bounded window of pulses. This suite pins
  * the six properties that make it safe to put on a wall:
  *
@@ -11,7 +11,7 @@
  *   §3 the window is bounded; the light forgets the oldest, forever
  *   §4 state precedence — halted > human > waiting > flickering > steady > dark
  *   §5 liveness: a stale window reads dark instead of borrowing old confidence
- *   §6 the mark: an owned harbor-lamp glyph whose beam changes with the state
+ *   §6 the mark: an owned selfimpulse-lamp glyph whose beam changes with the state
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -20,8 +20,8 @@ import {
   BEACON_WINDOW, BEACON_LIVENESS_MS,
   emitBeacon, verifyPulse, beaconState, seenOf, awaitingHuman, redactCommand, beaconGlyph,
   type BeaconPulse, type BeaconState,
-} from "../src/vh19/reach/beacon";
-import { pureSha256 } from "../src/vh19/pureHash";
+} from "../src/engine/reach/beacon";
+import { pureSha256 } from "../src/engine/pureHash";
 
 const T0 = Date.parse("2026-09-18T06:00:00.000Z");
 const at = (msAgo: number) => new Date(T0 - msAgo).toISOString();
@@ -41,7 +41,7 @@ function emit(window: BeaconPulse[], source: string, state: BeaconState, msAgo =
   return res.ok ? res.window : window;
 }
 
-test("reach beacon — the harbor light reads, it does not remember folklore", async (t) => {
+test("reach beacon — the selfimpulse light reads, it does not remember folklore", async (t) => {
   await t.test("§1 an unattributed or unexplained pulse is refused in words", () => {
     const empty = emitBeacon([], { id: "p0", source: "", state: "steady", reason: "something happened", at: at(0) });
     assert.equal(empty.ok, false);
@@ -62,7 +62,7 @@ test("reach beacon — the harbor light reads, it does not remember folklore", a
     const shapes = [
       "ghp_abcdefghijklmnopqrstuvwx",
       "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk",
-      "ops@11handle.example",
+      "ops@selfimpulse.example",
       "/home/priya/.ssh/id_ed25519",
       "--password=hunter2hunter2",
       "a".repeat(40) + "0123456789abcdef",
@@ -134,7 +134,7 @@ test("reach beacon — the harbor light reads, it does not remember folklore", a
     assert.equal(beaconState(longAgo, new Date(T0)), "steady", "the same three sources, spread out, are just work");
   });
 
-  await t.test("§5 liveness: a stale harbor is dark, not confidently steady", () => {
+  await t.test("§5 liveness: a stale selfimpulse is dark, not confidently steady", () => {
     const stale = emit([], "seat-1", "steady", BEACON_LIVENESS_MS + 1_000);
     assert.equal(beaconState(stale, new Date(T0)), "dark");
     const fresh = emit([], "seat-1", "steady", BEACON_LIVENESS_MS - 1_000);
@@ -158,7 +158,7 @@ test("reach beacon — the harbor light reads, it does not remember folklore", a
     assert.equal(waiting[0].source, "seat-stale", "awaitingHuman reports the gate, not the liveness filter");
   });
 
-  await t.test("§6 the mark is ours: a harbor lamp, and the beam tells the state", () => {
+  await t.test("§6 the mark is ours: a selfimpulse lamp, and the beam tells the state", () => {
     const states: BeaconState[] = ["dark", "steady", "flickering", "waiting", "human", "halted"];
     const marks = states.map((s) => beaconGlyph(s));
     for (const m of marks) {

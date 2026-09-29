@@ -1,7 +1,7 @@
 use parking_lot::Mutex;
 use std::collections::{HashMap, HashSet};
 
-const SERVICE: &str = "vh-desktop";
+const SERVICE: &str = "si-desktop";
 /// Legacy keychain namespace (pre-19.5.1). Reads fall back to it so owners
 /// keep access to previously stored secrets; writes always go to VH.
 const LEGACY_SERVICE: &str = "mj-desktop";

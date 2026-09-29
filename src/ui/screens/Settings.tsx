@@ -1,20 +1,20 @@
 import React, { useState } from "react";
 import { useVh } from "../store";
 import { Mcp } from "./Mcp";
-import { PROVIDER_DEFAULTS } from "../../vh19/providers";
-import { AUTONOMY_LEVEL_NAMES, HEARTBEAT_DEFAULT_MS, type AutonomyLevel } from "../../vh19/initiative";
-import type { ProviderKind } from "../../vh19/types";
-import { mcpRuntimeServers } from "../../vh19/mcpRuntime";
+import { PROVIDER_DEFAULTS } from "../../engine/providers";
+import { AUTONOMY_LEVEL_NAMES, HEARTBEAT_DEFAULT_MS, type AutonomyLevel } from "../../engine/initiative";
+import type { ProviderKind } from "../../engine/types";
+import { mcpRuntimeServers } from "../../engine/mcpRuntime";
 import { PRODUCT_NAME, ENGINE_CREDIT } from "../../brand";
 import { detectHost } from "../../app/desktop";
 import {
   issueLiveGrant, revokeLiveGrant, runLiveCrossing, liveGrant, liveUsage, liveLedgerView,
   loadRegulatedActivation, enableRegulatedBench, DELEGATION_CAPABILITIES, REGULATED_DOMAIN_SLUGS,
-} from "../../vh19/federation/live";
-import { standingNotice } from "../../vh19/federation/standing";
-import { ledgerRowSentence } from "../../vh19/federation/ledger";
-import { pairKey } from "../../vh19/vouchMesh";
-import type { DelegationCapability } from "../../vh19/reach/delegationGrant";
+} from "../../engine/federation/live";
+import { standingNotice } from "../../engine/federation/standing";
+import { ledgerRowSentence } from "../../engine/federation/ledger";
+import { pairKey } from "../../engine/selfimpulseMesh";
+import type { DelegationCapability } from "../../engine/reach/delegationGrant";
 /* 19.8 — the identity seam and the local crash ledger reach Settings. The owner
  * handle is written through `setOwnerDisplay` (not a raw localStorage write), so
  * the name in the corner and the subject on every receipt are one fact. */
@@ -113,7 +113,7 @@ function Autonomy() {
 }
 
 /* Federation — two owners, one standing grant, receipted crossings, a common
- * ledger derived from both stores. The live seam (vh19/federation/live) does
+ * ledger derived from both stores. The live seam (engine/federation/live) does
  * the signing and refusing; this section only shows it and asks. */
 function Federation() {
   const [ownerA, setOwnerA] = useState("you");
@@ -299,7 +299,7 @@ function Identity() {
             const blob = new Blob([JSON.stringify(rep, null, 2)], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
-            a.href = url; a.download = `11handle-crash-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+            a.href = url; a.download = `selfimpulse-crash-${new Date().toISOString().slice(0, 10)}.json`; a.click();
             URL.revokeObjectURL(url);
             toast("Exported. The file contains no message text, keys or user paths.", "ok");
           }}>Export</button>

@@ -19,7 +19,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import * as path from "node:path";
 
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 
 let passed = 0;
 let failed = 0;
@@ -43,8 +43,8 @@ interface Launched {
 
 function launchHost(extra: string[] = []): Launched {
   const child = spawn(process.execPath, [
-    path.join(ROOT, "tools", "vh-host.mjs"),
-    "--harbor", "LIFECYCLE-PROBE",
+    path.join(ROOT, "tools", "si-host.mjs"),
+    "--selfimpulse", "LIFECYCLE-PROBE",
     "--port", "0",
     ...extra,
   ], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] }) as ChildProcessWithoutNullStreams;
@@ -55,8 +55,8 @@ function launchHost(extra: string[] = []): Launched {
   child.stdout.on("data", (c: string) => {
     state.stdout += c;
     for (const line of c.split("\n")) {
-      if (line.startsWith("VH-A2A-READY") && !state.ready) {
-        try { state.ready = JSON.parse(line.slice("VH-A2A-READY".length).trim()); } catch { state.ready = {}; }
+      if (line.startsWith("SI-A2A-READY") && !state.ready) {
+        try { state.ready = JSON.parse(line.slice("SI-A2A-READY".length).trim()); } catch { state.ready = {}; }
         state.readyAt = Date.now();
       }
     }
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   try {
     const deadline = Date.now() + 40_000;
     while (!h.ready && !h.exited && Date.now() < deadline) await sleep(200);
-    ok("the host reports VH-A2A-READY", h.ready !== null, h.stderr.slice(0, 300) || h.stdout.slice(0, 300));
+    ok("the host reports SI-A2A-READY", h.ready !== null, h.stderr.slice(0, 300) || h.stdout.slice(0, 300));
     ok("it is running, and says so in the descriptor", h.ready?.mounted === true, JSON.stringify(h.ready).slice(0, 200));
     ok("it names the port it actually bound", typeof (h.ready as Record<string, unknown> | null)?.port === "number");
     ok("it publishes a card URL", typeof (h.ready as Record<string, unknown> | null)?.cardUrl === "string");
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
     const stopDeadline = stopAt + 15_000;
     while (h.exited === null && Date.now() < stopDeadline) await sleep(200);
     ok("SIGTERM ends the host", h.exited !== null, `still running ${(Date.now() - stopAt) / 1000}s after the stop`);
-    ok("it unmounted in words", /VH-A2A-STOPPED|unmounting|stopped/i.test(h.stdout + h.stderr),
+    ok("it unmounted in words", /SI-A2A-STOPPED|unmounting|stopped/i.test(h.stdout + h.stderr),
       (h.stdout + h.stderr).split("\n").slice(-3).join(" | ").slice(0, 200));
     ok("the stop was clean, not a kill -9", h.exited?.code === 0 || h.exited?.code === 143 || h.exited === null,
       `exit code ${h.exited?.code}`);

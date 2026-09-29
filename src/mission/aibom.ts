@@ -34,7 +34,7 @@ export interface AibomEntry {
 }
 
 export interface Aibom {
-  format: "vh-aibom/1";
+  format: "si-aibom/1";
   generatedAt: string;
   mjVersion: string;
   receiptsScanned: number;
@@ -91,23 +91,23 @@ export function buildAibom(args: { records: VaultRecord[]; ownedHarnesses: strin
   const entries = [...byComponent.values()].sort((a, b) => a.component.localeCompare(b.component));
 
   return {
-    format: "vh-aibom/1",
+    format: "si-aibom/1",
     generatedAt: new Date().toISOString(),
     mjVersion: args.mjVersion,
     receiptsScanned: args.records.length,
     entries,
-    declarationSource: "11Handle Role Board — the harnesses the user declared as owned (approved); observed-but-undeclared components are marked not-declared.",
+    declarationSource: "SelfImpulse Role Board — the harnesses the user declared as owned (approved); observed-but-undeclared components are marked not-declared.",
     disclaimer:
-      "Generated from proof receipts on this machine. Versions are not claimed because 11Handle does not measure them. Approval status reflects the user's own declaration, not any 11Handle judgment. This is an evidence inventory, not a certification.",
+      "Generated from proof receipts on this machine. Versions are not claimed because SelfImpulse does not measure them. Approval status reflects the user's own declaration, not any SelfImpulse judgment. This is an evidence inventory, not a certification.",
   };
 }
 
 /** Markdown rendering for humans (auditors like tables they can paste into reports). */
 export function aibomToMarkdown(bom: Aibom): string {
   const lines: string[] = [];
-  lines.push(`# 11Handle — AI Bill of Materials (vh-aibom/1)`);
+  lines.push(`# SelfImpulse — AI Bill of Materials (si-aibom/1)`);
   lines.push(``);
-  lines.push(`Generated ${bom.generatedAt} · 11Handle ${bom.mjVersion} · receipts scanned: ${bom.receiptsScanned}`);
+  lines.push(`Generated ${bom.generatedAt} · SelfImpulse ${bom.mjVersion} · receipts scanned: ${bom.receiptsScanned}`);
   lines.push(``);
   if (bom.entries.length === 0) {
     lines.push(`No AI components observed in receipts yet. Run team missions to populate the inventory.`);

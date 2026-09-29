@@ -7951,7 +7951,7 @@ describe("C3 legacy era \u2014 2025-06-18 clients see exactly their era's wire",
     conformsRequest(ajv2025, "mcp-2025", "InitializeRequest", req, "legacy initialize request");
     conforms(ajv2025, "mcp-2025", "InitializeResult", r.result, "legacy initialize response");
     assert.equal(r.result.protocolVersion, "2025-06-18");
-    assert.equal(r.result.serverInfo.name, "11handle");
+    assert.equal(r.result.serverInfo.name, "selfimpulse");
     assert.equal("resultType" in r.result, false, "no modern resultType on the legacy wire");
   });
   it("legacy tools/list conforms (ListToolsResult, 2025-06-18) with no modern fields", async () => {
@@ -8003,7 +8003,7 @@ describe("C4 conformance report \u2014 the evidence is written, not just asserte
     const failed = checks.filter((c) => !c.ok);
     assert.equal(failed.length, 0, "conformance checks failed: " + failed.map((f) => `${f.name} \u2014 ${f.detail}`).join(" | "));
     const report = {
-      suite: "11handle-mcp-conformance",
+      suite: "selfimpulse-mcp-conformance",
       spec: "Model Context Protocol",
       eras: { modern: "2026-07-28", legacy: "2025-06-18" },
       fixtures: FIXTURES,

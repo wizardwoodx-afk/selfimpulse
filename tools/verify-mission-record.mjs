@@ -28,7 +28,7 @@ import crypto from "node:crypto";
 /* Each wire format is sealed with the constant published when that wire shipped (see licensing.ts).
    mj-proof-receipt/1|2 = pre-16.1 legacy wire — never renamed, old receipts stay verifiable. */
 const SEAL_SECRETS = {
-  "vh-proof-receipt/2": "vh-commercial-v1-offline",
+  "si-proof-receipt/2": "si-commercial-v1-offline",
   "mj-proof-receipt/2": "mj-commercial-v1-offline",
   "mj-proof-receipt/1": "mj-commercial-v1-offline",
 };
@@ -81,7 +81,7 @@ function verifyProofReceipt(rc) {
 
 function verifyRecord(r) {
   const reasons = [];
-  if (r.format !== "vh-mission-record/1" && r.format !== "mj-mission-record/1") reasons.push(`unknown format ${r.format}`);
+  if (r.format !== "si-mission-record/1" && r.format !== "mj-mission-record/1") reasons.push(`unknown format ${r.format}`);
   // "mj-mission-record/1" = pre-16.1 legacy record; older records stay verifiable.
   const { digest, issuer, signature, signatureNote, ...rest } = r;
   if (sha256hex(canon(rest)) !== digest) reasons.push("digest mismatch — the record was edited after sealing");

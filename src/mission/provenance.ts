@@ -42,7 +42,7 @@ export interface ProvenanceMaterial {
 
 export interface ProvenanceStatement {
   _type: "https://in-toto.io/Statement/v1";
-  format: "vh-provenance-statement/1";
+  format: "si-provenance-statement/1";
   /** The thing this statement is ABOUT: the merged base branch at the merge commit. */
   subject: Array<{ name: string; digest: { gitCommit: string } }>;
   predicateType: string;
@@ -130,11 +130,11 @@ export async function buildProvenanceStatement(args: {
 
   const st: ProvenanceStatement = {
     _type: "https://in-toto.io/Statement/v1",
-    format: "vh-provenance-statement/1",
+    format: "si-provenance-statement/1",
     subject: [{ name: args.merge.baseBranch, digest: { gitCommit: args.merge.mergeCommitSha } }],
     predicateType: MJ_PROVENANCE_PREDICATE_TYPE,
     predicate: {
-      builder: { id: `11handle@${args.mjVersion}` },
+      builder: { id: `selfimpulse@${args.mjVersion}` },
       buildType: "vh.verified-team-run/v1",
       metadata: { mission: args.mission, teamId: args.teamId, mjVersion: args.mjVersion, issuedAt: new Date().toISOString() },
       materials,
@@ -171,7 +171,7 @@ export async function buildProvenanceStatement(args: {
 
 /** Auditors: re-canonicalize, re-hash, verify Ed25519 with the embedded public key. */
 export async function verifyProvenanceStatement(st: ProvenanceStatement): Promise<{ ok: true } | { ok: false; reason: string }> {
-  if (st.format !== "vh-provenance-statement/1" && st.format !== "mj-provenance-statement/1") return { ok: false, reason: `unknown statement format: ${String(st.format)}` };
+  if (st.format !== "si-provenance-statement/1" && st.format !== "mj-provenance-statement/1") return { ok: false, reason: `unknown statement format: ${String(st.format)}` };
   // "mj-provenance-statement/1" = pre-16.1 legacy statement; older ones stay verifiable.
   if (!st.signature) return { ok: false, reason: st.signatureNote ?? "statement is unsigned" };
   if (!st.issuer?.publicKeyHex) return { ok: false, reason: "statement is signed but carries no issuer public key" };

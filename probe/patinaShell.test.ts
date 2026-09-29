@@ -1,7 +1,7 @@
 /**
  * Shell probe — the one shell (src/ui/Shell.tsx).
  *
- * History: this suite pinned the Patina shell (harbor.tsx + five views), then the
+ * History: this suite pinned the Patina shell (selfimpulse.tsx + five views), then the
  * 19.6.6 Federation Console. Both are retired. The 19.7.12 redesign shipped ONE
  * shell and ONE store (src/ui/store.ts) that is the only path to the engine;
  * 19.7.13 added the sixth door (Docs). The live door set is Steward · Work ·
@@ -13,8 +13,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-declare const HANDLE_ROOT: string | undefined;
-const root = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const root = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
 
 let passed = 0;
@@ -32,13 +32,12 @@ const SHELL_FILES = [
   "src/ui/graph/ForceGraph.tsx",
   "src/ui/screens/Steward.tsx", "src/ui/screens/Work.tsx", "src/ui/screens/Receipts.tsx",
   "src/ui/screens/Docs.tsx",
-  "src/ui/screens/Munshi.tsx",
   "src/ui/screens/Specialists.tsx",
   "src/ui/screens/Memory.tsx", "src/ui/screens/Settings.tsx", "src/ui/screens/Chat.tsx",
   "src/ui/screens/GateCard.tsx", "src/ui/screens/Composer.tsx",
 ];
 for (const f of SHELL_FILES) ok(`${f} exists`, fs.existsSync(path.join(root, f)));
-const RETIRED = ["src/views", "src/pages", "src/styles", "src/app/harbor.tsx", "src/app/Sidebar.tsx", "src/app/Helm.tsx", "src/panels/Splash.tsx", "src/panels/Onboarding.tsx"];
+const RETIRED = ["src/views", "src/pages", "src/styles", "src/app/selfimpulse.tsx", "src/app/Sidebar.tsx", "src/app/Helm.tsx", "src/panels/Splash.tsx", "src/panels/Onboarding.tsx"];
 for (const f of RETIRED) ok(`${f} is gone (no second UI in the tree)`, !fs.existsSync(path.join(root, f)));
 
 section("1. App mounts the shell and nothing else");
@@ -48,18 +47,18 @@ ok("App renders <Shell />", /<Shell\s*\/>/.test(appSrc));
 ok("no retired shell import survives in App", !/NextConsole|views\/|pages\/|Sidebar|Helm/.test(appSrc));
 const mainSrc = read("src/main.tsx");
 ok("main imports exactly one stylesheet (ui/vh.css)", (mainSrc.match(/import\s+['"][^'"]+\.css['"]/g) ?? []).length === 1 && /ui\/vh\.css/.test(mainSrc));
-ok("no boot splash in index.html", !/vh-boot|@keyframes/.test(read("index.html")));
+ok("no boot splash in index.html", !/si-boot|@keyframes/.test(read("index.html")));
 
 section("2. the store is the ONLY path to the engine — screens never bypass it");
 const storeSrc = read("src/ui/store.ts");
-ok("the store drives askVH19", /import\s*\{\s*askVH19\s*\}\s*from\s*["']\.\.\/vh19\/generalist["']/.test(storeSrc) && /await askVH19\(/.test(storeSrc));
+ok("the store drives askSelfImpulse19", /import\s*\{\s*askSelfImpulse19\s*\}\s*from\s*["']\.\.\/engine\/generalist["']/.test(storeSrc) && /await askSelfImpulse19\(/.test(storeSrc));
 ok("the store passes the human gate into the engine", /gate:\s*gateFn/.test(storeSrc) && /gate:\s*\{\s*ask,\s*resolve/.test(storeSrc));
 ok("the store records handoffs", /onHandoff:\s*\(h\)\s*=>\s*\{\s*recordHandoff\(h\)/.test(storeSrc));
 ok("the store ingests memory after every run (idempotent by session id)", /ingestSession\(all,\s*\{\s*id:\s*s\.chatSessionId/.test(storeSrc));
 for (const f of SHELL_FILES.filter((x) => x.startsWith("src/ui/screens/"))) {
   const src = read(f);
-  ok(`${f} never imports the generalist engine directly`, !/vh19\/generalist/.test(src));
-  ok(`${f} never touches the provider vault directly`, !/vh19\/vault/.test(src));
+  ok(`${f} never imports the generalist engine directly`, !/engine\/generalist/.test(src));
+  ok(`${f} never touches the provider vault directly`, !/engine\/vault/.test(src));
 }
 
 section("3. the human gate: approve or refuse — never a silent skip");

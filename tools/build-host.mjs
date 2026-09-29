@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Build the A2A host engine bundle (tools/vh-host-engine.mjs).
+ * Build the A2A host engine bundle (tools/si-host-engine.mjs).
  *
  * Same discipline as the MCP router and the offline verification pack: one
- * committed, self-contained bundle that the launcher (tools/vh-host.mjs)
+ * committed, self-contained bundle that the launcher (tools/si-host.mjs)
  * loads — no build step at runtime, only Node. `probe/a2aRuntime.test.ts`
  * rebuilds this bundle in a temp dir and byte-compares it against the shipped
  * one, so a stale bundle (source changed, engine not rebuilt) fails the gate
@@ -23,17 +23,17 @@ import { build } from "esbuild";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 await build({
-  entryPoints: [path.join(root, "tools/vh-host.entry.ts")],
+  entryPoints: [path.join(root, "tools/si-host.entry.ts")],
   bundle: true,
   platform: "node",
   format: "esm",
   packages: "external",
-  outfile: path.join(root, "tools/vh-host-engine.mjs"),
+  outfile: path.join(root, "tools/si-host-engine.mjs"),
   logLevel: "warning",
   absWorkingDir: root,
 });
 
-const bundlePath = path.join(root, "tools", "vh-host-engine.mjs");
+const bundlePath = path.join(root, "tools", "si-host-engine.mjs");
 const sha = createHash("sha256").update(readFileSync(bundlePath)).digest("hex");
-writeFileSync(path.join(root, "tools", "vh-host-engine.sha256"), `${sha}  tools/vh-host-engine.mjs\n`);
-console.log("a2a host engine: tools/vh-host-engine.mjs + tools/vh-host-engine.sha256 (commit both; probe/a2aRuntime pins them)");
+writeFileSync(path.join(root, "tools", "si-host-engine.sha256"), `${sha}  tools/si-host-engine.mjs\n`);
+console.log("a2a host engine: tools/si-host-engine.mjs + tools/si-host-engine.sha256 (commit both; probe/a2aRuntime pins them)");

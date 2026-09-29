@@ -1,4 +1,4 @@
-//! 11Handle — host-escape containment for every spawned process (shell, MCP,
+//! SelfImpulse — host-escape containment for every spawned process (shell, MCP,
 //! harness). This is the native mirror of `src/mission/shellContain.ts`; the two
 //! are pinned to the same flags by `probe/shellContain.test.ts`.
 //!

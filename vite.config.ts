@@ -40,7 +40,7 @@ export default defineConfig({
        * boots anywhere it is embedded. Dev-server only; the production
        * build is served same-origin and does not need it.
        */
-      name: "vh-preview-cors",
+      name: "si-preview-cors",
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
           res.setHeader("Access-Control-Allow-Origin", req.headers.origin ?? "*");
@@ -84,7 +84,7 @@ export default defineConfig({
     host: host || "0.0.0.0",
     allowedHosts: true,
     // 19.7.0 — vite's own CORS middleware (which 403s opaque origins) is
-    // disabled; the vh-preview-cors plugin above owns the headers.
+    // disabled; the si-preview-cors plugin above owns the headers.
     cors: false,
     // 19.3.0 UI refresh — demo-provider relay. The browser build talks to
     // /th-api/* same-origin; the dev server forwards to the provider host.
@@ -93,7 +93,7 @@ export default defineConfig({
     // Provider panel; nothing about this proxy ships in the desktop build.
     proxy: {
       "/th-api": {
-        target: "https://tokenharbor.ai",
+        target: "https://tokenselfimpulse.ai",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/th-api/, ""),
       },
@@ -145,7 +145,7 @@ export default defineConfig({
             if (id.includes("zustand") || id.includes("zod")) return "vendor-state";
             return "vendor";
           }
-          if (id.includes("/src/vh19/") || id.includes("/src/mission/") || id.includes("/src/domain/")) return "engine";
+          if (id.includes("/src/engine/") || id.includes("/src/mission/") || id.includes("/src/domain/")) return "engine";
           return undefined;
         },
       },

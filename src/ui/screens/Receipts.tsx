@@ -70,5 +70,5 @@ export function Receipts(): React.ReactElement {
 
 function download(rows: unknown[]) {
   const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `velvet-hand-receipts-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `selfimpulse-hand-receipts-${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href);
 }

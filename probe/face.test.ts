@@ -19,10 +19,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { blobatar } from "blobatar";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
-import { MOOD_EXPRESSION, MOOD_CAPTION, DEFAULT_GENERALIST_NAME, type GeneralistMood } from "../src/vh19/face";
+import { MOOD_EXPRESSION, MOOD_CAPTION, DEFAULT_GENERALIST_NAME, type GeneralistMood } from "../src/engine/face";
 
 const MOODS: GeneralistMood[] = ["idle", "thinking", "acting", "gate", "sealed", "refused"];
 
@@ -33,7 +33,7 @@ describe("the Generalist's one face", () => {
   });
 
   it("different names render different faces", () => {
-    assert.notEqual(blobatar("Captain"), blobatar("My Harbor"));
+    assert.notEqual(blobatar("Captain"), blobatar("My SelfImpulse"));
   });
 
   it("the mood map is complete and honest over the GeneralistMood contract", () => {
@@ -45,7 +45,7 @@ describe("the Generalist's one face", () => {
   });
 
   it("the name key is a single local key with one default", () => {
-    const src = fs.readFileSync(path.join(ROOT, "src", "vh19", "face.tsx"), "utf8");
+    const src = fs.readFileSync(path.join(ROOT, "src", "engine", "face.tsx"), "utf8");
     assert.ok(src.includes("vh.generalist.name.v1"));
     assert.equal(DEFAULT_GENERALIST_NAME, "Captain");
   });
@@ -53,7 +53,7 @@ describe("the Generalist's one face", () => {
 
 describe("specialists ride deterministic marks, keyed by id", () => {
   it("face.tsx wires SpecialistFace to the mark renderer deterministically", () => {
-    const src = fs.readFileSync(path.join(ROOT, "src", "vh19", "face.tsx"), "utf8");
+    const src = fs.readFileSync(path.join(ROOT, "src", "engine", "face.tsx"), "utf8");
     assert.ok(src.includes('from "boring-avatars"'));
     assert.ok(src.includes('name: props.id'), "the specialist id is the seed");
   });
@@ -82,7 +82,7 @@ describe("the shell is wired", () => {
   it("App routes everything to the one Shell — the old doors are gone", () => {
     const app = fs.readFileSync(path.join(ROOT, "src", "App.tsx"), "utf8");
     assert.ok(/<Shell\s*\/>/.test(app));
-    assert.ok(!app.includes("NextConsole") && !app.includes("Comp: Vh19"), "the old doors are no longer the door");
+    assert.ok(!app.includes("NextConsole") && !app.includes("Comp: SelfImpulse"), "the old doors are no longer the door");
   });
 
   it("the design system is ONE stylesheet with the house tokens (no Tailwind runtime, no blue)", () => {

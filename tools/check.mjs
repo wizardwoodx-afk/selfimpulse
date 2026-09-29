@@ -8,11 +8,11 @@ page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
 
 await page.goto("http://localhost:5173", { waitUntil: "networkidle" });
 await page.waitForTimeout(1500);
-await page.screenshot({ path: "D:/11handle-work/shots/v3-dark.png" });
+await page.screenshot({ path: "D:/selfimpulse-work/shots/v3-dark.png" });
 
 await page.evaluate(() => { document.documentElement.dataset.theme = "light"; });
 await page.waitForTimeout(400);
-await page.screenshot({ path: "D:/11handle-work/shots/v3-light.png" });
+await page.screenshot({ path: "D:/selfimpulse-work/shots/v3-light.png" });
 await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
 await page.waitForTimeout(300);
 
@@ -21,7 +21,7 @@ for (const n of ["Specialists", "Receipts", "Settings"]) {
   try {
     await page.getByText(n, { exact: true }).first().click({ timeout: 4000 });
     await page.waitForTimeout(800);
-    await page.screenshot({ path: `D:/11handle-work/shots/v3-${n.toLowerCase()}.png` });
+    await page.screenshot({ path: `D:/selfimpulse-work/shots/v3-${n.toLowerCase()}.png` });
     console.log(`  ${n} shot ok`);
   } catch (e) { console.log(`  ${n}: ${e.message.split("\n")[0]}`); }
 }

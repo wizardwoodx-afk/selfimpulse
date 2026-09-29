@@ -1,6 +1,6 @@
 import { createRequire as __mjCreateRequire } from "node:module"; const require = __mjCreateRequire(import.meta.url);
 
-// src/vh19/aguiProtocol.ts
+// src/engine/aguiProtocol.ts
 var AGUI_EVENT_TYPES = [
   "TEXT_MESSAGE_START",
   "TEXT_MESSAGE_CONTENT",
@@ -133,7 +133,7 @@ function aguiBoundaryFacts() {
     canonicalModel: "ExecutionEventRecord",
     unknownEventsPreserved: true,
     provenancePreserved: true,
-    authority: "11Handle"
+    authority: "SelfImpulse"
   };
 }
 function isAguiEventType(t) {
@@ -240,8 +240,8 @@ ok("the level is preserved in metadata", backOut.metadata.level === "SECURITY");
 ok("the protocol version is stamped on the record", asRecord.data.aguiVersion === "1.0");
 console.log("== 6. the boundary does not become the AUTHORITY");
 var facts = aguiBoundaryFacts();
-ok("authority is 11Handle, not the protocol", facts.authority === "11Handle", facts.authority);
-ok("the canonical model is 11Handle's own", facts.canonicalModel === "ExecutionEventRecord");
+ok("authority is SelfImpulse, not the protocol", facts.authority === "SelfImpulse", facts.authority);
+ok("the canonical model is SelfImpulse's own", facts.canonicalModel === "ExecutionEventRecord");
 ok("unknown events are declared preserved", facts.unknownEventsPreserved === true);
 ok("provenance is declared preserved", facts.provenancePreserved === true);
 ok("the event count matches the vocabulary", facts.eventTypes === AGUI_EVENT_TYPES.length);
@@ -254,7 +254,7 @@ ok(
   "the boundary exposes no approval or policy decision of its own",
   !("approve" in facts) && !("grantAuthority" in facts)
 );
-console.log("== 7. the produced record is structurally 11Handle's own");
+console.log("== 7. the produced record is structurally SelfImpulse's own");
 ok(
   "the produced record satisfies ExecutionEventRecord",
   mapped.every((r) => typeof r.ts === "string" && typeof r.kind === "string" && ["INFO", "DEBUG", "WARN", "ERROR", "AUDIT", "SECURITY", "EVOLUTION"].includes(r.level) && typeof r.data === "object" && r.data !== null)

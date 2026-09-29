@@ -1,6 +1,6 @@
-# Third-party notices — 11Handle
+# Third-party notices — SelfImpulse
 
-11Handle is proprietary software (see LICENSE). It ships the third-party engines below under `vendor/`,
+SelfImpulse is proprietary software (see LICENSE). It ships the third-party engines below under `vendor/`,
 unchanged apart from size pruning. Their upstream licences continue to apply to those directories
 only and are reproduced in full alongside this notice.
 
@@ -22,9 +22,9 @@ Upstream is mid-transition from MIT to Apache-2.0: contributions without relicen
 MIT, documentation is CC-BY-4.0. Its `LICENSE` file is the authoritative statement and is shipped
 verbatim.
 
-## What 11Handle owns
+## What SelfImpulse owns
 
-The agent skill contract, skill parsing, and the evolution fitness/constraints engine are 11Handle's own
-TypeScript code. `vendor/evolution-service/` is **11Handle's own** Python service (DSPy/GEPA reflective
+The agent skill contract, skill parsing, and the evolution fitness/constraints engine are SelfImpulse's own
+TypeScript code. `vendor/evolution-service/` is **SelfImpulse's own** Python service (DSPy/GEPA reflective
 optimiser) — first-party code covered by the VH LICENSE, not by any notice above. It lives under
 `vendor/` because `src-tauri/src/hermes.rs` resolves the bridge as `<vendor>/evolution-service/…`.

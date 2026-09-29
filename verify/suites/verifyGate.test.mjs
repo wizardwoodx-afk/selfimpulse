@@ -59,7 +59,7 @@ function evaluateVerifyGate(input) {
     if (snap && countingVerifiers.length < ranVerifiers.length) {
       const off = ranVerifiers.filter((v) => !(snap.built && snap.sha !== null && (v.reviewedSha ?? null) === snap.sha));
       for (const o of off) {
-        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot vouch for the writers' work.`);
+        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot selfimpulse for the writers' work.`);
       }
     }
     const selfVerified = writerHarnesses.filter(
@@ -311,7 +311,7 @@ describe("verifyGate \u2014 snapshot evidence binding (11.10)", () => {
     assert.equal(v.evidence?.snapshotSha, "abc123");
     assert.equal(v.evidence?.reviewedBy[0].matchesSnapshot, true);
   });
-  it("a verifier that ran but reviewed a DIFFERENT ref cannot vouch \u2192 BLOCKED", () => {
+  it("a verifier that ran but reviewed a DIFFERENT ref cannot selfimpulse \u2192 BLOCKED", () => {
     const v = evaluateVerifyGate(
       base({
         snapshot: snap,
@@ -323,7 +323,7 @@ describe("verifyGate \u2014 snapshot evidence binding (11.10)", () => {
     assert.equal(v.evidence?.reviewedBy[0].matchesSnapshot, false);
     assert.match(v.reasons.join("\n"), /does not match the snapshot/);
   });
-  it("a verifier with no recorded ref cannot vouch either", () => {
+  it("a verifier with no recorded ref cannot selfimpulse either", () => {
     const v = evaluateVerifyGate(
       base({
         snapshot: snap,

@@ -24,12 +24,12 @@ import {
   issueFederationApproval, verifyFederationApproval, consumeApproval, memoryApprovalLedger,
   approvalRecord, approvalDigest, approvalCanonical,
   type FederationApproval, type FederationApprovalBody,
-} from "../src/vh19/federation/approval";
-import { keyHandle } from "../src/vh19/federation/identity";
-import { generateOwnerKeysWeb } from "../src/vh19/authorityWeb";
-import { pureSha256 } from "../src/vh19/pureHash";
+} from "../src/engine/federation/approval";
+import { keyHandle } from "../src/engine/federation/identity";
+import { generateOwnerKeysWeb } from "../src/engine/authorityWeb";
+import { pureSha256 } from "../src/engine/pureHash";
 
-const PAIR = "harbor-a↔harbor-b";
+const PAIR = "selfimpulse-a↔selfimpulse-b";
 const ENV = pureSha256("the-crossing-envelope-under-test");
 const NOW = 1_760_000_000_000;
 
@@ -72,8 +72,8 @@ test("federated approval — the responder's decision is a signature, not a memo
     assert.equal(noBinding.ok, false);
     if (!noBinding.ok) assert.equal(noBinding.reason, "not-a-crossing-binding");
 
-    const singleHarbor = await issueFederationApproval(body({ pair: "harbor-a" }), keys);
-    assert.equal(singleHarbor.ok, false);
+    const singleSelfImpulse = await issueFederationApproval(body({ pair: "selfimpulse-a" }), keys);
+    assert.equal(singleSelfImpulse.ok, false);
 
     const backdated = await issueFederationApproval(body({ decidedAt: NOW, expiresAt: NOW - 1 }), keys);
     assert.equal(backdated.ok, false);
@@ -96,7 +96,7 @@ test("federated approval — the responder's decision is a signature, not a memo
     assert.equal(
       filed.digest,
       pureSha256(`vh.fed.approval.v1:${approvalCanonical(issued.approval)}|${issued.approval.signature}`),
-      "the decision's digest is the harbor's own SHA-256 over the signed bytes",
+      "the decision's digest is the selfimpulse's own SHA-256 over the signed bytes",
     );
     assert.equal(filed.digest.length, 64);
     assert.equal(JSON.stringify(filed).includes("9f2c1d4e6a8b0c3d5e7f1021"), false, "the filed form carries the binding, not the nonce");
@@ -108,7 +108,7 @@ test("federated approval — the responder's decision is a signature, not a memo
     const a = issued.approval;
 
     const cases: Array<[string, Parameters<typeof verifyFederationApproval>[1]]> = [
-      ["wrong-pair", { ...EXPECT, pair: "harbor-a↔harbor-c" }],
+      ["wrong-pair", { ...EXPECT, pair: "selfimpulse-a↔selfimpulse-c" }],
       ["wrong-side", { ...EXPECT, side: "initiator" }],
       ["wrong-capability", { ...EXPECT, capability: "shell.exec" }],
       ["wrong-envelope", { ...EXPECT, envelopeDigest: pureSha256("another-crossing") }],
@@ -130,7 +130,7 @@ test("federated approval — the responder's decision is a signature, not a memo
     if (!forgedVerdict.ok) assert.equal(forgedVerdict.reason, "bad-signature", "editing the human must break the signature");
 
     const alien = await verifyFederationApproval(a, EXPECT, other.publicKeyPem, NOW + 1_000);
-    assert.equal(alien.ok, false, "another harbor's key must not verify this decision");
+    assert.equal(alien.ok, false, "another selfimpulse's key must not verify this decision");
     if (!alien.ok) assert.equal(alien.reason, "bad-signature");
 
     const absent = await verifyFederationApproval(null, EXPECT, keys.publicKeyPem, NOW + 1_000);
@@ -162,7 +162,7 @@ test("federated approval — the responder's decision is a signature, not a memo
     assert.equal(ledger.has("appr-0002"), false, "a decision that failed verification is NOT burned — the human keeps it");
   });
 
-  await t.test("the ledger is bounded, so a long-lived harbor cannot grow without limit", () => {
+  await t.test("the ledger is bounded, so a long-lived selfimpulse cannot grow without limit", () => {
     const ledger = memoryApprovalLedger(4);
     for (let i = 0; i < 50; i++) ledger.add(`appr-${i}`);
     assert.equal(ledger.size, 4);
@@ -219,7 +219,7 @@ test("federated approval — the responder's decision is a signature, not a memo
     assert.equal(alienRecord.human, r1.human, "the same name…");
     assert.notEqual(alienRecord.ownerKeyHandle, r1.ownerKeyHandle, "…from a different key is a different approver");
     assert.equal((await verifyFederationApproval(alien.approval, EXPECT, keys.publicKeyPem, NOW)).ok, false,
-      "and it does not verify against the harbor's own key");
+      "and it does not verify against the selfimpulse's own key");
     assert.equal(alienRecord.digest !== r1.digest, true, "the two records are not interchangeable");
   });
 });

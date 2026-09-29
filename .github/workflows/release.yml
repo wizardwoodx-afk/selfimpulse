@@ -27,7 +27,7 @@ jobs:
         # workflow names the current release's notes, so a version bump without a matching
         # doc fails the gate instead of shipping a release with no upgrade path.
         run: |
-          DOC="docs/releases/11H-19.7-UPGRADE.md"
+          DOC="docs/releases/SI-19.7-UPGRADE.md"
           if [ ! -f "$DOC" ]; then
             echo "::error::release notes missing: $DOC"
             exit 1

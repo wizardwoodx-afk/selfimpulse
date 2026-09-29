@@ -55,7 +55,7 @@ const out = [];
 out.push("# VH 6.0 — Complete Source (Single-File Bundle)");
 out.push("");
 out.push("This is the **complete VH 6.0 source code** inlined into a single Markdown file.");
-out.push("Every file from the canonical `VH-Desktop-6.0.zip` is reproduced below, with its");
+out.push("Every file from the canonical `SI-Desktop-6.0.zip` is reproduced below, with its");
 out.push("original path shown as a header. Text files appear as fenced code blocks. Binary");
 out.push("files (icons, fonts) are base64-encoded inside fenced blocks.");
 out.push("");

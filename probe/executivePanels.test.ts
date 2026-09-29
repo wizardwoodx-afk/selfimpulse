@@ -21,8 +21,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-declare const HANDLE_ROOT: string;
-const root = HANDLE_ROOT ?? process.cwd();
+declare const SI_ROOT: string;
+const root = SI_ROOT ?? process.cwd();
 const read = (rel: string): string => fs.readFileSync(path.join(root, rel), "utf8");
 
 /* 19.7.12 (UI): the ExecutivePanels composition (Trust Center · Assurance

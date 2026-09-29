@@ -43,9 +43,9 @@ import {
   storedPublicJwk,
   unbindPeer,
   verifyApproval,
-} from "../src/vh19/collabInvite";
+} from "../src/engine/collabInvite";
 import { clearA2AVerifiedPeers, recordA2AVerifiedPeer } from "../src/mission/a2aIdentityBridge";
-import { approveTeamEvolution, proposeTeamEvolution, recordTeamRun, teamIdFor } from "../src/vh19/teamEvolve";
+import { approveTeamEvolution, proposeTeamEvolution, recordTeamRun, teamIdFor } from "../src/engine/teamEvolve";
 
 let pass = 0;
 let fail = 0;
@@ -62,7 +62,7 @@ test("collabInvite — identity is sealed, binding is enforced", async () => {
   check("a short passphrase refuses to mint an identity", (await ensureIdentity("member-a", "tiny")).ok === false);
   const h = await ensureIdentity("member-a", PASS);
   check("a passphrase mints the identity", h.ok === true && h.created === true);
-  const storedRaw = localStorage.getItem("vh19.collab.key.v2:member-a") ?? "";
+  const storedRaw = localStorage.getItem("engine.collab.key.v2:member-a") ?? "";
   const priv = (await globalThis.crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])).privateKey;
   const privJwk = await globalThis.crypto.subtle.exportKey("jwk", priv);
   check("localStorage holds NO private key material", !storedRaw.includes(privJwk.d ?? "absent-sentinel") && !storedRaw.includes('"d":'));
@@ -75,10 +75,10 @@ test("collabInvite — identity is sealed, binding is enforced", async () => {
   check("the right passphrase re-unlocks and the public key is unchanged", (await ensureIdentity("member-a", PASS)) && JSON.stringify(storedPublicJwk("member-a")) === JSON.stringify((h as { publicJwk: JsonWebKey }).publicJwk));
 
   console.log("\n── 2. legacy plaintext blobs are purged ──");
-  localStorage.setItem("vh19.collab.key.v1:legacyuser", JSON.stringify({ pub: { kty: "EC" }, priv: { kty: "EC", d: "PLAINTEXT" } }));
+  localStorage.setItem("engine.collab.key.v1:legacyuser", JSON.stringify({ pub: { kty: "EC" }, priv: { kty: "EC", d: "PLAINTEXT" } }));
   await ensureIdentity("legacyuser", PASS);
-  check("the 18.2.0 plaintext blob is gone after first contact", localStorage.getItem("vh19.collab.key.v1:legacyuser") === null);
-  check("legacy user got a sealed v2 identity", localStorage.getItem("vh19.collab.key.v2:legacyuser") !== null);
+  check("the 18.2.0 plaintext blob is gone after first contact", localStorage.getItem("engine.collab.key.v1:legacyuser") === null);
+  check("legacy user got a sealed v2 identity", localStorage.getItem("engine.collab.key.v2:legacyuser") !== null);
 
   console.log("\n── 3. invitations ──");
   const q = await ensureIdentity("qwen", PASS);
@@ -172,7 +172,7 @@ test("collabInvite — identity is sealed, binding is enforced", async () => {
 
   console.log("\n── 7. the stored public key must match the decrypted private key (18.4.0) ──");
   {
-    const rawKey = "vh19.collab.key.v2:member-a";
+    const rawKey = "engine.collab.key.v2:member-a";
     const before = localStorage.getItem(rawKey)!;
     const rec = JSON.parse(before);
     const other = await globalThis.crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);

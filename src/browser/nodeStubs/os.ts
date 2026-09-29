@@ -14,7 +14,7 @@
 
 export function tmpdir(): never {
   throw new Error(
-    "node:os.tmpdir is not available in the 11Handle web build — the WebView exposes no temp directory. " +
+    "node:os.tmpdir is not available in the SelfImpulse web build — the WebView exposes no temp directory. " +
       "Sandbox probing is a desktop capability; treat this environment as UNMEASURED.",
   );
 }
@@ -32,7 +32,7 @@ export function arch(): string {
 }
 
 export function hostname(): string {
-  return "vh-webview";
+  return "si-webview";
 }
 
 export const EOL = "\n";

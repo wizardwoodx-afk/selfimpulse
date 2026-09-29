@@ -27,11 +27,11 @@ import {
   wrapRealModelBrain, runModelPrompt, planFromModelText, plannerPrompt,
   brainModelRun, realBrainDeps, realBrainInvoke, bareProviderId,
   BrainHostError, type BrainInvokeDeps,
-} from "../src/vouch/engine/brainSeam";
-import { simulatedBrain, type VouchBrain } from "../src/vouch/engine/vouch";
+} from "../src/selfimpulse/engine/brainSeam";
+import { simulatedBrain, type SelfImpulseBrain } from "../src/selfimpulse/engine/selfimpulse";
 import { HARNESS_BY_ID, type HarnessId } from "../src/domain/harness";
 
-const root: string = (globalThis as { HANDLE_ROOT?: string }).HANDLE_ROOT ?? process.cwd();
+const root: string = (globalThis as { SI_ROOT?: string }).SI_ROOT ?? process.cwd();
 const AUTO = "auto" as const;
 const execFileP = promisify(execFile);
 
@@ -124,7 +124,7 @@ test("brainSeam — real model, honest refusal, or labeled simulated: never fake
   assert.equal(planFromModelText("a\n\nbb bb\n- ccc ccc\ndddd dddd\neeee eeee\nffff ffff\ngggg gggg\nhhhh hhhh").length, 6, "steps bounded");
 
   // 6. THE PRODUCTION ROUTING, pinned in source (the 16.9.6 review's fix):
-  const src = fs.readFileSync(path.join(root, "src", "vouch", "engine", "brainSeam.ts"), "utf8");
+  const src = fs.readFileSync(path.join(root, "src", "selfimpulse", "engine", "brainSeam.ts"), "utf8");
   assert.ok(!/from "node:child_process"/.test(src), "the seam NEVER imports node:child_process — the stub is untouchable");
   // 19.7.15: the Tauri path no longer routes anywhere — there is no CLI command
   // left to call. The seam refuses on EVERY host, which is the stronger property:
@@ -132,16 +132,16 @@ test("brainSeam — real model, honest refusal, or labeled simulated: never fake
   assert.ok(/external agent CLIs are removed/.test(src),
     "the Tauri path refuses in words too, not just the web path");
   assert.ok(/BrainHostError/.test(src), "the web path refuses via a typed host error, before any spawn");
-  const vouchSrc = fs.readFileSync(path.join(root, "src", "vouch", "engine", "vouch.ts"), "utf8");
-  assert.ok(/await brainNow\.decide/.test(vouchSrc), "the governed pipeline awaits the (possibly async) plan");
-  assert.ok(/VouchPlan \| Promise<VouchPlan>/.test(vouchSrc), "the brain interface admits async plans");
-  assert.ok(/wrapRealModelBrain\(simulatedBrain\)/.test(vouchSrc), "the simulated brain ships wrapped");
-  assert.ok(!/no host app|no mission engine|until the merge/i.test(vouchSrc), "no stale header narrative survives");
+  const selfimpulseSrc = fs.readFileSync(path.join(root, "src", "selfimpulse", "engine", "selfimpulse.ts"), "utf8");
+  assert.ok(/await brainNow\.decide/.test(selfimpulseSrc), "the governed pipeline awaits the (possibly async) plan");
+  assert.ok(/SelfImpulsePlan \| Promise<SelfImpulsePlan>/.test(selfimpulseSrc), "the brain interface admits async plans");
+  assert.ok(/wrapRealModelBrain\(simulatedBrain\)/.test(selfimpulseSrc), "the simulated brain ships wrapped");
+  assert.ok(!/no host app|no mission engine|until the merge/i.test(selfimpulseSrc), "no stale header narrative survives");
 
   // 7. identity pins (the 16.9.6 honesty fix, kept)
   const offBrain = wrapRealModelBrain(simulatedBrain, fakeDeps({ installed: true }), "simulated");
   assert.equal(offBrain.id, "simulated", "off → the base identity stands");
-  const wb: VouchBrain = wrapRealModelBrain(simulatedBrain, fakeDeps({ installed: true }), AUTO);
+  const wb: SelfImpulseBrain = wrapRealModelBrain(simulatedBrain, fakeDeps({ installed: true }), AUTO);
   assert.ok(wb.label.includes("real-model planning"), "auto → the label names the seam");
   assert.ok(realBrainDeps.resolve !== undefined && realBrainDeps.invoke !== undefined, "production deps exist");
 });
@@ -158,7 +158,7 @@ test("brainSeam — 19.7.15: the native boundary has no spawn to get wrong", asy
   // a fiction; leaving a dead test would be a false signal. What is asserted
   // instead is the property that replaced it, in both directions.
   const rustSrc = fs.readFileSync(path.join(root, "src-tauri", "src", "commands.rs"), "utf8");
-  const seamSrc = fs.readFileSync(path.join(root, "src", "vouch", "engine", "brainSeam.ts"), "utf8");
+  const seamSrc = fs.readFileSync(path.join(root, "src", "selfimpulse", "engine", "brainSeam.ts"), "utf8");
 
   // 1. Nothing in Rust can spawn an agent any more.
   assert.ok(!/\bcli_invoke\b/.test(rustSrc), "there is no command that can execute an external agent CLI");

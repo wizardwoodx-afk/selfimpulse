@@ -1,5 +1,5 @@
 /**
- * 11Handle 16.6.0 — MCP CONFORMANCE SUITE (probe #89).
+ * SelfImpulse 16.6.0 — MCP CONFORMANCE SUITE (probe #89).
  *
  * The 16.5.0 review, item 3: the MCP router is hand-implemented (no official
  * SDK), and 2026-07-28 is a breaking revision — so exact wire-compatibility
@@ -32,8 +32,8 @@ import { after, before, describe, it } from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import AjvDraft7 from "ajv";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 const FIX = path.join(ROOT, "tools", "mcp-conformance", "fixtures");
 
 /* ── official fixtures, digest-pinned (provenance in PROVENANCE.md) ──────── */
@@ -309,7 +309,7 @@ describe("C3 legacy era — 2025-06-18 clients see exactly their era's wire", ()
     conformsRequest(ajv2025, "mcp-2025", "InitializeRequest", req, "legacy initialize request");
     conforms(ajv2025, "mcp-2025", "InitializeResult", r.result, "legacy initialize response");
     assert.equal(r.result.protocolVersion, "2025-06-18");
-    assert.equal(r.result.serverInfo.name, "11handle");
+    assert.equal(r.result.serverInfo.name, "selfimpulse");
     assert.equal("resultType" in r.result, false, "no modern resultType on the legacy wire");
   });
 
@@ -366,7 +366,7 @@ describe("C4 conformance report — the evidence is written, not just asserted",
     const failed = checks.filter((c) => !c.ok);
     assert.equal(failed.length, 0, "conformance checks failed: " + failed.map((f) => `${f.name} — ${f.detail}`).join(" | "));
     const report = {
-      suite: "11handle-mcp-conformance",
+      suite: "selfimpulse-mcp-conformance",
       spec: "Model Context Protocol",
       eras: { modern: "2026-07-28", legacy: "2025-06-18" },
       fixtures: FIXTURES,

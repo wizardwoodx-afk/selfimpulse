@@ -23,8 +23,8 @@ function ok(label: string, cond: boolean, detail = ""): void {
   else { failed++; failures.push(`${label}${detail ? ` — ${detail}` : ""}`); console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`); }
 }
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 // 19.7.12 (UI): the console is retired; the policy now binds the shell, the
@@ -36,15 +36,15 @@ const storeSrc = read("src/ui/store.ts");
 const settingsSrc = read("src/ui/screens/Settings.tsx");
 const css = read("src/ui/vh.css");
 const main = read("src/main.tsx");
-const skills = read("src/vh19/skills.ts");
-const loop = read("src/vh19/agentLoop.ts");
+const skills = read("src/engine/skills.ts");
+const loop = read("src/engine/agentLoop.ts");
 
 console.log("== the final-product policy ==");
 ok("the primary surface never imports the version — no numbers in the app", !/from "\.\.\/version"|from "\.\.\/\.\.\/version"|ENGINE_VERSION/.test(consoleSrc), "a version surface leaked into the UI");
 ok("no surface states a version — Settings → About names the product and the engine from brand.ts", !/ENGINE_VERSION/.test(settingsSrc) && !/"\d+\.\d+\.\d+/.test(settingsSrc) && /ENGINE_CREDIT/.test(settingsSrc));
 
 const rendered = (consoleSrc + settingsSrc)
-  .replace(/GeneralistFace|GeneralistMood|GeneralistResponse|generalistName|setGeneralistName|from "\.\.\/vh19\/generalist"/g, "");
+  .replace(/GeneralistFace|GeneralistMood|GeneralistResponse|generalistName|setGeneralistName|from "\.\.\/engine\/generalist"/g, "");
 ok("no rendered string says Generalist — the agent is the Captain", !rendered.includes("Generalist"));
 ok("the Captain rename is real (Settings → Captain, through the store)", settingsSrc.includes("renameSteward(") && /<h3>Captain<\/h3>/.test(settingsSrc) && /renameSteward:\s*\(n\)\s*=>\s*set\(\{\s*stewardName:\s*setGeneralistName\(n\)/.test(storeSrc));
 ok("the crew never faces the user by name", !/specialist\.name|sp\.name|\.name\}/.test(read("src/ui/screens/Work.tsx")) && /AGENT/.test(read("src/ui/screens/Work.tsx")));

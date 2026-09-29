@@ -1,11 +1,11 @@
 /**
- * 11Handle — the Specialists door: every domain, one surface, the same contract.
+ * SelfImpulse — the Specialists door: every domain, one surface, the same contract.
  *
  * WHY THIS DOOR EXISTS. The finance desk proved the shape: a deterministic engine behind
  * every specialist, a stated basis on every result, and a human gate wherever the last step
  * would change something real. None of that is specific to finance, so this surface
  * generalises it — frontend, engineering, API, data, security, reliability, docs, growth and
- * Indian finance side by side, each rendered from the same tool contract.
+ * regulated domain side by side, each rendered from the same tool contract.
  *
  * THE SHELL CONTAINS NO DOMAIN LOGIC. A tool declares its fields and its engine; this file
  * renders whatever it is given. Adding a domain is therefore a data change, not a UI change —
@@ -13,7 +13,7 @@
  *
  * WHAT IT WILL NOT DO:
  *   • no language model computes a number on this surface. Every figure comes from an engine
- *     in src/specialists or src/munshi, and every result prints the rule or formula it used.
+ *     in src/specialists, and every result prints the rule or formula it used.
  *   • nothing here acts on a system. These tools measure and compute; the specialists whose
  *     last step would change production, spend money or send something to a customer are
  *     marked GATED and stop for a human, exactly as the finance pack does.
@@ -27,11 +27,6 @@ import {
   DOMAINS, TOOLS, toolsForDomain, specialistStatus, specialistsByDomain,
   type Domain, type Tool, type ToolResult, type Values, type Specialist,
 } from "../../specialists";
-import { agentCount, rosterStatus as munshiStatus } from "../../munshi";
-import { MunshiTools, MunshiRoster } from "./Munshi";
-
-/** Finance-pack tools live in the Munshi door (gstin, tds, recon, dates, einvoice, msme, fee). */
-const MUNSHI_TOOL_COUNT = 7;
 
 /* ── the generic tool renderer ─────────────────────────────────────────────── */
 
@@ -190,11 +185,9 @@ export function Specialists(): React.ReactElement {
   const [domain, setDomain] = useState<Domain>("frontend");
   const info = DOMAINS.find((d) => d.id === domain)!;
   const gen = specialistStatus();
-  const munshi = munshiStatus();
-  const toolCount = TOOLS.length + MUNSHI_TOOL_COUNT;
-  const specialistCount = gen.total + agentCount();
-  const gatedCount = gen.requiringApproval + munshi.requiringApproval;
-  const financeTools = domain === "finance-in";
+  const toolCount = TOOLS.length;
+  const specialistCount = gen.total;
+  const gatedCount = gen.requiringApproval;
 
   return (
     <>
@@ -216,7 +209,7 @@ export function Specialists(): React.ReactElement {
           <div><b>{gatedCount}</b><span>stop at a human gate</span></div>
         </div>
         <p className="hint" style={{ margin: "0 2px 14px" }}>
-          One specialist system: a team per domain. The Captain (regional manager) talks to 30 desks × Lead+HR — 60 domain specialists — who field the 1,850 workers. Agentic MoE puts at most 25 workers on the 11WORKSPACE floor, chosen autonomously; you never pick the team. This door is the deterministic tool pack — a different catalog.
+          One specialist system: a team per domain. The Captain (regional manager) talks to 30 desks × Lead+HR — 60 domain specialists — who field the 1,500 workers. Agentic MoE puts at most 25 workers on the 11WORKSPACE floor, chosen autonomously; you never pick the team. This door is the deterministic tool pack — a different catalog.
         </p>
 
         <div className="seg" style={{ flexWrap: "wrap" }}>
@@ -227,7 +220,7 @@ export function Specialists(): React.ReactElement {
 
         <p className="hint" style={{ margin: "0 2px 14px" }}>{info.blurb}</p>
 
-        {financeTools ? <MunshiTools /> : <ToolKit tools={toolsForDomain(domain)} />}
+        <ToolKit tools={toolsForDomain(domain)} />
 
         <div className="note" style={{ marginTop: 14 }}>
           <b>Engines compute; they do not act.</b> Nothing on this surface touches a repository, a server, a portal or a
@@ -237,7 +230,7 @@ export function Specialists(): React.ReactElement {
         </div>
 
         <h3 style={{ margin: "22px 2px 10px" }}>The specialists</h3>
-        {financeTools ? <MunshiRoster domain="all" /> : <SpecialistLedger domain={domain} />}
+        <SpecialistLedger domain={domain} />
       </div></div>
     </>
   );

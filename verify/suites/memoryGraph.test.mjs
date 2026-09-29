@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/vh19/vault.ts
+// src/engine/vault.ts
 function storage() {
   try {
     return globalThis.localStorage ?? null;
@@ -31,7 +31,7 @@ function readMeta() {
   if (!s2) return null;
   try {
     const raw = JSON.parse(s2.getItem(VAULT_META_KEY) ?? "null");
-    return raw && raw.v === "vh-vault-meta/1" ? raw : null;
+    return raw && raw.v === "si-vault-meta/1" ? raw : null;
   } catch {
     return null;
   }
@@ -84,9 +84,9 @@ async function vaultDecrypt(name) {
 }
 var VAULT_FORMAT, VAULT_META_KEY, enc, dec, toB64, fromB64, sessionKey, sessionParams;
 var init_vault = __esm({
-  "src/vh19/vault.ts"() {
+  "src/engine/vault.ts"() {
     "use strict";
-    VAULT_FORMAT = "vh-vault/1";
+    VAULT_FORMAT = "si-vault/1";
     VAULT_META_KEY = "vh.vault.meta.v1";
     enc = new TextEncoder();
     dec = new TextDecoder();
@@ -181,7 +181,7 @@ var init_quotaSafe = __esm({
   }
 });
 
-// src/vh19/memoryGraph.ts
+// src/engine/memoryGraph.ts
 var memoryGraph_exports = {};
 __export(memoryGraph_exports, {
   REHYDRATION_MARK: () => REHYDRATION_MARK,
@@ -261,7 +261,7 @@ function isSealedEnvelope(raw) {
   if (!raw) return false;
   try {
     const parsed = JSON.parse(raw);
-    return parsed?.v === "vh-vault/1";
+    return parsed?.v === "si-vault/1";
   } catch {
     return false;
   }
@@ -612,12 +612,12 @@ function graphStats() {
 }
 var GRAPH_KEY, ENABLED_KEY, NODE_CAP, EDGE_CAP, SESSION_CAP, MSG_CAP_PER_SESSION, STOP, EMPTY, memCache, lockedAtBoot, saveToken, persistNote, persistInFlight, ALIAS_GROUPS, ALIAS_OF, escapeRe, MONTHS, REHYDRATION_MARK;
 var init_memoryGraph = __esm({
-  "src/vh19/memoryGraph.ts"() {
+  "src/engine/memoryGraph.ts"() {
     "use strict";
     init_vault();
     init_quotaSafe();
-    GRAPH_KEY = "vh19.memgraph.v1";
-    ENABLED_KEY = "vh19.memgraph.enabled.v1";
+    GRAPH_KEY = "engine.memgraph.v1";
+    ENABLED_KEY = "engine.memgraph.enabled.v1";
     NODE_CAP = 4e3;
     EDGE_CAP = 9e3;
     SESSION_CAP = 300;
@@ -679,26 +679,26 @@ function ok(label, cond, detail = "") {
 }
 var mg = await Promise.resolve().then(() => (init_memoryGraph(), memoryGraph_exports));
 console.log("== keyword extraction is deterministic and honest ==");
-var text = "11Handle signs every mission receipt with OpenSSL and the Harbor ledger; the receipt chain is verified nightly.";
+var text = "SelfImpulse signs every mission receipt with OpenSSL and the SelfImpulse ledger; the receipt chain is verified nightly.";
 var k1 = mg.extractKeywords(text);
 var k2 = mg.extractKeywords(text);
 ok("same text in, same keywords out", JSON.stringify(k1) === JSON.stringify(k2) && k1.length > 0);
 ok("stopwords never become nodes", !k1.includes("the") && !k1.includes("with") && !k1.includes("every"));
-ok("proper nouns rank up (harbor present)", k1.includes("harbor"));
+ok("proper nouns rank up (selfimpulse present)", k1.includes("selfimpulse"));
 ok("cap at the requested max", mg.extractKeywords(text, 3).length === 3);
 console.log("== ingest: a conversation becomes a graph session ==");
 mg.clearGraph();
 var at = (h) => new Date(Date.UTC(2026, 8, 12, 10 + h, 0, 0)).toISOString();
 var convo = [
-  { role: "user", text: "Deploy the 11Handle federation bridge on Tuesday and verify the ledger", at: at(0) },
+  { role: "user", text: "Deploy the SelfImpulse federation bridge on Tuesday and verify the ledger", at: at(0) },
   { role: "vh", text: "The federation bridge deployment plan: sign the grant, run the crossing, compare ledger roots.", at: at(1) },
-  { role: "user", text: "Also remember the Zephyr database migration for the Harbor dashboard", at: at(2) },
-  { role: "vh", text: "Noted: the Zephyr migration for the Harbor dashboard joins the mission ledger.", at: at(3) }
+  { role: "user", text: "Also remember the Zephyr database migration for the SelfImpulse dashboard", at: at(2) },
+  { role: "vh", text: "Noted: the Zephyr migration for the SelfImpulse dashboard joins the mission ledger.", at: at(3) }
 ];
 var s = mg.ingestSession(convo, { id: "chat-test-1" });
 ok("the session carries the dated transcript", s.messageCount === 4 && s.messages.length === 4);
-ok("the session title comes from the first user message", s.title.startsWith("Deploy the 11Handle federation bridge"));
-ok("keywords were drawn from the whole conversation", s.keywords.includes("federation") || s.keywords.includes("harbor") || s.keywords.includes("zephyr"));
+ok("the session title comes from the first user message", s.title.startsWith("Deploy the SelfImpulse federation bridge"));
+ok("keywords were drawn from the whole conversation", s.keywords.includes("federation") || s.keywords.includes("selfimpulse") || s.keywords.includes("zephyr"));
 var g = mg.graph();
 ok("graph nodes exist for the session keywords", g.nodes.length >= 3);
 ok("co-occurrence edges exist", g.edges.length >= 3);

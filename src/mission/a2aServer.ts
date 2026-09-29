@@ -64,7 +64,7 @@ export interface A2AAuditEntry {
   taskId?: string;
 }
 
-/** The handler seam: what the harbor DOES with an accepted message. */
+/** The handler seam: what the selfimpulse DOES with an accepted message. */
 export interface A2AMessageHandler {
   (task: TaskV10, message: MessageV10): Promise<{
     parts: PartV10[];
@@ -78,9 +78,20 @@ export interface A2AServerOptions {
   onMessage: A2AMessageHandler;
   /** Authorization hook when the card declares securitySchemes. */
   authorize?: (req: IncomingMessage) => boolean;
+  /**
+   * AlterSend, present only when the operator mounted with file sharing on.
+   * `decide` is the receiver's consent check: it sees the offered name, size
+   * and digest and returns whether to accept. There is no default-accept path,
+   * because a default-accept path is an auto-write primitive with extra steps.
+   */
+  altersend?: {
+    store: import("./altersend").AlterSendStore;
+    /** Called on every offer; return a reason to refuse, or null/undefined to accept. */
+    decide?: (offer: import("./altersend").AlterSendOffer) => string | null | undefined;
+  };
   host?: string;
   /**
-   * Bind port. Omit (or pass 0) for an ephemeral port. A mounted harbor needs a
+   * Bind port. Omit (or pass 0) for an ephemeral port. A mounted selfimpulse needs a
    * real one: the agent card is SIGNED for the interface URL it advertises, so
    * the listener has to be on the port the card names or discovery lies.
    */
@@ -108,7 +119,7 @@ export interface A2AServerOptions {
 }
 
 /** Header the unmount request carries its nonce in. */
-export const STOP_HEADER = "x-vh-stop-nonce";
+export const STOP_HEADER = "x-si-stop-nonce";
 
 export interface A2AServerHandle {
   start(): Promise<number>;
@@ -124,6 +135,23 @@ export const PAIR_PATH = "/vh/pair";
 
 /** Unmount, same reasoning: not an RPC method, and not on the peer surface. */
 export const STOP_PATH = "/vh/stop";
+
+/* ALTERSEND — file transfer between peers.
+ *
+ * Unlike pairing and unmount, this one sits BEHIND the credential check, on
+ * purpose. Moving a file onto somebody's machine is the most consequential thing
+ * a peer can ask for, so it uses the same gate as delegation and the same
+ * scoped credential. An unauthenticated file drop is a remote-write primitive;
+ * there is no version of this endpoint that should exist without one.
+ *
+ * Off the JSON-RPC surface for the same reason as the others: a transfer is a
+ * body of bytes, not a method call, and pretending otherwise would let it be
+ * invoked through the agent protocol. */
+export const ALTERSEND_PATH = "/vh/altersend";
+export const ALTERSEND_PREFIX = "/vh/altersend/";
+
+/** Enough for a 32 MiB file plus base64 overhead; the store caps the real limit. */
+const ALTERSEND_MAX_BODY = 48 * 1024 * 1024;
 
 function json(res: ServerResponse, status: number, body: unknown): void {
   const payload = JSON.stringify(body);
@@ -478,6 +506,87 @@ export function createA2AServer(opts: A2AServerOptions): A2AServerHandle {
           note({ ts: new Date().toISOString(), method: "pair", ok: false, reason: "threw" });
         });
       });
+      return;
+    }
+    /* ALTERSEND — offer, list, accept/refuse, fetch. Behind the credential. */
+    if (req.url === ALTERSEND_PATH || req.url?.startsWith(ALTERSEND_PREFIX)) {
+      if (!opts.altersend) {
+        json(res, 404, { error: "not-enabled", reason: "this host has file sharing turned off" });
+        return;
+      }
+      if (!opts.authorize || !opts.authorize(req)) {
+        json(res, 401, { error: "unauthorized", reason: "a paired credential is required to move files" });
+        note({ ts: new Date().toISOString(), method: "altersend", ok: false, reason: "unauthorized" });
+        return;
+      }
+      const store = opts.altersend.store;
+      const id = req.url.startsWith(ALTERSEND_PREFIX) ? req.url.slice(ALTERSEND_PREFIX.length) : "";
+
+      if (req.method === "GET" && !id) {
+        json(res, 200, { ok: true, offers: store.list() });
+        return;
+      }
+      if (req.method === "GET" && id) {
+        const got = store.get(id);
+        if (!got.ok) { json(res, 404, { error: got.reason }); return; }
+        const pulled = store.fetch(id);
+        if (!pulled.ok) { json(res, 409, { error: pulled.reason }); return; }
+        json(res, 200, {
+          ok: true,
+          offer: pulled.value.offer,
+          bytes: pulled.value.bytes.toString("base64"),
+        });
+        note({ ts: new Date().toISOString(), method: "altersend-fetch", ok: true, reason: id });
+        return;
+      }
+      if (req.method === "POST" && id) {
+        let decision = "accept";
+        const chunks: Buffer[] = [];
+        req.on("data", (c: Buffer) => chunks.push(c));
+        req.on("end", () => {
+          try {
+            const b = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+            decision = b.decision === "refuse" ? "refuse" : "accept";
+          } catch { decision = "accept"; }
+          const out = decision === "refuse" ? store.refuse(id, "the receiver declined") : store.accept(id);
+          if (!out.ok) { json(res, 409, { error: out.reason }); return; }
+          json(res, 200, { ok: true, offer: out.value });
+          note({ ts: new Date().toISOString(), method: "altersend-decide", ok: true, reason: `${decision}:${id}` });
+        });
+        return;
+      }
+      if (req.method === "POST" && !id) {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        req.on("data", (c: Buffer) => {
+          size += c.byteLength;
+          if (size > ALTERSEND_MAX_BODY) { req.destroy(); return; }
+          chunks.push(c);
+        });
+        req.on("end", () => {
+          if (size > ALTERSEND_MAX_BODY) { json(res, 413, { error: "too-large" }); return; }
+          let body: { name?: unknown; data?: unknown };
+          try { body = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
+          catch { json(res, 400, { error: "bad-json" }); return; }
+          let bytes: Buffer;
+          try { bytes = Buffer.from(String(body.data ?? ""), "base64"); }
+          catch { json(res, 400, { error: "bad-base64" }); return; }
+          const offered = store.offer({ name: String(body.name ?? ""), bytes });
+          if (!offered.ok) { json(res, 400, { error: offered.reason }); return; }
+          const refusal = opts.altersend?.decide?.(offered.value);
+          if (refusal) {
+            store.refuse(offered.value.id, refusal);
+            json(res, 403, { error: "refused", reason: refusal, offer: offered.value });
+            note({ ts: new Date().toISOString(), method: "altersend-offer", ok: false, reason: refusal });
+            return;
+          }
+          store.accept(offered.value.id);
+          json(res, 201, { ok: true, offer: offered.value });
+          note({ ts: new Date().toISOString(), method: "altersend-offer", ok: true, reason: offered.value.id });
+        });
+        return;
+      }
+      json(res, 405, { error: "method-not-allowed" });
       return;
     }
     if (req.method !== "POST" || (req.url !== "/" && req.url !== "")) {

@@ -2904,8 +2904,8 @@ function dateTerms(v) {
 var PII = [
   { name: "email address", re: /[\w.+-]+@[\w-]+\.[\w.-]{2,}/g, note: "pattern" },
   { name: "phone (international)", re: /\+\d[\d\s\-()]{7,}\d/g, note: "pattern" },
-  { name: "PAN (India)", re: /\b[A-Z]{5}\d{4}[A-Z]\b/g, note: "pattern + 4th-character holder type" },
-  { name: "Aadhaar-shaped 12 digits", re: /\b\d{4}\s?\d{4}\s?\d{4}\b/g, note: "shape only \u2014 not checksum-verified" },
+  { name: "national tax id (5 letters, 4 digits, 1 letter)", re: /\b[A-Z]{5}\d{4}[A-Z]\b/g, note: "pattern + 4th-character holder type" },
+  { name: "national-id-shaped 12 digits", re: /\b\d{4}\s?\d{4}\s?\d{4}\b/g, note: "shape only \u2014 not checksum-verified" },
   { name: "card-shaped number", re: /\b(?:\d[ -]?){13,19}\b/g, note: "shape + Luhn checked below" },
   { name: "IPv4 address", re: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, note: "pattern" },
   { name: "date of birth (ISO)", re: /\b(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\b/g, note: "pattern \u2014 a date is PII only in context" }
@@ -6923,8 +6923,7 @@ var DOMAINS = Object.freeze([
   { id: "locale", label: "Localisation", blurb: "Translation coverage and the space translated strings take in a layout built for English." },
   { id: "supply", label: "Supply chain", blurb: "Order quantities and the safety stock a service level actually costs." },
   { id: "web3", label: "Web3", blurb: "Transaction cost and base-unit arithmetic \u2014 integer maths, because token floats lose money." },
-  { id: "health", label: "Healthcare", blurb: "Early-warning scores and ward occupancy \u2014 arithmetic, never a diagnosis." },
-  { id: "finance-in", label: "Finance \xB7 India", blurb: "GST, TDS, ITC reconciliation, MSME clocks \u2014 the Munshi pack." }
+  { id: "health", label: "Healthcare", blurb: "Early-warning scores and ward occupancy \u2014 arithmetic, never a diagnosis." }
 ]);
 function toolsForDomain(domain) {
   return TOOLS.filter((t) => t.domain === domain);
@@ -6953,7 +6952,7 @@ function section(name) {
 }
 section("1. every tool drives from its own defaults, twice, identically");
 ok("the pack ships a substantial set of tools", TOOLS.length >= 30, `${TOOLS.length} tools`);
-ok("across all twenty-six domains", DOMAINS.length === 26, `${DOMAINS.length} domains`);
+ok("across all twenty-five domains", DOMAINS.length === 25, `${DOMAINS.length} domains`);
 var TOOL_DOMAINS = [...new Set(TOOLS.map((t) => t.domain))];
 ok(
   "every domain except finance-in has tools of its own",
@@ -6962,8 +6961,8 @@ ok(
 );
 ok(
   "and every one of those domains has at least two deterministic tools",
-  DOMAINS.filter((d) => d.id !== "finance-in").every((d) => toolsForDomain(d.id).length >= 2),
-  DOMAINS.filter((d) => d.id !== "finance-in" && toolsForDomain(d.id).length < 2).map((d) => d.id).join(", ")
+  DOMAINS.every((d) => toolsForDomain(d.id).length >= 2),
+  DOMAINS.filter((d) => toolsForDomain(d.id).length < 2).map((d) => d.id).join(", ")
 );
 ok(
   "the pack ships sixty-seven tools of its own (seven more arrive with the finance pack)",
@@ -7315,8 +7314,8 @@ ok("the generalist pack ships two hundred and fifty-one specialists", status.tot
 ok("across twenty-five domains", status.domains === 25, String(status.domains));
 ok(
   "every domain carries at least eight specialists",
-  DOMAINS.filter((d) => d.id !== "finance-in").every((d) => specialistsByDomain(d.id).length >= 8),
-  DOMAINS.filter((d) => d.id !== "finance-in").map((d) => `${d.id}:${specialistsByDomain(d.id).length}`).join(" ")
+  DOMAINS.every((d) => specialistsByDomain(d.id).length >= 8),
+  DOMAINS.map((d) => `${d.id}:${specialistsByDomain(d.id).length}`).join(" ")
 );
 ok("an id is unique per specialist", new Set(SPECIALISTS.map((s) => s.id)).size === status.total);
 ok(
@@ -7355,11 +7354,11 @@ ok(
 );
 ok(
   "and no domain is mostly gates \u2014 in every one, the ungated specialists outnumber the gated",
-  DOMAINS.filter((d) => d.id !== "finance-in").every((d) => {
+  DOMAINS.every((d) => {
     const list = specialistsByDomain(d.id);
     return list.filter((s) => !s.requiresApproval).length > list.filter((s) => s.requiresApproval).length;
   }),
-  DOMAINS.filter((d) => d.id !== "finance-in").map((d) => {
+  DOMAINS.map((d) => {
     const list = specialistsByDomain(d.id);
     return `${d.id}:${list.filter((s) => !s.requiresApproval).length}/${list.filter((s) => s.requiresApproval).length}`;
   }).join(" ")
@@ -7371,14 +7370,10 @@ ok(
 );
 ok(
   "every domain has at least four specialists",
-  DOMAINS.filter((d) => d.id !== "finance-in").every((d) => specialistsByDomain(d.id).length >= 4),
-  DOMAINS.filter((d) => d.id !== "finance-in").map((d) => `${d.id}:${specialistsByDomain(d.id).length}`).join(" ")
+  DOMAINS.every((d) => specialistsByDomain(d.id).length >= 4),
+  DOMAINS.map((d) => `${d.id}:${specialistsByDomain(d.id).length}`).join(" ")
 );
 ok("findSpecialist resolves an id", findSpecialist("ops.deploy-gate")?.requiresApproval === true);
-ok(
-  "the finance pack is listed as a domain of this pack, not copied into it",
-  DOMAINS.some((d) => d.id === "finance-in" && d.label.includes("India"))
-);
 var drive = (id) => {
   const t = toolById(id);
   if (!t) throw new Error(`no such tool: ${id}`);

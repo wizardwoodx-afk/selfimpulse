@@ -19,7 +19,7 @@
  *
  * Run like every suite (see the command at the top of probe/harnesses.test.ts):
  *   esbuild probe/offlinePack.test.ts --bundle --platform=node --format=esm \
- *     --define:HANDLE_ROOT='"$(pwd)"' --outfile=/tmp/op.mjs --log-level=error && node /tmp/op.mjs
+ *     --define:SI_ROOT='"$(pwd)"' --outfile=/tmp/op.mjs --log-level=error && node /tmp/op.mjs
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -29,8 +29,8 @@ import { execFileSync } from "node:child_process";
 import { buildOfflinePack } from "../tools/build-offline-verify.mjs";
 import { listProbeSuites } from "../tools/probe-list.mjs";
 
-declare const HANDLE_ROOT: string | undefined;
-const root = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const root = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 let pass = 0;
 let fail = 0;

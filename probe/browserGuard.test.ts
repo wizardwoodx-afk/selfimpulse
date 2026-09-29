@@ -29,13 +29,13 @@ function ok(label: string, cond: boolean, detail = ""): void {
   else { failed += 1; failures.push(`${label}${detail ? ` — ${detail}` : ""}`); console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`); }
 }
 
-// Other probes resolve the tree root through HANDLE_ROOT, which the dev runner
+// Other probes resolve the tree root through SI_ROOT, which the dev runner
 // sets to the absolute checkout and the offline runner sets to ".". Using it
 // means this probe reads the real guard file in both runners, instead of
 // guessing a relative path that differs per runner.
-declare const HANDLE_ROOT: string;
+declare const SI_ROOT: string;
 const here = path.dirname(fileURLToPath(import.meta.url));
-const root = typeof HANDLE_ROOT === "string" && HANDLE_ROOT ? HANDLE_ROOT : path.join(here, "..", "..");
+const root = typeof SI_ROOT === "string" && SI_ROOT ? SI_ROOT : path.join(here, "..", "..");
 const guardPath = path.join(root, "src-tauri", "browser-service", "browser-guard.script.mjs");
 const guardSrc = fs.readFileSync(guardPath, "utf8");
 
@@ -66,7 +66,7 @@ function makePage(allowed: string[], opts: { blockBlob?: boolean; noFetch?: bool
     DOMException: class extends Error {
       constructor(msg: string, name?: string) { super(msg); this.name = name ?? "Error"; }
     },
-    __11handleGuardReport: report,
+    __selfimpulseGuardReport: report,
     location: { href: "https://allowed.test/page" },
     // A real WebRTC surface, so "blocked" is observable. Absent on a real page
     // it is a no-op, which is also correct — there is nothing to block.
@@ -85,14 +85,14 @@ function makePage(allowed: string[], opts: { blockBlob?: boolean; noFetch?: bool
 
   vm.createContext(sandbox);
   vm.runInContext(guardSrc, sandbox, { filename: "browser-guard.script.mjs" });
-  vm.runInContext(`__install11HandleNetworkGuard(${JSON.stringify(allowed)})`, sandbox);
+  vm.runInContext(`__installSelfImpulseNetworkGuard(${JSON.stringify(allowed)})`, sandbox);
 
   return { g: sandbox as Record<string, any>, report, calls, blobUrls };
 }
 
 console.log("== 0. the adopted shim is present and parseable");
 ok("the guard file is non-trivial", guardSrc.length > 2000, String(guardSrc.length));
-ok("it defines the install entry point", guardSrc.includes("function __install11HandleNetworkGuard"));
+ok("it defines the install entry point", guardSrc.includes("function __installSelfImpulseNetworkGuard"));
 ok("it is JavaScript node can parse", (() => {
   try { new vm.Script(guardSrc); return true; } catch { return false; }
 })());

@@ -6,7 +6,7 @@
  * "rendering chunks" phase OOM-kills on a 2 GB host with no swap. esbuild
  * produces a working single-bundle output with dramatically less memory and
  * is the same approach we already use for tools/mcp-engine.mjs and
- * tools/vh-host-engine.mjs. CSS is processed by esbuild's CSS pipeline which
+ * tools/si-host-engine.mjs. CSS is processed by esbuild's CSS pipeline which
  * resolves the font @imports and emits hashed asset URLs.
  */
 import { build } from "esbuild";

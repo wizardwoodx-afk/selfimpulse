@@ -43,7 +43,7 @@ struct Mounted {
     port: Option<u16>,
     card_url: Option<String>,
     interface_url: Option<String>,
-    harbor: String,
+    selfimpulse: String,
     identity_fp: Option<String>,
     card_signed: bool,
     token_minted: bool,
@@ -80,7 +80,7 @@ fn supervisor() -> &'static parking_lot::Mutex<Supervisor> {
 /// Stop a child the way the host itself expects to be stopped.
 ///
 /// The bundled host installs a SIGTERM handler that closes its listener, withdraws
-/// nothing it should not, and prints `VH-A2A-STOPPED`. Killing it outright
+/// nothing it should not, and prints `SI-A2A-STOPPED`. Killing it outright
 /// worked, but it is the difference between unmounting a server and shooting it:
 /// a graceful stop means the card stops being served, connections are closed by
 /// the process that owns them, and the host gets to record its own shutdown. The
@@ -147,7 +147,7 @@ pub fn a2a_host_status(app: AppHandle) -> Value {
             "port": m.port,
             "cardUrl": m.card_url,
             "interfaceUrl": m.interface_url,
-            "harbor": m.harbor,
+            "selfimpulse": m.selfimpulse,
             "bindAddress": m.bind_address,
             "bindScope": if m.bind_address == "127.0.0.1" { "local" } else { "lan" },
             "identityFp": m.identity_fp,
@@ -233,8 +233,8 @@ fn resolve_bind(bind: &str) -> Result<(String, String), String> {
 
 fn host_path(app: &AppHandle) -> Option<(PathBuf, (bool, PathBuf))> {
     let dir = app.path().resource_dir().ok()?;
-    let launcher = dir.join("a2a").join("vh-host.mjs");
-    let engine = dir.join("a2a").join("vh-host-engine.mjs");
+    let launcher = dir.join("a2a").join("si-host.mjs");
+    let engine = dir.join("a2a").join("si-host-engine.mjs");
     let bundled = engine.exists();
     Some((launcher, (bundled, engine)))
 }
@@ -242,7 +242,7 @@ fn host_path(app: &AppHandle) -> Option<(PathBuf, (bool, PathBuf))> {
 #[tauri::command]
 pub fn a2a_host_start(
     app: AppHandle,
-    harbor: Option<String>,
+    selfimpulse: Option<String>,
     port: Option<u16>,
     bind: Option<String>,
     pair: Option<bool>,
@@ -288,8 +288,8 @@ pub fn a2a_host_start(
     let mut cmd = Command::new(crate::commands::node_binary());
     cmd.env("HANDLE_STOP_NONCE", &stop_nonce);
     cmd.arg(&launcher)
-        .arg("--harbor")
-        .arg(harbor.clone().unwrap_or_else(|| "11Handle".to_string()))
+        .arg("--selfimpulse")
+        .arg(selfimpulse.clone().unwrap_or_else(|| "SelfImpulse".to_string()))
         .arg("--port")
         .arg(port.unwrap_or(0).to_string())
         .arg("--host")
@@ -323,7 +323,7 @@ pub fn a2a_host_start(
     if let Some(out) = child.stdout.take() {
         std::thread::spawn(move || {
             for line in BufReader::new(out).lines().map_while(Result::ok) {
-                if let Some(rest) = line.strip_prefix("VH-A2A-READY") {
+                if let Some(rest) = line.strip_prefix("SI-A2A-READY") {
                     let parsed: Value = serde_json::from_str(rest.trim()).unwrap_or(Value::Null);
                     let _ = tx.send(parsed);
                 }
@@ -361,16 +361,16 @@ pub fn a2a_host_start(
     let mounted = match announced {
         Some(desc) => {
             // `token` is deliberately NOT read out of the descriptor.
-            let harbor_name = desc
-                .get("harborUser")
+            let selfimpulse_name = desc
+                .get("selfimpulseUser")
                 .and_then(|v| v.as_str())
-                .unwrap_or("11Handle")
+                .unwrap_or("SelfImpulse")
                 .to_string();
             Some(Mounted {
                 port: desc.get("port").and_then(|v| v.as_u64()).map(|p| p as u16),
                 card_url: desc.get("cardUrl").and_then(|v| v.as_str()).map(String::from),
                 interface_url: desc.get("interfaceUrl").and_then(|v| v.as_str()).map(String::from),
-                harbor: harbor_name,
+                selfimpulse: selfimpulse_name,
                 identity_fp: desc.get("identityFp").and_then(|v| v.as_str()).map(String::from),
                 card_signed: desc.get("cardSigned").and_then(|v| v.as_bool()).unwrap_or(false),
                 token_minted: desc.get("tokenMinted").and_then(|v| v.as_bool()).unwrap_or(false),
@@ -411,7 +411,7 @@ pub fn a2a_host_start(
                 "bindAddress": m_bind, "bindScope": bind_scope,
                 "pairingCode": pair_code, "pairingExpires": pair_expires,
                 "detail": format!(
-                    "The A2A host is mounted and listening on {m_bind} — {bind_words}. It stays up until you unmount it or quit 11Handle."
+                    "The A2A host is mounted and listening on {m_bind} — {bind_words}. It stays up until you unmount it or quit SelfImpulse."
                 ),
             }))
         }
@@ -461,7 +461,7 @@ fn request_unmount(m: &Mounted) -> bool {
         None => return false,
     };
     let body = format!(
-        "POST /vh/stop HTTP/1.1\r\nHost: {}\r\nx-vh-stop-nonce: {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        "POST /vh/stop HTTP/1.1\r\nHost: {}\r\nx-si-stop-nonce: {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
         m.bind_address, m.stop_nonce
     );
     let mut stream = match std::net::TcpStream::connect((m.bind_address.as_str(), port)) {

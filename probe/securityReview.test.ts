@@ -13,8 +13,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { buildSecurityReview, verifySecurityReview, digestOf, securityScope, securityFindings } from "../src/mission/securityReview";
 
-declare const HANDLE_ROOT: string;
-const root = HANDLE_ROOT ?? process.cwd();
+declare const SI_ROOT: string;
+const root = SI_ROOT ?? process.cwd();
 
 test("securityReview — the artifact is real, signed and honest about its limits", async () => {
   // 1. the scope is real and evidenced
@@ -34,14 +34,14 @@ test("securityReview — the artifact is real, signed and honest about its limit
 
   // 17.6.2 — the external-validation surfaces are inventoried, not implied
   const names = scope.map((x) => x.surface.toLowerCase());
-  assert.ok(names.some((n) => n.includes("cross-harbor")), "cross-harbor anchoring is a named surface");
+  assert.ok(names.some((n) => n.includes("cross-selfimpulse")), "cross-selfimpulse anchoring is a named surface");
   assert.ok(names.some((n) => n.includes("grant authority")), "grant-authority delegation is a named surface");
   assert.ok(names.some((n) => n.includes("external-agent")), "the interop CLI boundary is a named surface");
-  assert.ok(findings.some((f) => /replay protection is per-harbor/i.test(f)), "replay limits are stated honestly");
+  assert.ok(findings.some((f) => /replay protection is per-selfimpulse/i.test(f)), "replay limits are stated honestly");
 
   // 3. build → digest stable + canonical (digest covers the body only)
   const a = await buildSecurityReview();
-  assert.equal(a.format, "vh-security-review/1");
+  assert.equal(a.format, "si-security-review/1");
   assert.equal(a.digest.length, 64, "sha256 hex");
   // the auditor recomputes the CANONICAL body (deep key-sort, like the engine)
   const sortDeep = (v: unknown): unknown => Array.isArray(v) ? v.map(sortDeep) : v && typeof v === "object" ? Object.keys(v as object).sort().reduce<Record<string, unknown>>((acc, k) => { acc[k] = sortDeep((v as Record<string, unknown>)[k]); return acc; }, {}) : v;
@@ -72,6 +72,6 @@ test("securityReview — the artifact is real, signed and honest about its limit
   // 19.7.12 (UI): this page was unmounted dead code since 19.6.6 and is now deleted; pin the seam it wrapped.
   const mod = fs.readFileSync(path.join(root, "src", "mission", "securityReview.ts"), "utf8");
   assert.ok(mod.includes("export async function buildSecurityReview"), "the artifact builder is exported at the seam");
-  assert.ok(mod.includes('"vh-security-review/1"'), "the seam names the wire format");
+  assert.ok(mod.includes('"si-security-review/1"'), "the seam names the wire format");
   assert.ok(!fs.existsSync(path.join(root, "src", "pages", "AuditPage.tsx")), "the retired Audit page is gone (19.7.12 UI)");
 });

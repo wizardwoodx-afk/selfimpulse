@@ -1,5 +1,5 @@
 /**
- * VH-19 — skills probe (18.9.0 "Aurora").
+ * SelfImpulse — skills probe (18.9.0 "Aurora").
  *
  * Pins the skill library: every skill is a real playbook (procedure +
  * checklist), every specialist binds at least one skill, the composed
@@ -8,8 +8,8 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildSpecialistPrompt, getSkill, SKILLS, skillsFor } from "../src/vh19/skills";
-import { SPECIALISTS, getSpecialist } from "../src/vh19/registry";
+import { buildSpecialistPrompt, getSkill, SKILLS, skillsFor } from "../src/engine/skills";
+import { SPECIALISTS, getSpecialist } from "../src/engine/registry";
 
 test("skills — the playbook library bound to the bench", () => {
   let pass = 0, fail = 0;

@@ -1,4 +1,4 @@
-# 11Handle — Differentiated Feature Roadmap (the fundraise features)
+# SelfImpulse — Differentiated Feature Roadmap (the fundraise features)
 
 > Eight features that put VH in a position no funded competitor occupies. Each one maps
 > to an existing, tested VH primitive (the build cost column is honest: most of this is

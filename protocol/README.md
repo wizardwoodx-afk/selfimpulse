@@ -1,18 +1,18 @@
-# 11Handle Protocol v0.10.7 — "Unified Sentinel-Hybrid"
+# SelfImpulse Protocol v0.10.7 — "Unified Sentinel-Hybrid"
 
-The device-to-device communication + trust substrate under the 11Handle
+The device-to-device communication + trust substrate under the SelfImpulse
 agent OS. Shipped inside `protocol/` since **17.6**.
 
 ## What it is
 
 Local-first, selective, signature-verified exchange for **humans and AI
-agents**. Devices talk directly to devices; a *harbor* is a meeting place
-only — presence, signaling, and vouch metadata. Content never transits the
-harbor: it moves peer-to-peer under hybrid post-quantum encryption.
+agents**. Devices talk directly to devices; a *selfimpulse* is a meeting place
+only — presence, signaling, and selfimpulse metadata. Content never transits the
+selfimpulse: it moves peer-to-peer under hybrid post-quantum encryption.
 
 ```
 govern  →  execute  →  verify  →  learn
-policy     vouch       chain      reputation
+policy     selfimpulse       chain      reputation
 engine     kinds       + metaSig  + decay
 ```
 
@@ -22,18 +22,18 @@ engine     kinds       + metaSig  + decay
 |---|---|
 | Identity | ECDSA P-256 signing + HPKE + ML-KEM-768 key bundles, challenge-response join |
 | Envelopes | signed `{p, n, ts, sig}` + replay guard + timestamp window |
-| Vouch chain | full SHA-256 hash chain, harbor meta-signatures (`requireMetaSig` default), root-key checkpoints every 10 links |
-| Governance | PolicyEngine (6 vouch kinds, charset/hash/expiry rules, self-endorsement ban) + BindingValidator (signer ↔ actor, SDK **and** harbor) |
+| SelfImpulse chain | full SHA-256 hash chain, selfimpulse meta-signatures (`requireMetaSig` default), root-key checkpoints every 10 links |
+| Governance | PolicyEngine (6 selfimpulse kinds, charset/hash/expiry rules, self-endorsement ban) + BindingValidator (signer ↔ actor, SDK **and** selfimpulse) |
 | Trust | `findAuthorization` (expiry/revocation-aware), `assessActionRisk`, `computeReputationSignals` (per-capability, exponential time decay λ=0.5, half-life ≈ 10 days) — signals are audit-only; access rides authorization |
 | Content | **VH-HYBRID-PQ3** true hybrid combiner — two independent secrets (HPKE-protected + ML-KEM-protected) joined by HKDF; compromise of ONE key-establishment path does not reveal the content key. **VH-VAULT-v3** chunked transfer + RFC 6962 Merkle manifest |
 | Honesty | `CRYPTO_BOUNDARY` — machine-readable quantum status per primitive; signing stays classical ECDSA and says so |
 
 ## The receipt bridge (17.6)
 
-`bridge/vouch-receipt-bridge.mjs` anchors Patina's `vh-proof-receipt/2`
-proof receipts into the vouch chain — the cross-org capability channel's
+`bridge/selfimpulse-receipt-bridge.mjs` anchors Patina's `si-proof-receipt/2`
+proof receipts into the selfimpulse chain — the cross-org capability channel's
 trust anchor. A receipt verified on one machine becomes a portable,
-policy-governed, revocable vouch on any harbor.
+policy-governed, revocable selfimpulse on any selfimpulse.
 
 - Verification mirrors `tools/verify-receipt.mjs` **byte-for-byte**
   (chain, canon, seal, Ed25519 issuer signature).
@@ -51,7 +51,7 @@ node protocol/bridge/bridge-selftest.mjs   # 🏆 17 checks, zero install
 cd protocol
 npm ci            # lockfile-pinned. The archive ships the lockfile, not node_modules
 npm test          # 🏆 171 checks (selftest) — exact from-a-bare-archive steps: README-TEST.md
-npm start         # harbor server (PORT env, default 3000)
+npm start         # selfimpulse server (PORT env, default 3000)
 ```
 
 ## v0.10.4 → v0.10.7 — bounded delegation (RULE 3), designated authority (RULE 4), authority provenance (RULE 5), possession & revocation authority (RULE 6)

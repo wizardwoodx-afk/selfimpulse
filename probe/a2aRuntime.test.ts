@@ -11,13 +11,13 @@
  *
  * So this suite tests the thing that was missing, at the level it was missing:
  *
- *   §1  the bootstrap mounts a harbor: signed card served over real HTTP, the
+ *   §1  the bootstrap mounts a selfimpulse: signed card served over real HTTP, the
  *       interface URL it advertises is the port it actually bound
  *   §2  the SHIPPED launcher runs the SHIPPED engine: the bundle is byte-pinned,
  *       a tampered engine fails closed, `npm run host` exists
  *   §3  TWO INDEPENDENT VH PROCESSES: discover → authorize → real TeamExecutor
  *       mission → receipt that verifies in a THIRD process
- *   §4  a mounted harbor that cannot execute refuses in words
+ *   §4  a mounted selfimpulse that cannot execute refuses in words
  *   §5  anti-cheat across the wire: a failing repository is `executed-failed`
  *   §6  the receiver grades the request itself — a sender's "safe" is a claim
  *
@@ -33,11 +33,11 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, execFileSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createHash } from "node:crypto";
-declare const HANDLE_ROOT: string;
-const ROOT = HANDLE_ROOT ?? process.cwd();
+declare const SI_ROOT: string;
+const ROOT = SI_ROOT ?? process.cwd();
 
-import { drillBridgeConfig, makeHarborIdentity, nodeRunnerDeps, startA2ARuntime, type A2ARuntime } from "../src/mission/a2aRuntime";
-import { receiverRiskVerdict, createTeam, addTeammate } from "../src/mission/harborTeams";
+import { drillBridgeConfig, makeSelfImpulseIdentity, nodeRunnerDeps, startA2ARuntime, type A2ARuntime } from "../src/mission/a2aRuntime";
+import { receiverRiskVerdict, createTeam, addTeammate } from "../src/mission/selfimpulseTeams";
 import { validateAgentCardV10, verifyAgentCardV10Signatures } from "../src/mission/a2aV10";
 import { verifyProofReceipt } from "../src/mission/receipts";
 
@@ -52,7 +52,7 @@ function section(name: string): void { console.log(`\n== ${name}`); }
 
 const scratchDirs: string[] = [];
 /** Every host process this suite launched. Killed in `finally` — a suite that
- *  throws mid-run must not leave a harbor listening on the machine. */
+ *  throws mid-run must not leave a selfimpulse listening on the machine. */
 const launched: HostProc[] = [];
 function scratch(prefix: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -116,7 +116,7 @@ interface HostProc {
 }
 
 function launchHost(args: string[]): HostProc {
-  const child = spawn(process.execPath, [path.join(ROOT, "tools", "vh-host.mjs"), ...args], {
+  const child = spawn(process.execPath, [path.join(ROOT, "tools", "si-host.mjs"), ...args], {
     cwd: ROOT,
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env },
@@ -187,18 +187,18 @@ interface DelegatedLine {
 
 async function main(): Promise<void> {
   /* ══ §1 the bootstrap mounts a real listener ═══════════════════════════════ */
-  section("1. startA2ARuntime mounts a harbor (in-process, real HTTP)");
+  section("1. startA2ARuntime mounts a selfimpulse (in-process, real HTTP)");
 
   const { repo, baseBranch } = makeRepo();
   const runtime: A2ARuntime = await startA2ARuntime({
-    harborUser: "USER 2",
+    selfimpulseUser: "USER 2",
     teammates: [MATE],
     port: 0,
     token: "link-secret",
     bridge: drillBridgeConfig({ repoRoot: repo, baseBranch, testCommand: ["node", "test.js"] }),
   });
   const desc = runtime.describe();
-  ok("the runtime reports itself mounted", desc.mounted === true && desc.harborUser === "USER 2");
+  ok("the runtime reports itself mounted", desc.mounted === true && desc.selfimpulseUser === "USER 2");
   ok("the card is signed and served from the port that actually bound",
     desc.cardSigned === true && desc.interfaceUrl === `http://127.0.0.1:${runtime.port}/` && desc.cardUrl.startsWith(runtime.baseUrl));
   ok("describe() names the receiver policy and the gate default",
@@ -220,7 +220,7 @@ async function main(): Promise<void> {
   ok("the well-known card is real HTTP 200 JSON and passes the strict v1.0.0 validator",
     cardResp.status === 200 && validateAgentCardV10(servedCard).length === 0, validateAgentCardV10(servedCard).join("; "));
   const sig = await verifyAgentCardV10Signatures(servedCard as never, runtime.identity.publicJwk);
-  ok("the served card's JWS verifies against the harbor's own publisher key", sig.ok === true && sig.verified.includes(runtime.identity.fp));
+  ok("the served card's JWS verifies against the selfimpulse's own publisher key", sig.ok === true && sig.verified.includes(runtime.identity.fp));
 
   const unauth = await fetch(runtime.baseUrl, {
     method: "POST",
@@ -234,13 +234,13 @@ async function main(): Promise<void> {
   /* ══ §2 the shipped launcher runs the shipped engine ═══════════════════════ */
   section("2. the shipped launcher runs the pinned engine (not a stale one)");
 
-  const entry = fs.readFileSync(path.join(ROOT, "tools", "vh-host.entry.ts"), "utf8");
+  const entry = fs.readFileSync(path.join(ROOT, "tools", "si-host.entry.ts"), "utf8");
   ok("the host entry point calls the ONE bootstrap", entry.includes("startA2ARuntime(") && entry.includes('from "../src/mission/a2aRuntime"'));
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")) as { scripts: Record<string, string> };
-  ok("npm run host and npm run host:build exist", pkg.scripts.host === "node tools/vh-host.mjs" && pkg.scripts["host:build"] === "node tools/build-host.mjs");
+  ok("npm run host and npm run host:build exist", pkg.scripts.host === "node tools/si-host.mjs" && pkg.scripts["host:build"] === "node tools/build-host.mjs");
 
-  const shipped = fs.readFileSync(path.join(ROOT, "tools", "vh-host-engine.mjs"));
-  const pin = fs.readFileSync(path.join(ROOT, "tools", "vh-host-engine.sha256"), "utf8").trim().split(/\s+/)[0];
+  const shipped = fs.readFileSync(path.join(ROOT, "tools", "si-host-engine.mjs"));
+  const pin = fs.readFileSync(path.join(ROOT, "tools", "si-host-engine.sha256"), "utf8").trim().split(/\s+/)[0];
   ok("the shipped engine matches its committed sha256 pin (offline-capable gate)",
     pin.length === 64 && pin === createHash("sha256").update(shipped).digest("hex"));
 
@@ -256,9 +256,9 @@ async function main(): Promise<void> {
   if (!fs.existsSync(esbuildBin)) {
     console.log("  (esbuild not available here — source-rebuild check skipped; the sha256 pin above is enforced)");
   } else {
-    const rebuilt = path.join(scratch("vhhost-rebuild-"), "vh-host-engine.mjs");
+    const rebuilt = path.join(scratch("vhhost-rebuild-"), "si-host-engine.mjs");
     execFileSync(esbuildBin, [
-      path.join(ROOT, "tools", "vh-host.entry.ts"),
+      path.join(ROOT, "tools", "si-host.entry.ts"),
       "--bundle", "--platform=node", "--format=esm", "--packages=external",
       `--outfile=${rebuilt}`, "--log-level=warning",
     ], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
@@ -268,15 +268,15 @@ async function main(): Promise<void> {
 
   /* tamper: a launcher next to a doctored engine must refuse to listen */
   const tamperDir = scratch("vhhost-tamper-");
-  fs.copyFileSync(path.join(ROOT, "tools", "vh-host.mjs"), path.join(tamperDir, "vh-host.mjs"));
+  fs.copyFileSync(path.join(ROOT, "tools", "si-host.mjs"), path.join(tamperDir, "si-host.mjs"));
   const doctored = Buffer.from(shipped);
   doctored[Math.floor(doctored.length / 2)] = doctored[Math.floor(doctored.length / 2)] ^ 0xff;
-  fs.writeFileSync(path.join(tamperDir, "vh-host-engine.mjs"), doctored);
-  fs.copyFileSync(path.join(ROOT, "tools", "vh-host-engine.sha256"), path.join(tamperDir, "vh-host-engine.sha256"));
+  fs.writeFileSync(path.join(tamperDir, "si-host-engine.mjs"), doctored);
+  fs.copyFileSync(path.join(ROOT, "tools", "si-host-engine.sha256"), path.join(tamperDir, "si-host-engine.sha256"));
   let tamperCode: number | null = 0;
   let tamperOut = "";
   try {
-    tamperOut = execFileSync(process.execPath, [path.join(tamperDir, "vh-host.mjs"), "--harbor", "X"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    tamperOut = execFileSync(process.execPath, [path.join(tamperDir, "si-host.mjs"), "--selfimpulse", "X"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   } catch (e) {
     const err = e as { status?: number | null; stdout?: string; stderr?: string };
     tamperCode = err.status ?? null;
@@ -289,7 +289,7 @@ async function main(): Promise<void> {
 
   const live = makeRepo();
   const recvArgs = [
-    "--harbor", "USER 2",
+    "--selfimpulse", "USER 2",
     "--teammate", `${MATE.name}|${MATE.title}|${MATE.description}|${MATE.skills.join(",")}`,
     "--port", "0",
     "--token", "shared-link-secret",
@@ -300,8 +300,8 @@ async function main(): Promise<void> {
   ];
   const jwkPath = path.join(scratch("vhjwk-"), "peer.jwk");
   const receiver = launchHost([...recvArgs, "--write-jwk", jwkPath]);
-  const readyRaw = await waitFor(receiver, "VH-A2A-READY");
-  const ready = parseLine(receiver, "VH-A2A-READY");
+  const readyRaw = await waitFor(receiver, "SI-A2A-READY");
+  const ready = parseLine(receiver, "SI-A2A-READY");
   ok("the receiver PROCESS mounted and announced itself", readyRaw !== null && ready?.mounted === true && typeof ready?.port === "number", receiver.stderr.slice(0, 200));
   const recvPort = Number(ready?.port ?? 0);
   const recvRoot = `http://127.0.0.1:${recvPort}`;
@@ -318,7 +318,7 @@ async function main(): Promise<void> {
 
   let grantOut = "";
   const sender = launchHost([
-    "--harbor", "USER 1",
+    "--selfimpulse", "USER 1",
     "--teammate", "Scout|Code hardener|Harden authorization code and prove it with the repository's own tests|security,testing",
     "--port", "0",
     "--peer-url", recvRoot,
@@ -335,8 +335,8 @@ async function main(): Promise<void> {
    * authority gets a refusal, not a run under an invented ceiling. */
   const noGrantCode = (() => {
     try {
-      execFileSync(process.execPath, [path.join(ROOT, "tools", "vh-host.mjs"),
-        "--harbor", "USER 9", "--port", "0",
+      execFileSync(process.execPath, [path.join(ROOT, "tools", "si-host.mjs"),
+        "--selfimpulse", "USER 9", "--port", "0",
         "--peer-url", recvRoot, "--peer-jwk", jwkPath, "--peer-token", "shared-link-secret",
         "--send", HARDEN, "--tier", "safe"],
       { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000 });
@@ -350,8 +350,8 @@ async function main(): Promise<void> {
   ok("the host CLI refuses to delegate with no stated grant", noGrantCode === 2 && /--grant is required/.test(grantOut), `exit=${noGrantCode} ${grantOut.slice(0, 120)}`);
   ok("it says what to do instead", /read,write,shell/.test(grantOut), grantOut.slice(0, 160));
 
-  const delegatedRaw = await waitFor(sender, "VH-A2A-DELEGATED", 60_000);
-  const delegated = parseLine(sender, "VH-A2A-DELEGATED") as DelegatedLine | null;
+  const delegatedRaw = await waitFor(sender, "SI-A2A-DELEGATED", 60_000);
+  const delegated = parseLine(sender, "SI-A2A-DELEGATED") as DelegatedLine | null;
   ok("the sender PROCESS completed a delegation against the receiver PROCESS", delegatedRaw !== null && delegated?.ok === true, `${delegated?.record.note ?? ""} ${sender.stderr.slice(0, 300)}`);
   const rec = delegated?.record;
   ok("the receiver routed it to its own teammate", rec?.toTeammate === MATE.name, String(rec?.toTeammate));
@@ -359,7 +359,7 @@ async function main(): Promise<void> {
     rec?.execution !== null && rec.execution.seatsRun === 2 && rec.execution.seatsVerified === 2 && rec.execution.runStatus === "completed",
     JSON.stringify(rec?.execution ?? null));
   ok("the gate PASS is cross-vendor, not self-verification", /cross-vendor/.test(String(rec?.artifact ?? "")), String(rec?.artifact ?? ""));
-  ok("the record carries a sealed vh-proof-receipt/2", rec?.receipt?.format === "vh-proof-receipt/2" && Array.isArray(rec?.receipt?.events));
+  ok("the record carries a sealed si-proof-receipt/2", rec?.receipt?.format === "si-proof-receipt/2" && Array.isArray(rec?.receipt?.events));
   const localCheck = rec?.receipt ? await verifyProofReceipt(rec.receipt as never) : { ok: false, reason: "no receipt" };
   ok("that receipt verifies in the sender's own process", localCheck.ok === true, String((localCheck as { reason?: string }).reason ?? ""));
 
@@ -371,7 +371,7 @@ async function main(): Promise<void> {
     cliNoAnchor.code === 3 && /VALID SIGNATURE/.test(cliNoAnchor.out) && /UNVERIFIED/.test(cliNoAnchor.out), `exit=${cliNoAnchor.code} ${cliNoAnchor.out.slice(0, 200)}`);
   const cli = verifyReceiptCli(receiptFile, issuerKey);
   ok("…and with the issuer key pinned out of band it verifies as AUTHENTIC (exit 0)",
-    cli.code === 0 && /VALID: vh-proof-receipt\/2/.test(cli.out) && /Issuer AUTHENTICATED/.test(cli.out) && !/UNVERIFIED/.test(cli.out), `exit=${cli.code} ${cli.out.slice(0, 220)}`);
+    cli.code === 0 && /VALID: si-proof-receipt\/2/.test(cli.out) && /Issuer AUTHENTICATED/.test(cli.out) && !/UNVERIFIED/.test(cli.out), `exit=${cli.code} ${cli.out.slice(0, 220)}`);
   ok("the receiver's own log shows it spawned the seats (execution happened THERE)",
     /spawn /.test(receiver.stdout) && /mounted USER 2/.test(receiver.stdout), receiver.stdout.slice(0, 200));
   ok("the receiver process reported the labelled drill seat, not a real model",
@@ -384,19 +384,19 @@ async function main(): Promise<void> {
     headers: { "content-type": "application/json", authorization: "Bearer not-the-token" },
     body: JSON.stringify({ jsonrpc: "2.0", id: "z1", method: "message/send", params: { message: { role: "user", parts: [{ kind: "text", text: "do the work" }] } } }),
   });
-  ok("an unauthorized caller is refused by the mounted harbor", badAuth.status === 401 || (await badAuth.json() as { error?: unknown }).error !== undefined, `HTTP ${badAuth.status}`);
+  ok("an unauthorized caller is refused by the mounted selfimpulse", badAuth.status === 401 || (await badAuth.json() as { error?: unknown }).error !== undefined, `HTTP ${badAuth.status}`);
 
   await receiver.stop();
   await sender.stop();
 
-  /* ══ §4 a mounted harbor that cannot execute refuses ═══════════════════════ */
+  /* ══ §4 a mounted selfimpulse that cannot execute refuses ═══════════════════════ */
   section("4. mounted but unable to execute → refused in words, never a completion");
 
-  const barren = await startA2ARuntime({ harborUser: "USER 3", teammates: [MATE] });
-  ok("a harbor with no bridge still mounts (it has to, to refuse politely)", barren.describe().mounted === true && barren.describe().bridge.executable === false);
+  const barren = await startA2ARuntime({ selfimpulseUser: "USER 3", teammates: [MATE] });
+  ok("a selfimpulse with no bridge still mounts (it has to, to refuse politely)", barren.describe().mounted === true && barren.describe().bridge.executable === false);
   ok("…and describe() says why, in words", /cannot execute/.test(String(barren.describe().bridge.refusalReason)), String(barren.describe().bridge.refusalReason));
-  const caller = await startA2ARuntime({ harborUser: "USER 1", teammates: [MATE] });
-  ok("a harbor with no operator token still enforces one — it mints its own",
+  const caller = await startA2ARuntime({ selfimpulseUser: "USER 1", teammates: [MATE] });
+  ok("a selfimpulse with no operator token still enforces one — it mints its own",
     typeof barren.token === "string" && barren.token.length > 8 && barren.describe().tokenMinted === true);
   const barrenOutcome = await caller.delegateTo({
     remoteRoot: barren.baseUrl, remotePublicJwk: barren.identity.publicJwk, task: HARDEN, tier: "safe",
@@ -415,7 +415,7 @@ async function main(): Promise<void> {
 
   const broken = makeRepo();
   const dishonest = await startA2ARuntime({
-    harborUser: "USER 2",
+    selfimpulseUser: "USER 2",
     teammates: [MATE],
     bridge: drillBridgeConfig({ repoRoot: broken.repo, baseBranch: broken.baseBranch, testCommand: ["node", "test.js"], applyFix: false }),
   });
@@ -426,7 +426,7 @@ async function main(): Promise<void> {
   });
   /* The wire case the type system cannot stop: an older peer, or a hostile
    * client, that simply omits the declared authority. The host must refuse it
-   * by name rather than fall back to a ceiling it invented — and this harbor
+   * by name rather than fall back to a ceiling it invented — and this selfimpulse
    * CAN execute, so the refusal cannot be blamed on missing capability. */
   const silent = await caller.delegateTo({
     remoteRoot: dishonest.baseUrl, remotePublicJwk: dishonest.identity.publicJwk, task: HARDEN, tier: "safe",
@@ -462,9 +462,9 @@ async function main(): Promise<void> {
   /* The receiver's teammate has to CLAIM this work or routing refuses first —
      the point of §6 is what happens after routing accepts it. */
   const releaseMate = { name: "Rivet", title: "Release engineer", description: "Harden authorize() code, then git push --force the release to production", skills: ["security", "release"] };
-  const guarded = await startA2ARuntime({ harborUser: "USER 2", teammates: [releaseMate], bridge: drillBridgeConfig({ repoRoot: makeRepo().repo, baseBranch, testCommand: ["node", "test.js"] }) });
+  const guarded = await startA2ARuntime({ selfimpulseUser: "USER 2", teammates: [releaseMate], bridge: drillBridgeConfig({ repoRoot: makeRepo().repo, baseBranch, testCommand: ["node", "test.js"] }) });
   const watched = await startA2ARuntime({
-    harborUser: "USER 1",
+    selfimpulseUser: "USER 1",
     teammates: [{ name: "Scout", title: "Release engineer", description: "Harden authorize() code, then git push --force the release to production", skills: ["security", "release"] }],
   });
   const smuggled = await watched.delegateTo({
@@ -473,7 +473,7 @@ async function main(): Promise<void> {
     authority: { capabilities: ["read", "write", "shell"], budgetCents: 0 },
     authorization: `Bearer ${guarded.token}`,
   });
-  ok("a headless harbor DENIES the upgraded task — nothing executes",
+  ok("a headless selfimpulse DENIES the upgraded task — nothing executes",
     smuggled.ok === false && smuggled.record.status === "denied", `${smuggled.record.status} ${smuggled.record.note}`);
   ok("the denial records the receiver's own classification and why",
     smuggled.record.receiverPolicy?.upgraded === true && /CRITICAL|HIGH/.test(String(smuggled.record.receiverPolicy?.risk)), JSON.stringify(smuggled.record.receiverPolicy ?? null));
@@ -481,17 +481,17 @@ async function main(): Promise<void> {
   await guarded.stop();
   await watched.stop();
 
-  /* identities are fresh per harbor, so a peer cannot borrow one */
-  const a = await makeHarborIdentity();
-  const b = await makeHarborIdentity();
-  ok("each mounted harbor mints its own publisher identity", a.fp !== b.fp && a.fp.length === 16);
-  ok("the team a harbor speaks for is built through the real teammate API", (() => {
+  /* identities are fresh per selfimpulse, so a peer cannot borrow one */
+  const a = await makeSelfImpulseIdentity();
+  const b = await makeSelfImpulseIdentity();
+  ok("each mounted selfimpulse mints its own publisher identity", a.fp !== b.fp && a.fp.length === 16);
+  ok("the team a selfimpulse speaks for is built through the real teammate API", (() => {
     let t = createTeam("X");
     const added = addTeammate(t, MATE);
     if (added.ok) t = added.value.team;
     return t.teammates.length === 1 && t.teammates[0].name === MATE.name;
   })());
-  ok("node deps resolve honestly: a binary that is not installed is null", (await nodeRunnerDeps().resolveBin("definitely-not-a-real-vh-binary")) === null);
+  ok("node deps resolve honestly: a binary that is not installed is null", (await nodeRunnerDeps().resolveBin("definitely-not-a-real-si-binary")) === null);
 
   console.log(`\na2aRuntime: ${pass} passed, ${fail} failed`);
   if (failures.length > 0) { console.log("failures:"); failures.forEach((f) => console.log(`  - ${f}`)); }
@@ -501,7 +501,7 @@ main()
   .catch((e) => { console.error(e); fail += 1; })
   .finally(async () => {
     /* No listener and no scratch directory survives this suite, pass or fail:
-       a harbor left bound after a thrown assertion is exactly the kind of thing
+       a selfimpulse left bound after a thrown assertion is exactly the kind of thing
        that makes the next run's port choice lie. */
     await Promise.all(launched.map((hp) => hp.stop().catch(() => undefined)));
     for (const dir of scratchDirs) { try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ } }

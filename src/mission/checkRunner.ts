@@ -223,7 +223,7 @@ export async function runNative(command: string, args: string[], cwd: string, ti
   // Rust shell_exec applies. Absolute paths are refused here because there is
   // no registered-workspace-root check in this TS-side path; the Tauri IPC
   // path (above) owns the workspace-root containment. This keeps Node-hosted
-  // harness runs (e.g. vh-host, probes under node) from spawning arbitrary
+  // harness runs (e.g. si-host, probes under node) from spawning arbitrary
   // binaries, and from inheriting credential-shaped env vars.
   const bare = command.replace(/.*[\\/]/, "").replace(/\.(exe|cmd|bat|com)$/i, "");
   if (!SHELL_ALLOWED.has(bare)) {

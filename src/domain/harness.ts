@@ -81,7 +81,7 @@ export const HARNESSES: HarnessSpec[] = [
     name: "Native agent (in-process)",
     bins: [],
     argv: [],
-    install: "Nothing to install — the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+    install: "Nothing to install — the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
     notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
     source: "src/engine/hermesRuntime.ts",
   },

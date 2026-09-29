@@ -1,13 +1,13 @@
 /**
  * probe/a2aBridge.test.ts — the A2A LIVE BRIDGE.
  *
- * WHY THIS SUITE EXISTS. Cross-harbor delegation used to end in a template
+ * WHY THIS SUITE EXISTS. Cross-selfimpulse delegation used to end in a template
  * literal:
  *
  *     const artifact = `${name} completed: "${task}" — executed under … governance.`
  *
  * A completion string with no execution behind it, in the one product whose
- * entire premise is that a claim without evidence is not a claim. `probe/harborTeams`
+ * entire premise is that a claim without evidence is not a claim. `probe/selfimpulseTeams`
  * and `probe/a2aV10` could not see it: they asserted the ladder (gates, digests,
  * routing, the wire), and the ladder was genuinely real. Only the last step lied.
  *
@@ -21,7 +21,7 @@
  *   §1  no bridge            → refuses in words, never claims a run
  *   §2  real repo + real run → executes, and the receipt VERIFIES
  *   §3  the repo's test FAILS → `executed-failed`, never a completion
- *   §4  the receipt is a real vh-proof-receipt/2 and catches tampering
+ *   §4  the receipt is a real si-proof-receipt/2 and catches tampering
  *   §5  the delegation record binds execution + receipt, or says it has none
  *   §6  REGRESSION PIN: no code path can still fabricate a completion string
  */
@@ -29,11 +29,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-declare const HANDLE_ROOT: string;
-const ROOT = HANDLE_ROOT ?? process.cwd();
+declare const SI_ROOT: string;
+const ROOT = SI_ROOT ?? process.cwd();
 import { execFileSync } from "node:child_process";
 import { runInboundDelegation, type BridgeConfig } from "../src/mission/a2aBridge";
-import { addTeammate, createTeam, handleInboundDelegation, type Teammate } from "../src/mission/harborTeams";
+import { addTeammate, createTeam, handleInboundDelegation, type Teammate } from "../src/mission/selfimpulseTeams";
 import { verifyProofReceipt } from "../src/mission/receipts";
 import type { TeamRunnerDeps } from "../src/mission/teamExecutor";
 
@@ -246,10 +246,10 @@ async function main(): Promise<void> {
     `summary=${ran.execution?.summary ?? "—"}`);
 
   /* ── §4 the receipt is real, and tampering breaks it ──────────────────── */
-  section("3. the receipt is a real vh-proof-receipt/2 — and it catches tampering");
+  section("3. the receipt is a real si-proof-receipt/2 — and it catches tampering");
 
   ok("a receipt was minted", ran.receipt !== null);
-  ok("it is on the current proof wire", ran.receipt?.format === "vh-proof-receipt/2", String(ran.receipt?.format));
+  ok("it is on the current proof wire", ran.receipt?.format === "si-proof-receipt/2", String(ran.receipt?.format));
   const v = ran.receipt ? await verifyProofReceipt(ran.receipt) : { ok: false as const, reason: "no receipt" };
   ok("the receipt VERIFIES", v.ok === true, v.ok ? "" : v.reason);
   ok("the chain links every event", (ran.receipt?.events.length ?? 0) >= 2 &&
@@ -301,7 +301,7 @@ async function main(): Promise<void> {
   const live = await handleInboundDelegation(remoteTeam, signed, undefined, { ...cfg, repoRoot: makeRepo().repo });
   ok("an inbound delegation WITH a bridge completes", live.ok === true && live.record.status === "completed", live.record.note);
   ok("the record carries the measured execution", live.record.execution !== null && live.record.execution?.harness === "hermes");
-  ok("the record carries the sealed receipt", live.record.receipt !== null && live.record.receipt?.format === "vh-proof-receipt/2");
+  ok("the record carries the sealed receipt", live.record.receipt !== null && live.record.receipt?.format === "si-proof-receipt/2");
   ok("that receipt verifies from the record alone", live.record.receipt ? (await verifyProofReceipt(live.record.receipt)).ok === true : false);
 
   /* A distinct id AND a recomputed digest: the receiver's replay registry
@@ -320,11 +320,11 @@ async function main(): Promise<void> {
   /* ── §6 the regression pin the reviewer asked for ─────────────────────── */
   section("6. REGRESSION PIN — no path can silently fabricate a completion again");
 
-  const src = fs.readFileSync(path.join(ROOT, "src", "mission", "harborTeams.ts"), "utf8");
-  ok("harborTeams.ts contains no fabricated completion string",
+  const src = fs.readFileSync(path.join(ROOT, "src", "mission", "selfimpulseTeams.ts"), "utf8");
+  ok("selfimpulseTeams.ts contains no fabricated completion string",
     !/completed:\s*["'`]/.test(src.replace(/run=|gate=/g, "")) || !src.includes('completed: "'),
     "a literal `completed: \"…\"` template is back in the delegation path");
-  ok("harborTeams.ts reaches execution ONLY through the bridge",
+  ok("selfimpulseTeams.ts reaches execution ONLY through the bridge",
     src.includes("runInboundDelegation") && !/from "\.\/teamExecutor"/.test(src),
     "the delegation path bypassed the bridge or grew its own executor call");
   const bridgeSrc = fs.readFileSync(path.join(ROOT, "src", "mission", "a2aBridge.ts"), "utf8");

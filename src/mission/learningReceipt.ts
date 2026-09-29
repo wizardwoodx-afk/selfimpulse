@@ -20,7 +20,7 @@ export interface LearningReceiptLesson {
 }
 
 export interface LearningReceipt {
-  format: "vh-learning-receipt/1";
+  format: "si-learning-receipt/1";
   id: string;
   mjVersion: string;
   at: string;
@@ -73,7 +73,7 @@ export async function issueLearningReceipt(args: {
   seq += 1;
   const digest = await sha256Hex(canonicalDigestInput(args));
   const receipt: LearningReceipt = {
-    format: "vh-learning-receipt/1",
+    format: "si-learning-receipt/1",
     id: `learn-${now.toString(36)}-${seq}`,
     mjVersion: args.mjVersion,
     at: new Date(now).toISOString(),

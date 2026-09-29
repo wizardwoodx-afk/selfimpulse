@@ -4,7 +4,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-// src/vh19/pureHash.ts
+// src/engine/pureHash.ts
 var K = [
   1116352408,
   1899447441,
@@ -134,7 +134,7 @@ function pureSha256(text) {
   return toHex(sha256Bytes(utf8(text)));
 }
 
-// src/vh19/reach/beacon.ts
+// src/engine/reach/beacon.ts
 var BEACON_WINDOW = 200;
 var BEACON_LIVENESS_MS = 15 * 60 * 1e3;
 var BEACON_CONTENTION_MS = 60 * 1e3;
@@ -245,7 +245,7 @@ function emit(window, source, state, msAgo = 0, extra = {}) {
   assert.equal(res.ok, true, JSON.stringify(res));
   return res.ok ? res.window : window;
 }
-test("reach beacon \u2014 the harbor light reads, it does not remember folklore", async (t) => {
+test("reach beacon \u2014 the selfimpulse light reads, it does not remember folklore", async (t) => {
   await t.test("\xA71 an unattributed or unexplained pulse is refused in words", () => {
     const empty = emitBeacon([], { id: "p0", source: "", state: "steady", reason: "something happened", at: at(0) });
     assert.equal(empty.ok, false);
@@ -263,7 +263,7 @@ test("reach beacon \u2014 the harbor light reads, it does not remember folklore"
     const shapes = [
       "ghp_abcdefghijklmnopqrstuvwx",
       "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk",
-      "ops@11handle.example",
+      "ops@selfimpulse.example",
       "/home/priya/.ssh/id_ed25519",
       "--password=hunter2hunter2",
       "a".repeat(40) + "0123456789abcdef"
@@ -323,7 +323,7 @@ test("reach beacon \u2014 the harbor light reads, it does not remember folklore"
     assert.equal(longAgo.length, 3, "three pulses, five minutes old, still inside the liveness window");
     assert.equal(beaconState(longAgo, new Date(T0)), "steady", "the same three sources, spread out, are just work");
   });
-  await t.test("\xA75 liveness: a stale harbor is dark, not confidently steady", () => {
+  await t.test("\xA75 liveness: a stale selfimpulse is dark, not confidently steady", () => {
     const stale = emit([], "seat-1", "steady", BEACON_LIVENESS_MS + 1e3);
     assert.equal(beaconState(stale, new Date(T0)), "dark");
     const fresh = emit([], "seat-1", "steady", BEACON_LIVENESS_MS - 1e3);
@@ -344,7 +344,7 @@ test("reach beacon \u2014 the harbor light reads, it does not remember folklore"
     assert.equal(waiting.length, 1);
     assert.equal(waiting[0].source, "seat-stale", "awaitingHuman reports the gate, not the liveness filter");
   });
-  await t.test("\xA76 the mark is ours: a harbor lamp, and the beam tells the state", () => {
+  await t.test("\xA76 the mark is ours: a selfimpulse lamp, and the beam tells the state", () => {
     const states = ["dark", "steady", "flickering", "waiting", "human", "halted"];
     const marks = states.map((s) => beaconGlyph(s));
     for (const m of marks) {

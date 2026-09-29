@@ -1,17 +1,17 @@
 /**
- * The AG-UI event boundary (src/vh19/aguiProtocol.ts).
+ * The AG-UI event boundary (src/engine/aguiProtocol.ts).
  *
- * 11Handle adopted AG-UI's event vocabulary as an interoperability boundary.
+ * SelfImpulse adopted AG-UI's event vocabulary as an interoperability boundary.
  * This suite is the gate that keeps that adoption honest. It fails if the
  * boundary ever grows a second event store, starts dropping unknown events,
  * demotes a governance-critical event, or stops round-tripping provenance.
  *
  * The properties pinned here are the ones that would silently rot:
  *  - the vocabulary matches the adopted spec exactly
- *  - every event shape produces a canonical 11Handle record (total mapping)
+ *  - every event shape produces a canonical SelfImpulse record (total mapping)
  *  - tool calls and errors are NOT downgraded to plain INFO
  *  - AG-UI-sourced events are namespaced, so they can never be mistaken for
- *    11Handle-native ones in the same ledger
+ *    SelfImpulse-native ones in the same ledger
  *  - a native event still reaches an AG-UI consumer, as CUSTOM
  *  - the boundary does not become the authority
  */
@@ -24,8 +24,8 @@ import {
   aguiToEleven,
   elevenToAgui,
   isAguiEventType,
-} from "../src/vh19/aguiProtocol";
-import type { AguiEvent } from "../src/vh19/aguiProtocol";
+} from "../src/engine/aguiProtocol";
+import type { AguiEvent } from "../src/engine/aguiProtocol";
 import type { ExecutionEventRecord } from "../src/domain/types";
 
 let passed = 0;
@@ -121,8 +121,8 @@ ok("the protocol version is stamped on the record", (asRecord.data as Record<str
 
 console.log("== 6. the boundary does not become the AUTHORITY");
 const facts = aguiBoundaryFacts();
-ok("authority is 11Handle, not the protocol", facts.authority === "11Handle", facts.authority);
-ok("the canonical model is 11Handle's own", facts.canonicalModel === "ExecutionEventRecord");
+ok("authority is SelfImpulse, not the protocol", facts.authority === "SelfImpulse", facts.authority);
+ok("the canonical model is SelfImpulse's own", facts.canonicalModel === "ExecutionEventRecord");
 ok("unknown events are declared preserved", facts.unknownEventsPreserved === true);
 ok("provenance is declared preserved", facts.provenancePreserved === true);
 ok("the event count matches the vocabulary", facts.eventTypes === AGUI_EVENT_TYPES.length);
@@ -133,7 +133,7 @@ ok("the boundary exposes no approval or policy decision of its own",
   !("approve" in (facts as unknown as Record<string, unknown>)) &&
   !("grantAuthority" in (facts as unknown as Record<string, unknown>)));
 
-console.log("== 7. the produced record is structurally 11Handle's own");
+console.log("== 7. the produced record is structurally SelfImpulse's own");
 ok("the produced record satisfies ExecutionEventRecord",
   mapped.every((r): r is ExecutionEventRecord =>
     typeof r.ts === "string" && typeof r.kind === "string" &&

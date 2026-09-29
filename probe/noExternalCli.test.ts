@@ -19,7 +19,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), "utf8");
 const exists = (rel: string): boolean => fs.existsSync(path.join(ROOT, rel));
 
@@ -113,7 +113,7 @@ section("5. nothing spawns a third-party agent process");
   ok("hostRunnerDeps refuses to invoke an agent CLI in words",
     /external agent CLIs are removed/.test(deps));
 
-  const brain = read("src/vouch/engine/brainSeam.ts");
+  const brain = read("src/selfimpulse/engine/brainSeam.ts");
   ok("the brain seam refuses to spawn a CLI process", /external agent CLIs are removed/.test(brain));
   ok("the brain seam no longer calls ipc.cliInvoke", !/ipc\.cliInvoke/.test(brain));
 }

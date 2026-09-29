@@ -1,4 +1,4 @@
-# 11Handle — features
+# SelfImpulse — features
 
 What the product does, in the order you meet it. Every item below is
 enforced in code and pinned by a probe in `probe/`; nothing here is a roadmap.

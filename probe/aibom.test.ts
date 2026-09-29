@@ -57,7 +57,7 @@ describe("AIBOM — the inventory auditors ask for", () => {
     vault.issue({ mission: "m-2", teamId: "t-1", gateStatus: "PASS", gateTier: "cross-vendor", receipt: r2 });
 
     const bom = buildAibom({ records: vault.list(), ownedHarnesses: ["claude-code"], mjVersion: "11.10.5" });
-    assert.equal(bom.format, "vh-aibom/1");
+    assert.equal(bom.format, "si-aibom/1");
     assert.equal(bom.receiptsScanned, 2);
     assert.equal(bom.entries.length, 2);
 

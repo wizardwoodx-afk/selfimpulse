@@ -314,7 +314,7 @@ export interface TeamRunReport {
 
 const OUTPUT_TAIL_CHARS = 4000;
 /** Briefings live here, inside the worktree only, and are excluded from git. */
-const BRIEF_DIR = ".vh-brief";
+const BRIEF_DIR = ".si-brief";
 
 export function waveGroups(assignments: SeatAssignment[]): SeatAssignment[][] {
   const byWave = new Map<number, SeatAssignment[]>();
@@ -588,7 +588,7 @@ export async function executeTeam(req: TeamRunRequest, deps: TeamRunnerDeps, ses
   const learnedMarkdown = globalMemoryCortex.compileBriefing().generatedBriefingMarkdown;
   for (const seat of req.team.seats) {
     briefingsByHarness.push({
-      path: ".vh-brief/LEARNED_INVARIANTS.md",
+      path: ".si-brief/LEARNED_INVARIANTS.md",
       contents: learnedMarkdown,
       forHarness: seat.harness,
     });
@@ -601,7 +601,7 @@ export async function executeTeam(req: TeamRunRequest, deps: TeamRunnerDeps, ses
     const lessonsMd = `# Organizational lessons (VH 11.11)\n\n${lessonLines.map((l) => `- ${l}`).join("\n")}\n`;
     for (const seat of req.team.seats) {
       briefingsByHarness.push({
-        path: ".vh-brief/ORG_LESSONS.md",
+        path: ".si-brief/ORG_LESSONS.md",
         contents: lessonsMd,
         forHarness: seat.harness,
       });
@@ -1011,7 +1011,7 @@ async function buildReviewSnapshot(
  *
  * It has to be the COMMON one. A linked worktree has its own git dir at
  * `.git/worktrees/<name>/`, and git does NOT read `info/exclude` from there — verified by experiment:
- * writing `.vh-brief/` into the worktree's own exclude file left it showing as `?? .vh-brief/`, and the
+ * writing `.si-brief/` into the worktree's own exclude file left it showing as `?? .si-brief/`, and the
  * subsequent `git add -A` committed the briefing into the agent's code commit. Only
  * `--git-common-dir` reaches the file git actually consults, and it applies to every worktree at once.
  */
@@ -1319,7 +1319,7 @@ async function runSeat(
   let commitDetail = readOnly ? "Read-only seat; nothing to commit." : "No git runner, so the work could not be committed.";
   if (deps.git && !readOnly) {
     await git(deps, ["add", "-A"], cwd);
-    const commit = await git(deps, ["-c", "user.email=vh@vouch.harbor", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
+    const commit = await git(deps, ["-c", "user.email=vh@selfimpulse.selfimpulse", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
     commitDetail = commit.ok
       ? `Committed on ${branch}.`
       : commit.exitCode === null

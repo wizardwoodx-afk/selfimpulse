@@ -17,8 +17,8 @@ function ok(label: string, cond: boolean, detail = ""): void {
   else { failed += 1; failures.push(`${label}${detail ? ` — ${detail}` : ""}`); console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`); }
 }
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : path.resolve(import.meta.dirname ?? ".", "..");
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : path.resolve(import.meta.dirname ?? ".", "..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 const custody = read("src/mission/custody.ts");

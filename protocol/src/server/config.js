@@ -1,4 +1,4 @@
-import { VHConfigError } from "../core/vh-errors.js";
+import { VHConfigError } from "../core/si-errors.js";
 
 function ranged(val, min, max, name) {
   const n = Number(val);
@@ -29,11 +29,11 @@ export function loadConfig(env = process.env) {
     banDurationMs: ranged(env.HANDLE_BAN_DURATION_MS ?? 15 * 60_000,    60_000, 24 * 3_600_000, "HANDLE_BAN_DURATION_MS"),
     /*
      * requireMetaSig — Sentinel / Strict posture merged.
-     * true (default): every new link MUST carry a harbor metaSig.
-     *   The harbor refuses to append a link if metaSig computation fails.
+     * true (default): every new link MUST carry a selfimpulse metaSig.
+     *   The selfimpulse refuses to append a link if metaSig computation fails.
      *   Startup rejects any link after firstMetaSigSeq that lacks metaSig.
      * false: legacy mode for pre-v0.9 ledgers being migrated.
-     *   New links still get metaSig when harborKey is available, but
+     *   New links still get metaSig when selfimpulseKey is available, but
      *   startup does NOT reject links that are missing metaSig.
      */
     requireMetaSig: strictBool(env.HANDLE_REQUIRE_META_SIG, true, "HANDLE_REQUIRE_META_SIG"),
@@ -63,7 +63,7 @@ export function loadConfig(env = process.env) {
     rate: Object.freeze({
       join:   ranged(env.HANDLE_RATE_JOIN   ?? 2,  0.01, 100,   "HANDLE_RATE_JOIN"),
       signal: ranged(env.HANDLE_RATE_SIGNAL ?? 30, 1,    1000,  "HANDLE_RATE_SIGNAL"),
-      vouch:  ranged(env.HANDLE_RATE_VOUCH  ?? 5,  0.1,  100,   "HANDLE_RATE_VOUCH"),
+      selfimpulse:  ranged(env.HANDLE_RATE_SELFIMPULSE  ?? 5,  0.1,  100,   "HANDLE_RATE_SELFIMPULSE"),
     }),
   });
 }

@@ -27,12 +27,12 @@ if (typeof globalThis.localStorage === "undefined") {
 
 import {
   clearGoals, createGoal, executedProgress, getGoal, goalProgress, goalStatus, loadGoals, nextPendingStep, resumeGoal, settleStep,
-} from "../src/vh19/goals";
-import { clearHandoffs, listHandoffs, recordHandoff } from "../src/vh19/handoffs";
+} from "../src/engine/goals";
+import { clearHandoffs, listHandoffs, recordHandoff } from "../src/engine/handoffs";
 import {
   allowCategoryForSession, answerGateWithRules, clearSessionRules, listSessionRules, revokeSessionRule, sessionRuleLog,
-} from "../src/vh19/gateRules";
-import { getSpecialist } from "../src/vh19/registry";
+} from "../src/engine/gateRules";
+import { getSpecialist } from "../src/engine/registry";
 
 let pass = 0;
 let fail = 0;
@@ -87,10 +87,10 @@ test("goals + session rules — governed goal mode", async () => {
 
   console.log("\n── 6. the A2A handoff ledger ──");
   clearHandoffs();
-  const h1 = recordHandoff({ peer: "peer-harbor", task: "run the suite", outcome: "delegated", detail: "ran on peer", receiptDigest: "vh-peer-1" });
-  recordHandoff({ peer: "peer-harbor", task: "deploy prod", outcome: "refused", detail: "no bridge wired — nothing sent" });
+  const h1 = recordHandoff({ peer: "peer-selfimpulse", task: "run the suite", outcome: "delegated", detail: "ran on peer", receiptDigest: "si-peer-1" });
+  recordHandoff({ peer: "peer-selfimpulse", task: "deploy prod", outcome: "refused", detail: "no bridge wired — nothing sent" });
   const led = listHandoffs();
-  check("a delegated handoff keeps the peer receipt digest", led[0].receiptDigest === "vh-peer-1" && led[0].outcome === "delegated" && h1.id === led[0].id);
+  check("a delegated handoff keeps the peer receipt digest", led[0].receiptDigest === "si-peer-1" && led[0].outcome === "delegated" && h1.id === led[0].id);
   check("a refused handoff is recorded with the reason in words", led[1].outcome === "refused" && led[1].detail.includes("nothing sent"));
   check("the ledger lists in order and clears", led.length === 2 && (clearHandoffs(), listHandoffs().length === 0));
 

@@ -138,8 +138,8 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
@@ -428,7 +428,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -458,7 +458,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY = "vouch.v3.db";
+    KEY = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -997,7 +997,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1027,7 +1027,7 @@ var init_client = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -1046,7 +1046,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1069,7 +1069,7 @@ var init_client = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -1092,7 +1092,7 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -1633,7 +1633,7 @@ function validateAgentCardV10(raw) {
 var ECDSA = { name: "ECDSA", namedCurve: "P-256" };
 var ECDSA_SIGN = { name: "ECDSA", hash: "SHA-256" };
 async function signAgentCardV10(card, identity) {
-  const header = { alg: "ES256", typ: "vh-a2a-card", kid: identity.fp, a2a: "1.0" };
+  const header = { alg: "ES256", typ: "si-a2a-card", kid: identity.fp, a2a: "1.0" };
   const protectedB64 = b64u(enc.encode(JSON.stringify(header)));
   const payload = enc.encode(cardPayload(card));
   const sig = new Uint8Array(await crypto.subtle.sign(ECDSA_SIGN, identity.privateKey, payload));
@@ -1670,9 +1670,12 @@ var MAX_BODY_BYTES = 1024 * 1024;
 var REPLAY_WINDOW_MS = 3e4;
 var AUDIT_CAP = 500;
 var TASK_CAP = 200;
-var STOP_HEADER = "x-vh-stop-nonce";
+var STOP_HEADER = "x-si-stop-nonce";
 var PAIR_PATH = "/vh/pair";
 var STOP_PATH = "/vh/stop";
+var ALTERSEND_PATH = "/vh/altersend";
+var ALTERSEND_PREFIX = "/vh/altersend/";
+var ALTERSEND_MAX_BODY = 48 * 1024 * 1024;
 function json(res, status, body) {
   const payload = JSON.stringify(body);
   res.writeHead(status, { "content-type": "application/json", "content-length": Buffer.byteLength(payload) });
@@ -2036,6 +2039,113 @@ function createA2AServer(opts) {
       });
       return;
     }
+    if (req.url === ALTERSEND_PATH || req.url?.startsWith(ALTERSEND_PREFIX)) {
+      if (!opts.altersend) {
+        json(res, 404, { error: "not-enabled", reason: "this host has file sharing turned off" });
+        return;
+      }
+      if (!opts.authorize || !opts.authorize(req)) {
+        json(res, 401, { error: "unauthorized", reason: "a paired credential is required to move files" });
+        note({ ts: (/* @__PURE__ */ new Date()).toISOString(), method: "altersend", ok: false, reason: "unauthorized" });
+        return;
+      }
+      const store = opts.altersend.store;
+      const id = req.url.startsWith(ALTERSEND_PREFIX) ? req.url.slice(ALTERSEND_PREFIX.length) : "";
+      if (req.method === "GET" && !id) {
+        json(res, 200, { ok: true, offers: store.list() });
+        return;
+      }
+      if (req.method === "GET" && id) {
+        const got = store.get(id);
+        if (!got.ok) {
+          json(res, 404, { error: got.reason });
+          return;
+        }
+        const pulled = store.fetch(id);
+        if (!pulled.ok) {
+          json(res, 409, { error: pulled.reason });
+          return;
+        }
+        json(res, 200, {
+          ok: true,
+          offer: pulled.value.offer,
+          bytes: pulled.value.bytes.toString("base64")
+        });
+        note({ ts: (/* @__PURE__ */ new Date()).toISOString(), method: "altersend-fetch", ok: true, reason: id });
+        return;
+      }
+      if (req.method === "POST" && id) {
+        let decision = "accept";
+        const chunks2 = [];
+        req.on("data", (c) => chunks2.push(c));
+        req.on("end", () => {
+          try {
+            const b = JSON.parse(Buffer.concat(chunks2).toString("utf8") || "{}");
+            decision = b.decision === "refuse" ? "refuse" : "accept";
+          } catch {
+            decision = "accept";
+          }
+          const out = decision === "refuse" ? store.refuse(id, "the receiver declined") : store.accept(id);
+          if (!out.ok) {
+            json(res, 409, { error: out.reason });
+            return;
+          }
+          json(res, 200, { ok: true, offer: out.value });
+          note({ ts: (/* @__PURE__ */ new Date()).toISOString(), method: "altersend-decide", ok: true, reason: `${decision}:${id}` });
+        });
+        return;
+      }
+      if (req.method === "POST" && !id) {
+        const chunks2 = [];
+        let size2 = 0;
+        req.on("data", (c) => {
+          size2 += c.byteLength;
+          if (size2 > ALTERSEND_MAX_BODY) {
+            req.destroy();
+            return;
+          }
+          chunks2.push(c);
+        });
+        req.on("end", () => {
+          if (size2 > ALTERSEND_MAX_BODY) {
+            json(res, 413, { error: "too-large" });
+            return;
+          }
+          let body;
+          try {
+            body = JSON.parse(Buffer.concat(chunks2).toString("utf8"));
+          } catch {
+            json(res, 400, { error: "bad-json" });
+            return;
+          }
+          let bytes;
+          try {
+            bytes = Buffer.from(String(body.data ?? ""), "base64");
+          } catch {
+            json(res, 400, { error: "bad-base64" });
+            return;
+          }
+          const offered = store.offer({ name: String(body.name ?? ""), bytes });
+          if (!offered.ok) {
+            json(res, 400, { error: offered.reason });
+            return;
+          }
+          const refusal = opts.altersend?.decide?.(offered.value);
+          if (refusal) {
+            store.refuse(offered.value.id, refusal);
+            json(res, 403, { error: "refused", reason: refusal, offer: offered.value });
+            note({ ts: (/* @__PURE__ */ new Date()).toISOString(), method: "altersend-offer", ok: false, reason: refusal });
+            return;
+          }
+          store.accept(offered.value.id);
+          json(res, 201, { ok: true, offer: offered.value });
+          note({ ts: (/* @__PURE__ */ new Date()).toISOString(), method: "altersend-offer", ok: true, reason: offered.value.id });
+        });
+        return;
+      }
+      json(res, 405, { error: "method-not-allowed" });
+      return;
+    }
     if (req.method !== "POST" || req.url !== "/" && req.url !== "") {
       json(res, 404, { error: "not-found" });
       return;
@@ -2120,7 +2230,7 @@ function createA2AServer(opts) {
 }
 
 // src/mission/a2aIdentityBridge.ts
-var A2A_PEERS_KEY = "vh19.collab.a2a.v1";
+var A2A_PEERS_KEY = "engine.collab.a2a.v1";
 function storage() {
   try {
     return globalThis.localStorage ?? null;
@@ -2184,7 +2294,7 @@ async function post(root, body, authorization) {
 }
 var nextRpcId = 1;
 async function rpc(root, method, params, authorization) {
-  const env = await post(root, { jsonrpc: "2.0", id: `vh-${nextRpcId++}`, method, params }, authorization);
+  const env = await post(root, { jsonrpc: "2.0", id: `si-${nextRpcId++}`, method, params }, authorization);
   if (env.error !== void 0) {
     const e = env.error;
     throw new A2AClientError(e.code ?? -32e3, e.message ?? "json-rpc error");
@@ -2238,7 +2348,7 @@ async function streamMessage(root, message, onEvent) {
     const resp = await fetch(root + "/", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "text/event-stream" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: `vh-${nextRpcId++}`, method: "message/stream", params: { message } }),
+      body: JSON.stringify({ jsonrpc: "2.0", id: `si-${nextRpcId++}`, method: "message/stream", params: { message } }),
       signal: ctrl.signal
     });
     if (!resp.ok || !resp.body) throw new A2AClientError(-32e3, `stream refused: HTTP ${resp.status}`);
@@ -2281,7 +2391,7 @@ async function streamMessage(root, message, onEvent) {
 init_version();
 var v1Encoder = new TextEncoder();
 
-// src/mission/harborTeams.ts
+// src/mission/selfimpulseTeams.ts
 init_guardrail();
 
 // src/mission/riskPolicy.ts
@@ -2325,7 +2435,7 @@ function classifyRisk(action, toolName) {
   };
 }
 
-// src/mission/harborTeams.ts
+// src/mission/selfimpulseTeams.ts
 init_version();
 
 // src/security/authority.ts
@@ -2617,7 +2727,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vh-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `si-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -2632,7 +2742,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vh-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `si-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -2716,7 +2826,7 @@ async function issueRootEnvelope(args) {
   }
   seq += 1;
   return seal({
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: args.principal,
     delegationChain: [args.principal],
@@ -2749,7 +2859,7 @@ async function attenuate(parent, agentId, subScope, opts) {
   seq += 1;
   const envelope = await seal({
     budgetUsd: budget,
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: parent.principal,
     delegationChain: [...parent.delegationChain, agentId],
@@ -3051,7 +3161,7 @@ function evaluateVerifyGate(input) {
     if (snap && countingVerifiers.length < ranVerifiers.length) {
       const off = ranVerifiers.filter((v) => !(snap.built && snap.sha !== null && (v.reviewedSha ?? null) === snap.sha));
       for (const o of off) {
-        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot vouch for the writers' work.`);
+        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot selfimpulse for the writers' work.`);
       }
     }
     const selfVerified = writerHarnesses.filter(
@@ -3487,7 +3597,7 @@ var HARNESSES = [
     name: "Native agent (in-process)",
     bins: [],
     argv: [],
-    install: "Nothing to install \u2014 the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+    install: "Nothing to install \u2014 the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
     notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
     source: "src/engine/hermesRuntime.ts"
   },
@@ -3519,7 +3629,7 @@ var AGENT_CAPABILITIES = {
     // does not exist; every caller that read them was reasoning about a seat
     // that could not run.
     bins: [],
-    install: "bundled with 11Handle; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
+    install: "bundled with SelfImpulse; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
     prompt: { argv: [], confidence: "docs", source: "in-process runtime: no argv exists by construction" },
     json: null,
     readOnly: null,
@@ -3776,7 +3886,7 @@ function sessionArgv(harness, opts) {
 function sessionIdKind(harness) {
   const rc = resolveCaps(harness);
   if (rc.custom) return "cli-chosen";
-  return rc.caps.sessionStart?.argv ? "vh-chosen" : "cli-chosen";
+  return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 function parseSessionId(harness, raw) {
   if (!raw.trim()) return null;
@@ -3962,8 +4072,8 @@ function composeSeatArgv(teamSeat, ctx) {
     $CWD: ctx.cwd,
     $SECS: String(teamSeat.timeoutSecs),
     $SESSION: ctx.sessionId ?? "",
-    $REVIEWER: "vh-readonly",
-    $NAME: `vh-${teamSeat.id}`
+    $REVIEWER: "si-readonly",
+    $NAME: `si-${teamSeat.id}`
   };
   const argv = [];
   const flags = [];
@@ -4319,7 +4429,7 @@ function planWorktrees(team, opts) {
   for (const seat2 of team.seats) {
     if (!seat2.mayWrite) {
       if (opts.deferReview && hasWriter) {
-        const path3 = `${root}-vh-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+        const path3 = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
         plans.push({
           seatId: seat2.id,
           branch: "",
@@ -4345,7 +4455,7 @@ function planWorktrees(team, opts) {
       continue;
     }
     const branch = `vh/${opts.missionSlug}/${branchSafe(seat2.id)}`;
-    const path2 = `${root}-vh-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+    const path2 = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
     plans.push({
       seatId: seat2.id,
       branch,
@@ -4923,7 +5033,7 @@ var INITIAL_REPUTATIONS = Object.fromEntries(
 
 // src/mission/teamExecutor.ts
 var OUTPUT_TAIL_CHARS = 4e3;
-var BRIEF_DIR = ".vh-brief";
+var BRIEF_DIR = ".si-brief";
 async function git(deps, args, cwd) {
   if (!deps.git) return { ok: false, stdout: "", stderr: "", exitCode: null };
   const r = await deps.git(args, cwd);
@@ -5127,7 +5237,7 @@ Spent: $${(spentUsd2 || 0).toFixed(4)}`, "orchestrator", "finding");
   const learnedMarkdown = globalMemoryCortex.compileBriefing().generatedBriefingMarkdown;
   for (const seat2 of req.team.seats) {
     briefingsByHarness.push({
-      path: ".vh-brief/LEARNED_INVARIANTS.md",
+      path: ".si-brief/LEARNED_INVARIANTS.md",
       contents: learnedMarkdown,
       forHarness: seat2.harness
     });
@@ -5140,7 +5250,7 @@ ${lessonLines.map((l) => `- ${l}`).join("\n")}
 `;
     for (const seat2 of req.team.seats) {
       briefingsByHarness.push({
-        path: ".vh-brief/ORG_LESSONS.md",
+        path: ".si-brief/ORG_LESSONS.md",
         contents: lessonsMd,
         forHarness: seat2.harness
       });
@@ -5682,7 +5792,7 @@ async function runSeat(req, deps, a, sessions, wt, binaryExists, resolvedBin, se
   let commitDetail = readOnly ? "Read-only seat; nothing to commit." : "No git runner, so the work could not be committed.";
   if (deps.git && !readOnly) {
     await git(deps, ["add", "-A"], cwd);
-    const commit = await git(deps, ["-c", "user.email=vh@vouch.harbor", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
+    const commit = await git(deps, ["-c", "user.email=vh@selfimpulse.selfimpulse", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
     commitDetail = commit.ok ? `Committed on ${branch}.` : commit.exitCode === null ? "Could not run git commit." : /nothing to commit|no changes added/i.test(commit.stderr + commit.stdout) ? "Nothing to commit \u2014 this seat changed no files." : `git commit exited ${commit.exitCode}: ${(commit.stderr || commit.stdout).trim().slice(0, 200)}`;
   }
   const finalRecord = {
@@ -5832,10 +5942,10 @@ function buildSummary(o) {
 }
 
 // src/mission/licensing.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT = {
-  "vh-proof-receipt/2": VERIFY_SECRET,
+  "si-proof-receipt/2": VERIFY_SECRET,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET
 };
@@ -5926,7 +6036,7 @@ async function buildProofReceipt(args) {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -5935,7 +6045,7 @@ async function buildProofReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -5945,7 +6055,7 @@ async function buildProofReceipt(args) {
   };
 }
 async function verifyProofReceipt(rc) {
-  if (rc.format !== "vh-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
+  if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
   let prev = "0".repeat(64);
   for (const e of rc.events) {
     if (e.prev !== prev) return { ok: false, reason: `chain broken at seq ${e.seq}` };
@@ -5957,7 +6067,7 @@ async function verifyProofReceipt(rc) {
   const sealSecret = SEAL_SECRET_BY_FORMAT[rc.format] ?? VERIFY_SECRET;
   const seal2 = await hmacHex(prev, sealSecret);
   if (seal2 !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "vh-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok2 = await verifyIssuerSignature(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok2) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
@@ -6047,7 +6157,7 @@ async function runInboundDelegation(teammate, task, fromUser, cfg = {}) {
     } : refuse("no repoRoot bound \u2014 a real seat run needs a repository to work in");
   }
   if (typeof cfg.deps.nativeInvoke !== "function") {
-    const reason = `this host has no in-process seat runner (no provider key) \u2014 refusing the delegation in words rather than answering with a fabricated completion. Set 11H_A2A_PROVIDER_KEY to run seats here.`;
+    const reason = `this host has no in-process seat runner (no provider key) \u2014 refusing the delegation in words rather than answering with a fabricated completion. Set SI_A2A_PROVIDER_KEY to run seats here.`;
     return cfg.allowUnexecuted ? { ok: false, outcome: "not-executed", artifact: `${teammate.name}: ${reason}`, execution: null, receipt: null, reason } : refuse(reason);
   }
   const statedChain = cfg.principalChain;
@@ -6162,7 +6272,7 @@ async function runInboundDelegation(teammate, task, fromUser, cfg = {}) {
   };
 }
 
-// src/mission/harborTeams.ts
+// src/mission/selfimpulseTeams.ts
 function createTeam(user) {
   return { user: sanitizeText(user, 60) || "USER", teammates: [], createdAt: (/* @__PURE__ */ new Date()).toISOString() };
 }
@@ -6253,15 +6363,15 @@ async function sha256Hex2(text) {
 function packetExpired(ts, nowMs = Date.now()) {
   return nowMs - new Date(ts).getTime() > PACKET_TTL_MS;
 }
-function harborCardForTeamV10(team, interfaceUrl) {
+function selfimpulseCardForTeamV10(team, interfaceUrl) {
   return {
     name: team.user,
     description: `${team.user}'s governed agent team: ${team.teammates.map((t) => `${t.name} (${t.title})`).join("; ") || "no teammates yet"}`,
     supportedInterfaces: [{ url: interfaceUrl, protocolBinding: "JSONRPC", protocolVersion: "1.0" }],
-    provider: { url: "https://github.com/wizardwoodx-afk/11Handle", organization: "11Handle" },
+    provider: { url: "https://github.com/wizardwoodx-afk/SelfImpulse", organization: "SelfImpulse" },
     version: ENGINE_VERSION,
     capabilities: { streaming: true, pushNotifications: true },
-    securitySchemes: { harborIdentity: { httpAuthSecurityScheme: { scheme: "Bearer", description: "harbor-issued delegation token; ECDSA-signed agent card" } } },
+    securitySchemes: { selfimpulseIdentity: { httpAuthSecurityScheme: { scheme: "Bearer", description: "selfimpulse-issued delegation token; ECDSA-signed agent card" } } },
     defaultInputModes: ["text/plain", "application/json"],
     defaultOutputModes: ["text/plain", "application/json"],
     skills: team.teammates.map((t) => ({
@@ -6323,7 +6433,7 @@ async function handleInboundDelegation(remoteTeam, packet, inboundGate, bridge, 
       ts
     }
   });
-  if (packet.toUser !== remoteTeam.user) return refused(`packet is addressed to "${packet.toUser}" but this harbor is "${remoteTeam.user}"`);
+  if (packet.toUser !== remoteTeam.user) return refused(`packet is addressed to "${packet.toUser}" but this selfimpulse is "${remoteTeam.user}"`);
   if (packetExpired(packet.ts)) return refused("packet expired (TTL 10 min) \u2014 stale delegations are refused");
   const digest = await sha256Hex2(JSON.stringify({ ...packet, packetDigest: "" }));
   if (digest !== packet.packetDigest) return refused("packet digest mismatch \u2014 the packet was modified in transit");
@@ -6355,7 +6465,7 @@ async function handleInboundDelegation(remoteTeam, packet, inboundGate, bridge, 
         artifact: null,
         packetDigest: packet.packetDigest,
         receiverDigest: null,
-        note: riskVerdict.upgraded ? `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 the sender declared "${packet.tier}" but this harbor classified the task ${riskVerdict.risk} (${riskVerdict.why}). Nothing executed` : `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 nothing executed`,
+        note: riskVerdict.upgraded ? `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 the sender declared "${packet.tier}" but this selfimpulse classified the task ${riskVerdict.risk} (${riskVerdict.why}). Nothing executed` : `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 nothing executed`,
         ts,
         receiverPolicy: riskVerdict,
         execution: null,
@@ -6388,7 +6498,7 @@ async function handleInboundDelegation(remoteTeam, packet, inboundGate, bridge, 
         artifact: null,
         packetDigest: packet.packetDigest,
         receiverDigest: null,
-        note: `this harbor could not execute the delegation \u2014 ${run.reason}. Nothing ran, so nothing is claimed.`,
+        note: `this selfimpulse could not execute the delegation \u2014 ${run.reason}. Nothing ran, so nothing is claimed.`,
         ts,
         execution: null,
         receipt: null,
@@ -6478,7 +6588,7 @@ async function delegateViaA2A(opts) {
   try {
     disc = await discoverAgentCard(opts.remoteRoot, { publicJwk: opts.remotePublicJwk });
   } catch (e) {
-    return refused(`remote harbor discovery refused: ${e instanceof Error ? e.message : String(e)}`);
+    return refused(`remote selfimpulse discovery refused: ${e instanceof Error ? e.message : String(e)}`);
   }
   if (!disc.signatureVerified) return refused("remote agent-card did not verify against the issuer key \u2014 nothing crosses to an unproven identity");
   const toUser = disc.card.name;
@@ -6491,7 +6601,7 @@ async function delegateViaA2A(opts) {
     return refused(`task content refused by the GuardRail before transmission: ${findings.map((f) => f.code).join(", ")}`, { fromTeammate, toUser });
   }
   const senderGate = tier === "safe" ? { outcome: "auto", by: fromTeam.user } : {
-    outcome: await (opts.senderGate ?? (async () => false))("cross-harbor delegation (A2A)", `${fromTeam.user} \u2192 ${toUser}: "${cleanTask.slice(0, 120)}"`) ? "human-approved" : "human-denied",
+    outcome: await (opts.senderGate ?? (async () => false))("cross-selfimpulse delegation (A2A)", `${fromTeam.user} \u2192 ${toUser}: "${cleanTask.slice(0, 120)}"`) ? "human-approved" : "human-denied",
     by: fromTeam.user
   };
   if (senderGate.outcome === "human-denied") {
@@ -6538,7 +6648,7 @@ async function delegateViaA2A(opts) {
       role: "user",
       messageId: secureId("m"),
       parts: [{ kind: "data", data: packet }, { kind: "text", text: cleanTask }],
-      metadata: { "vh-delegation": id }
+      metadata: { "si-delegation": id }
     }, void 0, opts.authorization);
   } catch (e) {
     return refused(`A2A transport failed: ${e instanceof Error ? e.message : String(e)}`, { fromTeammate, toUser, packetDigest, senderGate });
@@ -6546,7 +6656,7 @@ async function delegateViaA2A(opts) {
   const resultPart = remote.status.message?.parts.find((p) => p.kind === "data");
   const record = resultPart?.data?.record;
   if (!record || record.id !== id) {
-    return refused("remote harbor returned no settlement for this delegation", { fromTeammate, toUser, packetDigest, senderGate });
+    return refused("remote selfimpulse returned no settlement for this delegation", { fromTeammate, toUser, packetDigest, senderGate });
   }
   if (record.status === "completed" && record.artifact && record.receiverDigest) {
     const expect = await sha256Hex2(`${record.packetDigest}|${record.artifact}`);
@@ -6580,15 +6690,15 @@ async function makeIdentity() {
 }
 function baseCard(ifaceUrl) {
   return {
-    name: "11Handle Generalist",
+    name: "SelfImpulse Generalist",
     description: "USER 1's visible generalist \u2014 hidden specialist squads underneath.",
     supportedInterfaces: [{ url: ifaceUrl, protocolBinding: "JSONRPC", protocolVersion: "1.0" }],
-    provider: { url: "https://example.invalid/vh", organization: "11Handle" },
+    provider: { url: "https://example.invalid/vh", organization: "SelfImpulse" },
     version: "17.10.4",
     capabilities: { streaming: true, pushNotifications: true },
     defaultInputModes: ["text/plain"],
     defaultOutputModes: ["text/plain", "application/json"],
-    skills: [{ id: "delegation", name: "Governed delegation", description: "Human-gated cross-harbor delegation.", tags: ["teams", "delegation"] }]
+    skills: [{ id: "delegation", name: "Governed delegation", description: "Human-gated cross-selfimpulse delegation.", tags: ["teams", "delegation"] }]
   };
 }
 var userMsg = (text, extra) => ({
@@ -6650,9 +6760,9 @@ async function main() {
   ok("discovery verifies the card signature", disc.signatureVerified === true);
   const wk = await fetch(root + WELL_KNOWN_CARD_PATH);
   ok("well-known response carries caching headers", (wk.headers.get("cache-control") ?? "").includes("max-age") && (wk.headers.get("etag") ?? "").length > 0);
-  const task1 = await sendMessage(root, userMsg("hello harbor"));
+  const task1 = await sendMessage(root, userMsg("hello selfimpulse"));
   ok("message/send returns a server-generated task", /^t[0-9a-f]{32}$/.test(task1.id) && task1.contextId.length > 0);
-  ok("task completed with the handler's agent message", task1.status.state === "completed" && (task1.status.message?.parts[0]).text === "echo:hello harbor");
+  ok("task completed with the handler's agent message", task1.status.state === "completed" && (task1.status.message?.parts[0]).text === "echo:hello selfimpulse");
   ok("task carries the artifact", (task1.artifacts ?? []).length === 1 && task1.artifacts?.[0].parts[0].kind === "text");
   const fetched = await getTask(root, task1.id, 10);
   ok("tasks/get returns the task with history", fetched.id === task1.id && (fetched.history ?? []).length === 2);
@@ -6687,7 +6797,7 @@ async function main() {
     refused = e instanceof Error ? e.message : String(e);
   }
   ok("injection payload refused at the transport (policy:content-refused)", refused.includes("policy:content-refused"), refused);
-  const replayId = `vh-replay-${Date.now()}`;
+  const replayId = `si-replay-${Date.now()}`;
   const body = JSON.stringify({ jsonrpc: "2.0", id: replayId, method: "message/send", params: { message: userMsg("replay-me") } });
   const r1 = await fetch(root + "/", { method: "POST", headers: { "content-type": "application/json" }, body });
   const r2 = await fetch(root + "/", { method: "POST", headers: { "content-type": "application/json" }, body });
@@ -6798,9 +6908,9 @@ async function main() {
   const t2 = addTeammate(team2, { name: "Analyst", title: "Analyst", description: "researches data and writes reports", skills: ["analysis"] });
   if (t2.ok) team2 = t2.value.team;
   const remoteIdentity = await makeIdentity();
-  const remoteCard = await signAgentCardV10(harborCardForTeamV10(team2, "http://placeholder/"), remoteIdentity);
-  ok("the harbor's strict v1.0 card passes its own validator", validateAgentCardV10(remoteCard).length === 0, validateAgentCardV10(remoteCard).join("; "));
-  const LINK_TOKEN = "Bearer vh-link-shared-secret";
+  const remoteCard = await signAgentCardV10(selfimpulseCardForTeamV10(team2, "http://placeholder/"), remoteIdentity);
+  ok("the selfimpulse's strict v1.0 card passes its own validator", validateAgentCardV10(remoteCard).length === 0, validateAgentCardV10(remoteCard).join("; "));
+  const LINK_TOKEN = "Bearer si-link-shared-secret";
   const receiverGateCalls = [];
   const remoteServer = createA2AServer({
     card: remoteCard,

@@ -3,7 +3,7 @@
  * ----------------------------------------------------------------------------
  * NOTE: listed as "unchanged" from the v0.9 branch but not bundled in the
  * v0.10.1 doc. v0.10.2 ships it explicitly, formalized to the API
- * contract harbor.js calls: isBanned / connAllowed / connAdd / connRemove / allow /
+ * contract selfimpulse.js calls: isBanned / connAllowed / connAdd / connRemove / allow /
  * violation / close, with banThreshold + banDurationMs + maxSocketsPerIp.
  * ========================================================================== */
 

@@ -3352,7 +3352,7 @@ var zt = [[ht, 0.22], [dt, 0.48], [ft, 0.6], [gt, 0.7], [Mt, 0.79], [kt, 0.86], 
 var M = pt(zt, mt);
 var Ct = ut(M);
 
-// src/vh19/face.tsx
+// src/engine/face.tsx
 var import_react2 = __toESM(require_react(), 1);
 
 // node_modules/blobatar/dist/expression.js
@@ -3382,7 +3382,7 @@ var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 var F2 = __toESM(require_react(), 1);
 var import_react = __toESM(require_react(), 1);
 
-// src/vh19/face.tsx
+// src/engine/face.tsx
 var MOOD_EXPRESSION = {
   idle: Z,
   thinking: ue,
@@ -3411,7 +3411,7 @@ describe("the Generalist's one face", () => {
     assert.equal(Ct(DEFAULT_GENERALIST_NAME).slice(0, 4), "<svg");
   });
   it2("different names render different faces", () => {
-    assert.notEqual(Ct("Captain"), Ct("My Harbor"));
+    assert.notEqual(Ct("Captain"), Ct("My SelfImpulse"));
   });
   it2("the mood map is complete and honest over the GeneralistMood contract", () => {
     for (const m of MOODS) {
@@ -3421,14 +3421,14 @@ describe("the Generalist's one face", () => {
     assert.ok(MOOD_CAPTION.refused.includes("refused"), "a refusal is stated, never dressed up");
   });
   it2("the name key is a single local key with one default", () => {
-    const src = fs.readFileSync(path.join(ROOT, "src", "vh19", "face.tsx"), "utf8");
+    const src = fs.readFileSync(path.join(ROOT, "src", "engine", "face.tsx"), "utf8");
     assert.ok(src.includes("vh.generalist.name.v1"));
     assert.equal(DEFAULT_GENERALIST_NAME, "Captain");
   });
 });
 describe("specialists ride deterministic marks, keyed by id", () => {
   it2("face.tsx wires SpecialistFace to the mark renderer deterministically", () => {
-    const src = fs.readFileSync(path.join(ROOT, "src", "vh19", "face.tsx"), "utf8");
+    const src = fs.readFileSync(path.join(ROOT, "src", "engine", "face.tsx"), "utf8");
     assert.ok(src.includes('from "boring-avatars"'));
     assert.ok(src.includes("name: props.id"), "the specialist id is the seed");
   });
@@ -3452,7 +3452,7 @@ describe("the shell is wired", () => {
   it2("App routes everything to the one Shell \u2014 the old doors are gone", () => {
     const app = fs.readFileSync(path.join(ROOT, "src", "App.tsx"), "utf8");
     assert.ok(/<Shell\s*\/>/.test(app));
-    assert.ok(!app.includes("NextConsole") && !app.includes("Comp: Vh19"), "the old doors are no longer the door");
+    assert.ok(!app.includes("NextConsole") && !app.includes("Comp: SelfImpulse"), "the old doors are no longer the door");
   });
   it2("the design system is ONE stylesheet with the house tokens (no Tailwind runtime, no blue)", () => {
     const main = fs.readFileSync(path.join(ROOT, "src", "main.tsx"), "utf8");

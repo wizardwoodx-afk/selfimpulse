@@ -35,7 +35,7 @@ export function harnessOf(node: NodeInstance): string {
 }
 
 const RETIRED_REFUSAL =
-  "External agent CLIs are retired. 11Handle now runs every agent natively on your own provider keys — " +
+  "External agent CLIs are retired. SelfImpulse now runs every agent natively on your own provider keys — " +
   "connect a key in the Providers door (OpenAI, Anthropic, Gemini, or local Ollama) and run again. " +
   "Nothing was executed.";
 

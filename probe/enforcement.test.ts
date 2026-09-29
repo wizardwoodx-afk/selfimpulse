@@ -13,13 +13,13 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { buildChainedReceipt, verifyProofReceipt } from "../src/vouch/engine/proof";
+import { buildChainedReceipt, verifyProofReceipt } from "../src/selfimpulse/engine/proof";
 
-/* House convention: the runner defines HANDLE_ROOT at bundle time. Deriving the
+/* House convention: the runner defines SI_ROOT at bundle time. Deriving the
    root from import.meta.url instead breaks inside the offline pack, where the
    bundle lives in verify/suites/ and the sources it checks are one level up. */
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 const now = new Date().toISOString();
 
@@ -30,10 +30,10 @@ describe("F16 — issuer signatures are verified on every wire format", () => {
       version: "probe", edition: "personal",
       events: [{ kind: "probe.event", seatId: "s1", data: { hello: "f16" } }],
     });
-    assert.equal(rc.format, "vh-proof-receipt/2");
+    assert.equal(rc.format, "si-proof-receipt/2");
   });
 
-  it("a forged signature on vh-proof-receipt/2 is REJECTED", async () => {
+  it("a forged signature on si-proof-receipt/2 is REJECTED", async () => {
     const rc = await buildChainedReceipt({
       mission: "enforcement-f16", teamId: "probe", startedAt: now, finishedAt: now,
       version: "probe", edition: "personal",
@@ -96,7 +96,7 @@ describe("F17 — one outcome classifier, denials never read as success", () => 
 
 describe("F5a — egress policy guards every outbound URL", () => {
   it("wiki.search checks the URL it actually fetches", () => {
-    const src = read("src/vh19/tools.ts");
+    const src = read("src/engine/tools.ts");
     const fn = src.slice(src.indexOf("async function execWikiSearch"));
     const guard = fn.indexOf("checkEgressUrl(");
     const fetch = fn.indexOf("await doFetch(");
@@ -106,20 +106,20 @@ describe("F5a — egress policy guards every outbound URL", () => {
   });
 
   it("net.fetch is still guarded", () => {
-    assert.match(read("src/vh19/tools.ts"), /const egress = checkEgressUrl\(url\)/);
+    assert.match(read("src/engine/tools.ts"), /const egress = checkEgressUrl\(url\)/);
   });
 });
 
 describe("F5b — an autonomy grant cannot open the gate for other domains", () => {
   it("the grant must cover every routed specialist", () => {
-    const src = read("src/vh19/generalist.ts");
+    const src = read("src/engine/generalist.ts");
     assert.ok(!/autonomyCovers\(userId, primaryCategory\)/.test(src),
       "autonomy is still decided from a single specialist");
     assert.match(src, /specialists\.every\(\(s\) => autonomyCovers\(userId, s\.category\)\)/);
   });
 
   it("worstTier still spans the whole routing", () => {
-    assert.match(read("src/vh19/generalist.ts"), /const worstTier = specialists\.some\(\(s\) => s\.riskTier === "critical"\)/);
+    assert.match(read("src/engine/generalist.ts"), /const worstTier = specialists\.some\(\(s\) => s\.riskTier === "critical"\)/);
   });
 });
 

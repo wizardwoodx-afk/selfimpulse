@@ -26,20 +26,20 @@ class MemStore implements Storage {
 }
 (globalThis as { localStorage?: Storage }).localStorage = new MemStore();
 
-import type { ProviderConfig } from "../src/vh19/types";
-import { getSpecialist } from "../src/vh19/registry";
+import type { ProviderConfig } from "../src/engine/types";
+import { getSpecialist } from "../src/engine/registry";
 import {
   createCrewSession, runCrewSession, getCrewSession, resolveGate, switchMode, crewBriefing,
   officeView, resetCrewSessions, CREW_CONCURRENCY, CREW_BREAKER,
-} from "../src/vh19/crew";
-import { CREW_MAX } from "../src/vh19/moeV2";
+} from "../src/engine/crew";
+import { CREW_MAX } from "../src/engine/moeV2";
 
 const PROVIDER: ProviderConfig = {
   kind: "openai-compatible",
   provider: "openai-compatible",
-  model: "vh-probe-model",
-  apiKey: "sk-vh-probe-key",
-  baseUrl: "https://vh-probe.invalid/v1",
+  model: "si-probe-model",
+  apiKey: "sk-si-probe-key",
+  baseUrl: "https://si-probe.invalid/v1",
 };
 
 type FetchLike = (url: string, init?: { body?: string }) => Promise<{ ok: boolean; status: number; text: () => Promise<string>; json: () => Promise<unknown> }>;

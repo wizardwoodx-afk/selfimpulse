@@ -1,6 +1,6 @@
 # Verification
 
-11Handle ships its own gate. Two tiers, both self-reporting — the runners
+SelfImpulse ships its own gate. Two tiers, both self-reporting — the runners
 print their suite counts; no document is the source of truth for a number.
 
 ## Tier 1 — the offline pack (no install)
@@ -34,7 +34,7 @@ Requires Node 22.12 or newer. The gate is green when the summary line reads
   the seven doors (the seventh, Specialists, now spanning twenty-five domains and 240
    specialists), the sidebar, the design tokens, and that every button
   reaches a real engine seam.
-- **The engine path** — `vh19Door`, `initiative`, `fedWired`, `meshRuntime`,
+- **The engine path** — `engineDoor`, `initiative`, `fedWired`, `meshRuntime`,
   `teammates` pin that the store is the single caller of the engine with the
   human gate, handoff recorder, RSI intake and heartbeat.
 - **Guardrails** — `guardrailAlign`, `differentiatorAlign`, `securityReview`,
@@ -62,3 +62,12 @@ Requires Node 22.12 or newer. The gate is green when the summary line reads
 
 The build record for each release — commands run, node version, results —
 is archived in `docs/history/releases/RELEASE-VERIFICATION.md`.
+
+## Mesh scope
+
+The mesh is a **LOCAL collaboration trust fabric**. Nothing in it reaches a
+network the operator did not open themselves.
+
+**ECDSA provides portable authority across instances.** A peer proves who it is
+without either side holding the other's secret, and a credential minted here
+verifies in a different install.

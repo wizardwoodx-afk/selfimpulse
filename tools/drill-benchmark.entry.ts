@@ -1,5 +1,5 @@
 /**
- * 11Handle — drill benchmark entry (bundled by tools/drill-benchmark.mjs).
+ * SelfImpulse — drill benchmark entry (bundled by tools/drill-benchmark.mjs).
  *
  * Runs the full drill catalog — guard, maths, impossible — through the REAL
  * Mission Loop (a fresh real git repo per scenario, the repo's OWN test
@@ -19,7 +19,7 @@
  * frontier-model intelligence.
  */
 import * as crypto from "node:crypto";
-import { DRILL_SCENARIOS, runDrill, type DrillReport } from "../src/vouch/engine/drill";
+import { DRILL_SCENARIOS, runDrill, type DrillReport } from "../src/selfimpulse/engine/drill";
 
 interface BenchmarkScenario {
   scenarioId: string;
@@ -80,7 +80,7 @@ const overallDigest = crypto
   .digest("hex");
 
 const report = {
-  suite: "11handle-drill-benchmark",
+  suite: "selfimpulse-drill-benchmark",
   scope:
     "Real Mission Loop, real git repos, the repos' own test commands, the real governance arena and receipts. The drill's built-in seats are DETERMINISTIC and labeled as such: this validates the runtime/governance/verification machinery — not frontier-model intelligence.",
   scenarios,

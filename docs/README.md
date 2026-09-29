@@ -1,6 +1,6 @@
 # Documentation
 
-11Handle is the product; 11Handle is the engine underneath it. The
+SelfImpulse is the product; SelfImpulse is the engine underneath it. The
 documents here describe the engine's design and how to verify it. None of them
 carry a product version — the runners report their own counts.
 

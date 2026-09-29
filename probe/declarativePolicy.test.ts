@@ -25,7 +25,7 @@ import {
   type ActionFacts, type Policy,
 } from "../src/security/policy";
 
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 
 let passed = 0;
 let failed = 0;

@@ -63659,7 +63659,7 @@ var init_knowledgeSkills = __esm({
     "use strict";
     init_id();
     init_skillEvolution();
-    KNOWLEDGE_TOOL = "vh-knowledge-forge/mechanical-v1";
+    KNOWLEDGE_TOOL = "si-knowledge-forge/mechanical-v1";
     LS_KEY2 = "vh.knowledgeSkills.v1";
     RULE_HINTS = /\b(must|never|always|only|when|if|avoid|prefer|before|after)\b/i;
     ARROW = /→|=>|->|⇒/;
@@ -63799,7 +63799,7 @@ function scanContainer(bytes, limits = ARCHIVE_LIMITS) {
   if (cd.zip64) {
     return { ok: false, report: { ...empty, entries: cd.entries }, refusal: {
       code: "zip64",
-      words: "a ZIP64 archive keeps its real sizes outside the record this gate reads, so the caps cannot be verified before inflating \u2014 11Handle refuses it rather than trusting what it cannot see."
+      words: "a ZIP64 archive keeps its real sizes outside the record this gate reads, so the caps cannot be verified before inflating \u2014 SelfImpulse refuses it rather than trusting what it cannot see."
     } };
   }
   const files = cd.entries.filter((e) => !e.directory);
@@ -63814,7 +63814,7 @@ function scanContainer(bytes, limits = ARCHIVE_LIMITS) {
   }
   const encrypted = files.find((e) => e.encrypted);
   if (encrypted) {
-    return fail("encrypted", `the entry "${encrypted.name}" is encrypted. 11Handle does not crack, guess or silently skip a protected file \u2014 it refuses, in words. Unlock it and drop the plaintext.`);
+    return fail("encrypted", `the entry "${encrypted.name}" is encrypted. SelfImpulse does not crack, guess or silently skip a protected file \u2014 it refuses, in words. Unlock it and drop the plaintext.`);
   }
   if (report.expandedBytes > limits.maxExpandedBytes) {
     return fail("expanded-too-large", `this container declares ${(report.expandedBytes / 1e6).toFixed(1)} MB unpacked, above the ${(limits.maxExpandedBytes / 1e6).toFixed(0)} MB cap. Declared before a single byte was inflated \u2014 nothing was read.`);
@@ -63824,12 +63824,12 @@ function scanContainer(bytes, limits = ARCHIVE_LIMITS) {
       return fail("entry-expanded-too-large", `"${e.name}" declares ${(e.expandedSize / 1e6).toFixed(1)} MB on its own, above the ${(limits.maxEntryExpandedBytes / 1e6).toFixed(0)} MB per-entry cap.`);
     }
     const bad = unsafeEntryName(e.name);
-    if (bad) return fail("unsafe-entry-name", `refused by name, before any inflation: the archive carries ${bad}. 11Handle does not normalise a name it could not approve.`);
+    if (bad) return fail("unsafe-entry-name", `refused by name, before any inflation: the archive carries ${bad}. SelfImpulse does not normalise a name it could not approve.`);
     if (limits.maxDepth < 2 && looksLikeArchiveName(e.name)) {
       return fail("nested-archive", `"${e.name}" is itself an archive inside an archive. This door opens ONE container per dropped file (depth cap ${limits.maxDepth}) \u2014 a nested one is a DoS amplifier, not a document.`);
     }
     if (e.method === METHOD_AES || e.method === METHOD_ZSTD) {
-      return fail("unsupported-method", `"${e.name}" uses compression method ${e.method}, which 11Handle does not understand. Refusing beats guessing at bytes.`);
+      return fail("unsupported-method", `"${e.name}" uses compression method ${e.method}, which SelfImpulse does not understand. Refusing beats guessing at bytes.`);
     }
     if (e.method !== METHOD_STORE && e.method !== METHOD_DEFLATE && e.method !== METHOD_BZIP2) {
       return fail("unsupported-method", `"${e.name}" uses an unknown compression method (${e.method}).`);
@@ -63944,7 +63944,7 @@ async function parsePdf(bytes, maxChars, deadlineAt = Number.POSITIVE_INFINITY, 
     const err = e;
     const msg = String(err?.message ?? err ?? "");
     if (/password/i.test(msg) || err?.name === "PasswordException") {
-      return refuse("encrypted", "this PDF is password-protected. 11Handle does not try an empty password and pass it off as a read, and it does not crack one: it refuses, in words. Open it, save the plaintext, and drop that.");
+      return refuse("encrypted", "this PDF is password-protected. SelfImpulse does not try an empty password and pass it off as a read, and it does not crack one: it refuses, in words. Open it, save the plaintext, and drop that.");
     }
     if (/Invalid PDF/i.test(msg)) return refuse("unrecognised-binary", `this is not a PDF this reader can parse: ${msg.slice(0, 120)}`);
     return refuse("unrecognised-binary", `the PDF reader stopped: ${msg.slice(0, 140)}`);
@@ -64370,10 +64370,10 @@ async function ingestFile(run, file, limitsOverride = null, now = Date.now, iso 
   const format = sniffFormat(name, file.bytes);
   if (format === "unknown") {
     const isOle = OLE_MAGIC.every((b, i) => file.bytes[i] === b);
-    return blocked("unrecognised-binary", isOle ? `${name} is a pre-2007 binary Office file (an OLE compound document). 11Handle reads the XML-era formats \u2014 .docx, .xlsx, .pptx \u2014 not the legacy binary ones. Save it in the modern format and drop that.` : `${name} is not a format this door reads. It takes PDF, DOCX, XLSX/XLSM, PPTX, JSON, ZIP, Markdown and plain text \u2014 and says so rather than returning an empty document for it.`, "unknown");
+    return blocked("unrecognised-binary", isOle ? `${name} is a pre-2007 binary Office file (an OLE compound document). SelfImpulse reads the XML-era formats \u2014 .docx, .xlsx, .pptx \u2014 not the legacy binary ones. Save it in the modern format and drop that.` : `${name} is not a format this door reads. It takes PDF, DOCX, XLSX/XLSM, PPTX, JSON, ZIP, Markdown and plain text \u2014 and says so rather than returning an empty document for it.`, "unknown");
   }
   if (format === "zip" && !looksLikeZip(file.bytes)) {
-    return blocked("not-an-archive", `${name} is labelled .zip but does not open as one. 11Handle does not rename a file to make a format fit.`, format);
+    return blocked("not-an-archive", `${name} is labelled .zip but does not open as one. SelfImpulse does not rename a file to make a format fit.`, format);
   }
   const fileDeadline = started + limits.perFileDeadlineMs;
   let containerMarkdown = null;
@@ -65082,7 +65082,7 @@ ok(
 );
 var realCandidates = [
   ["D:/edge downloads/K.S.Sree Harshen_Resume.pdf", "pdf"],
-  ["D:/11handle-work/demo/Synthetic-Industrial-FY26-CLASSIFIED.xlsx", "xlsx"]
+  ["D:/selfimpulse-work/demo/Synthetic-Industrial-FY26-CLASSIFIED.xlsx", "xlsx"]
 ];
 for (const [p, label] of realCandidates) {
   if (!fs.existsSync(p)) {

@@ -44,9 +44,9 @@ import {
   addTeammate,
   createTeam,
   delegateViaA2A,
-  harborCardForTeamV10,
+  selfimpulseCardForTeamV10,
   makeDelegationHandler,
-} from "../src/mission/harborTeams";
+} from "../src/mission/selfimpulseTeams";
 
 let passed = 0;
 let failed = 0;
@@ -69,15 +69,15 @@ async function makeIdentity(): Promise<{ fp: string; privateKey: CryptoKey; publ
 
 function baseCard(ifaceUrl: string): AgentCardV10 {
   return {
-    name: "11Handle Generalist",
+    name: "SelfImpulse Generalist",
     description: "USER 1's visible generalist — hidden specialist squads underneath.",
     supportedInterfaces: [{ url: ifaceUrl, protocolBinding: "JSONRPC", protocolVersion: "1.0" }],
-    provider: { url: "https://example.invalid/vh", organization: "11Handle" },
+    provider: { url: "https://example.invalid/vh", organization: "SelfImpulse" },
     version: "17.10.4",
     capabilities: { streaming: true, pushNotifications: true },
     defaultInputModes: ["text/plain"],
     defaultOutputModes: ["text/plain", "application/json"],
-    skills: [{ id: "delegation", name: "Governed delegation", description: "Human-gated cross-harbor delegation.", tags: ["teams", "delegation"] }],
+    skills: [{ id: "delegation", name: "Governed delegation", description: "Human-gated cross-selfimpulse delegation.", tags: ["teams", "delegation"] }],
   };
 }
 
@@ -165,9 +165,9 @@ async function main(): Promise<void> {
   const wk = await fetch(root + WELL_KNOWN_CARD_PATH);
   ok("well-known response carries caching headers", (wk.headers.get("cache-control") ?? "").includes("max-age") && (wk.headers.get("etag") ?? "").length > 0);
 
-  const task1 = await sendMessage(root, userMsg("hello harbor"));
+  const task1 = await sendMessage(root, userMsg("hello selfimpulse"));
   ok("message/send returns a server-generated task", /^t[0-9a-f]{32}$/.test(task1.id) && task1.contextId.length > 0);
-  ok("task completed with the handler's agent message", task1.status.state === "completed" && (task1.status.message?.parts[0] as { kind: string; text?: string }).text === "echo:hello harbor");
+  ok("task completed with the handler's agent message", task1.status.state === "completed" && (task1.status.message?.parts[0] as { kind: string; text?: string }).text === "echo:hello selfimpulse");
   ok("task carries the artifact", (task1.artifacts ?? []).length === 1 && task1.artifacts?.[0].parts[0].kind === "text");
 
   const fetched = await getTask(root, task1.id, 10);
@@ -196,7 +196,7 @@ async function main(): Promise<void> {
   catch (e) { refused = e instanceof Error ? e.message : String(e); }
   ok("injection payload refused at the transport (policy:content-refused)", refused.includes("policy:content-refused"), refused);
 
-  const replayId = `vh-replay-${Date.now()}`;
+  const replayId = `si-replay-${Date.now()}`;
   const body = JSON.stringify({ jsonrpc: "2.0", id: replayId, method: "message/send", params: { message: userMsg("replay-me") } });
   const r1 = await fetch(root + "/", { method: "POST", headers: { "content-type": "application/json" }, body });
   const r2 = await fetch(root + "/", { method: "POST", headers: { "content-type": "application/json" }, body });
@@ -285,7 +285,7 @@ async function main(): Promise<void> {
   await new Promise<void>((resolve) => { legacyServer.close(() => resolve()); });
   await server.stop();
 
-  /* ══ F. real-wire cross-harbor delegation (USER 1 ⇄ USER 2) ══ */
+  /* ══ F. real-wire cross-selfimpulse delegation (USER 1 ⇄ USER 2) ══ */
   console.log("F · governed delegation over the A2A wire");
 
   let team1 = createTeam("USER 1");
@@ -296,9 +296,9 @@ async function main(): Promise<void> {
   if (t2.ok) team2 = t2.value.team;
 
   const remoteIdentity = await makeIdentity();
-  const remoteCard = await signAgentCardV10(harborCardForTeamV10(team2, "http://placeholder/"), remoteIdentity);
-  ok("the harbor's strict v1.0 card passes its own validator", validateAgentCardV10(remoteCard).length === 0, validateAgentCardV10(remoteCard).join("; "));
-  const LINK_TOKEN = "Bearer vh-link-shared-secret";
+  const remoteCard = await signAgentCardV10(selfimpulseCardForTeamV10(team2, "http://placeholder/"), remoteIdentity);
+  ok("the selfimpulse's strict v1.0 card passes its own validator", validateAgentCardV10(remoteCard).length === 0, validateAgentCardV10(remoteCard).join("; "));
+  const LINK_TOKEN = "Bearer si-link-shared-secret";
   const receiverGateCalls: string[] = [];
   const remoteServer = createA2AServer({
     card: remoteCard,

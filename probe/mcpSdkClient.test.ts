@@ -1,5 +1,5 @@
 /**
- * 11Handle 16.7.0 — OFFICIAL SDK CLIENT CONFORMANCE (probe #90).
+ * SelfImpulse 16.7.0 — OFFICIAL SDK CLIENT CONFORMANCE (probe #90).
  *
  * The 16.5.0 review, item 3 (part two): the router is hand-implemented
  * (no official SDK). 16.6 pinned the WIRE against the official JSON Schemas.
@@ -23,8 +23,8 @@ import { after, before, describe, it } from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 /* the pinned official client — the dependency is dev-only (probes + this suite) */
 
@@ -38,7 +38,7 @@ before(async () => {
     cwd: ROOT,
   });
   client = new Client(
-    { name: "vh-sdk-conformance", version: "1.0.0" },
+    { name: "si-sdk-conformance", version: "1.0.0" },
     { capabilities: {} },
   );
   await client.connect(transport);
@@ -59,7 +59,7 @@ describe("E1 the official client speaks to the real server", () => {
      * supported list tops out at 2025-11-25, so a server that answered the
      * modern revision would have been rejected here. */
     const v = client.getServerVersion();
-    assert.equal(v.name, "11handle");
+    assert.equal(v.name, "selfimpulse");
     assert.ok(v.version.length > 0);
   });
 

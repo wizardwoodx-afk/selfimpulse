@@ -33,8 +33,8 @@ class MemStore implements Storage {
 }
 (globalThis as { localStorage?: Storage }).localStorage = new MemStore();
 
-const vault = await import("../src/vh19/vault");
-const mg = await import("../src/vh19/memoryGraph");
+const vault = await import("../src/engine/vault");
+const mg = await import("../src/engine/memoryGraph");
 
 const PROVIDER_KEY = "vh.provider.remembered.v1";
 
@@ -45,7 +45,7 @@ ok("a real passphrase creates the vault", created.ok === true && created.created
 ok("the meta record stores NO passphrase material", !JSON.stringify(globalThis.localStorage?.getItem("vh.vault.meta.v1")).toLowerCase().includes("horse"));
 await vault.vaultSeal("vh.test.secret", '{"apiKey":"sk-super-secret-value-123"}');
 const sealedRaw = globalThis.localStorage?.getItem("vh.test.secret") ?? "";
-ok("the sealed record is a vault envelope", sealedRaw.includes("vh-vault/1"));
+ok("the sealed record is a vault envelope", sealedRaw.includes("si-vault/1"));
 ok("the sealed record does NOT contain the plaintext", !sealedRaw.includes("sk-super-secret-value-123"));
 const opened = await vault.vaultDecrypt("vh.test.secret");
 ok("an unlocked vault reads the secret back", opened.found && !opened.locked && opened.text.includes("sk-super-secret-value-123"));
@@ -78,8 +78,8 @@ mg.ingestSession([
 ], { id: "chat-vault-1" });
 await mg.flushGraphPersist();
 ok("ingestion works while unlocked", mg.graphStats().sessions === 1);
-const rawAfterSave = globalThis.localStorage?.getItem("vh19.memgraph.v1") ?? "";
-ok("with the vault unlocked, the graph at rest is a SEALED envelope", rawAfterSave.includes("vh-vault/1"));
+const rawAfterSave = globalThis.localStorage?.getItem("engine.memgraph.v1") ?? "";
+ok("with the vault unlocked, the graph at rest is a SEALED envelope", rawAfterSave.includes("si-vault/1"));
 ok("the sealed graph does NOT contain conversation text", !rawAfterSave.includes("Zephyr migration"));
 ok("graphSecurityStatus says sealed", mg.graphSecurityStatus().mode === "sealed");
 
@@ -106,11 +106,11 @@ console.log("== the plaintext mode is stated, never hidden ==");
 vault.destroyVault();
 mg.ingestSession([{ role: "user", text: "plain mode store frank pattern", at: at(7) }], { id: "chat-vault-3" });
 await mg.flushGraphPersist();
-const rawPlain = globalThis.localStorage?.getItem("vh19.memgraph.v1") ?? "";
-ok("without a vault, the graph persists as readable JSON (the honest fallback)", rawPlain.includes("frank") && !rawPlain.includes("vh-vault/1"));
+const rawPlain = globalThis.localStorage?.getItem("engine.memgraph.v1") ?? "";
+ok("without a vault, the graph persists as readable JSON (the honest fallback)", rawPlain.includes("frank") && !rawPlain.includes("si-vault/1"));
 ok("graphSecurityStatus names the mode 'plaintext'", mg.graphSecurityStatus().mode === "plaintext");
 mg.clearGraph();
-ok("clearGraph wipes every form", mg.graphStats().sessions === 0 && globalThis.localStorage?.getItem("vh19.memgraph.v1") === null);
+ok("clearGraph wipes every form", mg.graphStats().sessions === 0 && globalThis.localStorage?.getItem("engine.memgraph.v1") === null);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) { console.log("\nfailures:"); for (const f of failures) console.log(`  - ${f}`); }

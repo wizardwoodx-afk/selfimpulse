@@ -1,4 +1,4 @@
-# 11Handle — Market Position (researched September 2026)
+# SelfImpulse — Market Position (researched September 2026)
 
 > This document is the strategic map for the fundraise: where the market is crowded,
 > where the whitespace is, and the one sentence that puts VH in its own category.

@@ -17,7 +17,7 @@
 
 const unavailable = (fn: string): never => {
   throw new Error(
-    `node:child_process.${fn} is not available in the 11Handle web build — a WebView cannot spawn ` +
+    `node:child_process.${fn} is not available in the SelfImpulse web build — a WebView cannot spawn ` +
       `processes. Sandbox probing and checkRunner are desktop capabilities. In the desktop build ` +
       `this call reaches the Tauri shell_exec command, which runs the dev-tool allowlist ` +
       `(node, npm, cargo, git, …). There is no command that can spawn an agent CLI: external ` +

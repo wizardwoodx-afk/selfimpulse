@@ -1,12 +1,12 @@
 /**
- * 11Handle — M3 capability router probe (16.2.0; 16.5.0 dual-era MCP, suite #86)
+ * SelfImpulse — M3 capability router probe (16.2.0; 16.5.0 dual-era MCP, suite #86)
  *
  * "Every capability through authorize → simulate → approve → call → verify →
  * receipt" must hold for the MCP face too, not just the chat face. This
  * suite pins it at three levels:
- *   1. ENGINE — runVouchToolCall is the single governed path: safe calls
- *      act + vouch; risky calls PAUSE at the human gate (pending +
- *      approval handle), denials execute nothing, refusals are vouched,
+ *   1. ENGINE — runSelfImpulseToolCall is the single governed path: safe calls
+ *      act + selfimpulse; risky calls PAUSE at the human gate (pending +
+ *      approval handle), denials execute nothing, refusals are selfimpulseed,
  *      and every completed call's receipt verifies offline with the
  *      calling face's origin riding in the events.
  *   2. PROTOCOL — the real server (tools/mcp.mjs) over real stdio
@@ -27,16 +27,16 @@ import * as path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import {
-  runVouchToolCall,
-  vouchToolCallStatus,
-  vouchSession,
-  resolveVouchApproval,
-  verifyVouchReceipt,
-} from "../src/vouch/engine/vouch";
+  runSelfImpulseToolCall,
+  selfimpulseToolCallStatus,
+  selfimpulseSession,
+  resolveSelfImpulseApproval,
+  verifySelfImpulseReceipt,
+} from "../src/selfimpulse/engine/selfimpulse";
 import { ENGINE_VERSION } from "../src/version";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 async function waitFor<T>(fn: () => T | null | undefined, what: string, timeoutMs = 15000): Promise<T> {
@@ -50,64 +50,64 @@ async function waitFor<T>(fn: () => T | null | undefined, what: string, timeoutM
 }
 
 /* ── 1. ENGINE — the governed single-call path ───────────────────────────── */
-describe("M3 engine — runVouchToolCall is the only route, governed end to end", () => {
-  it("a safe call acts, vouches, and the receipt verifies offline with the face's origin", async () => {
-    const r = await runVouchToolCall("calculator", { expression: "1+1" }, { origin: "mcp" });
+describe("M3 engine — runSelfImpulseToolCall is the only route, governed end to end", () => {
+  it("a safe call acts, selfimpulsees, and the receipt verifies offline with the face's origin", async () => {
+    const r = await runSelfImpulseToolCall("calculator", { expression: "1+1" }, { origin: "mcp" });
     assert.equal(r.ok, true, "calculator ran");
     assert.equal(r.output, "2", "real parser result");
     assert.equal(r.pending, false);
     assert.equal(r.approved, true, "safe tools are not gated");
     assert.ok(r.receiptId, "every completed call mints a receipt");
-    const ref = vouchSession().receipts[vouchSession().receipts.length - 1];
+    const ref = selfimpulseSession().receipts[selfimpulseSession().receipts.length - 1];
     assert.equal(ref.id, r.receiptId, "the receipt is in the session ledger");
-    const sessionEv = ref.receipt.events.find((e) => e.kind === "vouch.session")!.data as { origin?: string };
+    const sessionEv = ref.receipt.events.find((e) => e.kind === "selfimpulse.session")!.data as { origin?: string };
     assert.equal(sessionEv.origin, "mcp", "provenance: the calling face rides in the receipt");
-    const verdict = ref.receipt.events.find((e) => e.kind === "vouch.verdict")!.data as { status?: string };
+    const verdict = ref.receipt.events.find((e) => e.kind === "selfimpulse.verdict")!.data as { status?: string };
     assert.equal(verdict.status, "done");
-    const v = await verifyVouchReceipt(r.receiptId!);
+    const v = await verifySelfImpulseReceipt(r.receiptId!);
     assert.equal(v.ok, true, "the MCP call's receipt verifies offline — " + JSON.stringify(v));
   });
 
-  it("a risky call PAUSES at the human gate: pending, nothing executed, denial is vouched", async () => {
-    const r = await runVouchToolCall("workspace_write", { name: "gate-probe.txt", content: "x" }, { origin: "mcp" });
+  it("a risky call PAUSES at the human gate: pending, nothing executed, denial is selfimpulseed", async () => {
+    const r = await runSelfImpulseToolCall("workspace_write", { name: "gate-probe.txt", content: "x" }, { origin: "mcp" });
     assert.equal(r.pending, true, "risky calls do not block the caller");
     assert.ok(r.approvalId && r.callId, "the caller gets the approval handle + call id");
-    assert.equal(vouchToolCallStatus(r.callId)!.state, "gated", "the call is tracked as gated");
-    const approval = vouchSession().approvals.find((a) => a.id === r.approvalId);
+    assert.equal(selfimpulseToolCallStatus(r.callId)!.state, "gated", "the call is tracked as gated");
+    const approval = selfimpulseSession().approvals.find((a) => a.id === r.approvalId);
     assert.ok(approval && approval.status === "pending", "the approval is in the session's gate queue");
     /* deny it — nothing may execute */
-    resolveVouchApproval(r.approvalId!, false);
-    const track = await waitFor(() => (vouchToolCallStatus(r.callId)!.state === "done" ? vouchToolCallStatus(r.callId)! : null), "denied call to settle");
+    resolveSelfImpulseApproval(r.approvalId!, false);
+    const track = await waitFor(() => (selfimpulseToolCallStatus(r.callId)!.state === "done" ? selfimpulseToolCallStatus(r.callId)! : null), "denied call to settle");
     assert.equal(track.result!.ok, false);
     assert.ok(track.result!.output.includes("Denied by the human gate"), "the refusal is honest");
     assert.equal(track.result!.approved, false);
     assert.ok(!fs.existsSync(path.join(ROOT, "gate-probe.txt")), "the denied write did NOT execute");
     assert.ok(track.result!.receiptId, "the DENIAL mints a receipt — the audit trail is never optional");
-    const ref = vouchSession().receipts.find((x) => x.id === track.result!.receiptId)!;
-    const verdict = ref.receipt.events.find((e) => e.kind === "vouch.verdict")!.data as { status?: string };
+    const ref = selfimpulseSession().receipts.find((x) => x.id === track.result!.receiptId)!;
+    const verdict = ref.receipt.events.find((e) => e.kind === "selfimpulse.verdict")!.data as { status?: string };
     assert.equal(verdict.status, "denied");
-    const simEv = ref.receipt.events.find((e) => e.kind === "vouch.simulation");
-    assert.ok(simEv, "the SIMULATION (dry-run prediction) is vouched before the gate");
-    const v = await verifyVouchReceipt(track.result!.receiptId!);
+    const simEv = ref.receipt.events.find((e) => e.kind === "selfimpulse.simulation");
+    assert.ok(simEv, "the SIMULATION (dry-run prediction) is selfimpulseed before the gate");
+    const v = await verifySelfImpulseReceipt(track.result!.receiptId!);
     assert.equal(v.ok, true, "the denial receipt verifies offline — " + JSON.stringify(v));
   });
 
-  it("a risky call that is APPROVED executes and vouches", async () => {
-    const r = await runVouchToolCall("workspace_write", { name: "mcp-approved.txt", content: "hello from the mcp face" }, { origin: "mcp" });
+  it("a risky call that is APPROVED executes and selfimpulsees", async () => {
+    const r = await runSelfImpulseToolCall("workspace_write", { name: "mcp-approved.txt", content: "hello from the mcp face" }, { origin: "mcp" });
     assert.equal(r.pending, true);
-    resolveVouchApproval(r.approvalId!, true);
-    const track = await waitFor(() => (vouchToolCallStatus(r.callId)!.state === "done" ? vouchToolCallStatus(r.callId)! : null), "approved call to settle");
+    resolveSelfImpulseApproval(r.approvalId!, true);
+    const track = await waitFor(() => (selfimpulseToolCallStatus(r.callId)!.state === "done" ? selfimpulseToolCallStatus(r.callId)! : null), "approved call to settle");
     assert.equal(track.result!.ok, true, "the approved write executed");
     assert.ok(track.result!.output.includes("wrote mcp-approved.txt"), track.result!.output);
     assert.equal(track.result!.simulated, true, "it went through SIMULATE before the gate");
     assert.ok(track.result!.receiptId, "the approved call mints a receipt");
-    assert.equal((await verifyVouchReceipt(track.result!.receiptId!)).ok, true);
+    assert.equal((await verifySelfImpulseReceipt(track.result!.receiptId!)).ok, true);
     const written = path.join(ROOT, "mcp-approved.txt");
     if (fs.existsSync(written)) fs.rmSync(written);
   });
 
-  it("an unknown tool is refused in words — and the refusal is vouched", async () => {
-    const r = await runVouchToolCall("self_upgrade", {}, { origin: "mcp" });
+  it("an unknown tool is refused in words — and the refusal is selfimpulseed", async () => {
+    const r = await runSelfImpulseToolCall("self_upgrade", {}, { origin: "mcp" });
     assert.equal(r.ok, false);
     assert.ok(r.output.includes('unknown tool "self_upgrade"'), "refusal names the tool");
     assert.ok(r.receiptId, "refusals mint receipts too");
@@ -186,7 +186,7 @@ describe("M3 protocol — tools/mcp.mjs speaks MCP over stdio, governed", () => 
   it("initialize negotiates the protocol and names the server", async () => {
     const r = await request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "probe", version: "0" } });
     assert.equal(r.result.protocolVersion, "2025-06-18");
-    assert.equal(r.result.serverInfo.name, "11handle");
+    assert.equal(r.result.serverInfo.name, "selfimpulse");
     assert.equal(r.result.serverInfo.version, ENGINE_VERSION);
     assert.ok(r.result.instructions.toLowerCase().includes("human gate"), "the instructions name the gate, plainly");
     notify("notifications/initialized");
@@ -222,7 +222,7 @@ describe("M3 protocol — tools/mcp.mjs speaks MCP over stdio, governed", () => 
     assert.ok(r.result.content[0].text.includes('unknown MCP tool "rm_rf_everything"'), r.result.content[0].text);
   });
 
-  it("the FULL gate flow over the wire: pending → deny → vouched denial", async () => {
+  it("the FULL gate flow over the wire: pending → deny → selfimpulseed denial", async () => {
     const r = await request("tools/call", { name: "workspace_write", arguments: { name: "wire-denied.txt", content: "nope" } });
     const text: string = r.result.content[0].text;
     assert.ok(text.includes("Paused at the human gate"), text);
@@ -240,7 +240,7 @@ describe("M3 protocol — tools/mcp.mjs speaks MCP over stdio, governed", () => 
     assert.ok(v.result.content[0].text.startsWith("VALID"));
   });
 
-  it("the FULL gate flow over the wire: pending → approve → executed + vouched", async () => {
+  it("the FULL gate flow over the wire: pending → approve → executed + selfimpulseed", async () => {
     const r = await request("tools/call", { name: "workspace_write", arguments: { name: "wire-approved.txt", content: "hello wire" } });
     const text: string = r.result.content[0].text;
     const approval = text.match(/approval (a[0-9a-z]+)/)! [1];
@@ -253,7 +253,7 @@ describe("M3 protocol — tools/mcp.mjs speaks MCP over stdio, governed", () => 
     assert.ok(list.result.content[0].text.includes("wire-approved.txt"), "the approved write is in the workspace");
   });
 
-  it("dispatch_mission over the wire: gated, then a REAL mission loop runs and vouches", async () => {
+  it("dispatch_mission over the wire: gated, then a REAL mission loop runs and selfimpulsees", async () => {
     const r = await request("tools/call", { name: "dispatch_mission", arguments: { objective: "probe: check that the mcp face dispatches a real mission" } });
     const text: string = r.result.content[0].text;
     assert.ok(text.includes("Paused at the human gate"), "dispatch is risky → gated first");
@@ -347,7 +347,7 @@ describe("MCP 2026-07-28 — dual-era server: stateless modern + legacy, one thr
     assert.ok(versions.includes("2026-07-28"), "the current spec revision is supported");
     assert.ok(versions.includes("2025-06-18") && versions.includes("2025-03-26"), "legacy revisions stay supported (dual-era)");
     assert.deepEqual(r.result.capabilities.extensions["io.modelcontextprotocol/tasks"], {}, "the tasks extension is advertised");
-    assert.equal(r.result._meta["io.modelcontextprotocol/serverInfo"].name, "11handle");
+    assert.equal(r.result._meta["io.modelcontextprotocol/serverInfo"].name, "selfimpulse");
     assert.ok(r.result.ttlMs >= 0 && r.result.cacheScope === "public", "cache hints on the discover result (spec MUST)");
   });
 
@@ -366,7 +366,7 @@ describe("MCP 2026-07-28 — dual-era server: stateless modern + legacy, one thr
     const r = await request("tools/call", { name: "clock", arguments: {}, _meta: META() });
     assert.equal(r.result.resultType, "complete");
     assert.equal(r.result.isError, false);
-    assert.equal(r.result._meta["io.modelcontextprotocol/serverInfo"].name, "11handle");
+    assert.equal(r.result._meta["io.modelcontextprotocol/serverInfo"].name, "selfimpulse");
     assert.ok(r.result.content[0].text.length > 10);
   });
 
@@ -382,7 +382,7 @@ describe("MCP 2026-07-28 — dual-era server: stateless modern + legacy, one thr
     assert.equal(r.result.isError, undefined, "input_required is not an error");
   });
 
-  it("the MRTR retry carries the human decision back: approve → executed → vouched", async () => {
+  it("the MRTR retry carries the human decision back: approve → executed → selfimpulseed", async () => {
     const first = await request("tools/call", { name: "workspace_write", arguments: { name: "wire-mrtr.txt", content: "mrtr" }, _meta: META() });
     assert.equal(first.result.resultType, "input_required");
     const retry = await request("tools/call", {
@@ -465,7 +465,7 @@ describe("MCP 2026-07-28 — dual-era server: stateless modern + legacy, one thr
     assert.equal("resultType" in leg.result, false, "legacy results carry no modern fields — old clients see their old wire");
     const init = await request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "probe", version: "0" } });
     assert.equal(init.result.protocolVersion, "2025-06-18");
-    assert.equal(init.result.serverInfo.name, "11handle");
+    assert.equal(init.result.serverInfo.name, "selfimpulse");
   });
 });
 
@@ -491,11 +491,11 @@ describe("M3 bundle — tools/mcp-engine.mjs is byte-pinned", () => {
       console.log("  (esbuild not available in this environment — source-rebuild check skipped; sha256 pin enforced)");
       return;
     }
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "vh-mcp-build-"));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "si-mcp-build-"));
     const out = path.join(tmp, "mcp-engine.mjs");
     const { execFileSync } = await import("node:child_process");
     execFileSync(esbuild, [
-      "src/vouch/engine/mcpRouter.ts",
+      "src/selfimpulse/engine/mcpRouter.ts",
       "--bundle",
       "--platform=node",
       "--format=esm",

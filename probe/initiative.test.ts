@@ -12,8 +12,8 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 let passed = 0; let failed = 0; const failures: string[] = [];
 function ok(label: string, cond: boolean, detail = ""): void {
@@ -34,9 +34,9 @@ import {
   loadInitiative, setLevel, evaluateWake, applyWake, scheduleFollowUp,
   breakerTripped, reportFailure, reportSuccess, executeWakeActs,
   LIMITS, AUTONOMY_LEVEL_NAMES, fnv1a, type ActExecutor,
-} from "../src/vh19/initiative";
-import { engineExecutor, actPrompt, mapReplyToVerdict } from "../src/vh19/initiativeBridge";
-import type { ProviderConfig } from "../src/vh19/types";
+} from "../src/engine/initiative";
+import { engineExecutor, actPrompt, mapReplyToVerdict } from "../src/engine/initiativeBridge";
+import type { ProviderConfig } from "../src/engine/types";
 
 function freshState(): ReturnType<typeof loadInitiative> {
   const s = loadInitiative();
@@ -193,7 +193,7 @@ async function main(): Promise<void> {
   }
 
   // ── THE TRUE INTEGRATION TEST (reviewer demand, 19.7.3): heartbeat act →
-  // real askVH19 → real routing/MoE → real member agent loop → REAL provider
+  // real askSelfImpulse19 → real routing/MoE → real member agent loop → REAL provider
   // calls (scripted fetch) → real receipt. No mocked executor — the only
   // fake is the wire, the established VH probe pattern. ──
   console.log("integration — heartbeat act through the REAL engine with a scripted provider");
@@ -242,7 +242,7 @@ async function main(): Promise<void> {
      run be attributed to the first. */
   ok("the executor carries the SAME dep set as a normal chat send (provider · gate · handoff · evidenceFetch · subject)",
     /depsFactory: \(\) => runDeps\(get, set, gateFn\)/.test(ncSrc) &&
-    /await askVH19\(\{ text: sentText, userId: subject \}, runDeps\(get, set, gateFn\)\)/.test(ncSrc) &&
+    /await askSelfImpulse19\(\{ text: sentText, userId: subject \}, runDeps\(get, set, gateFn\)\)/.test(ncSrc) &&
     ncSrc.includes("gate: gateFn,") &&
     ncSrc.includes("evidenceFetch: typeof globalThis.fetch") &&
     /userId: currentSubject\(\) \?\? "unattributed"/.test(ncSrc),

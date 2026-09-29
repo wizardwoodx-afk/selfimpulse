@@ -12,7 +12,7 @@
  *     the write VANISHED. The user's named checkpoint was gone after reload and
  *     nothing said so.
  *   • graph/store.ts        → no guard at all: the throw escaped into the UI.
- *   • vh19/memoryGraph.ts   → `catch { /* quota — keep memory copy *\/ }` — the
+ *   • engine/memoryGraph.ts   → `catch { /* quota — keep memory copy *\/ }` — the
  *     graph lived only for the session; on reload the whole memory was gone.
  *
  * Silent loss is the one failure VH refuses everywhere else, so it is refused

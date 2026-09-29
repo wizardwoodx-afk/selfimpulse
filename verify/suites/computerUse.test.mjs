@@ -59,7 +59,7 @@ function checkEgressUrl(raw) {
 }
 var callRateGate = new RateGate(120, 6e4);
 
-// src/vh19/computerUse.ts
+// src/engine/computerUse.ts
 var sha256 = (t) => {
   let h1 = 2166136261, h2 = 16777619;
   for (let i = 0; i < t.length; i++) {
@@ -140,7 +140,7 @@ function finalize(base) {
   return { ...base, digest: sha256(JSON.stringify(base)) };
 }
 function newProfile(missionId, name = "default") {
-  return { name, missionId, userAgent: `VH-Reach/19.5 (accountable-agent; mission ${missionId})`, viewport: { width: 1280, height: 800 }, cookiesAllowed: false };
+  return { name, missionId, userAgent: `SI-Reach/19.5 (accountable-agent; mission ${missionId})`, viewport: { width: 1280, height: 800 }, cookiesAllowed: false };
 }
 function detectBrowserBinary(paths = DEFAULT_BROWSER_PATHS, exists) {
   if (!exists) return null;

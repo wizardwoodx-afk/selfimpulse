@@ -1,5 +1,5 @@
 /**
- * probe · cleanNaming — the SHIPPED TREE carries clean 11Handle naming.
+ * probe · cleanNaming — the SHIPPED TREE carries clean SelfImpulse naming.
  *
  * Repo-wide gate (the review finding made permanent): current surfaces —
  * product code, legal, installer metadata, config, docs, probes, tools — carry
@@ -7,9 +7,9 @@
  *
  * Named exceptions (each does real work and is documented):
  *   - docs/history/**            the historical ledger by design.
- *   - protocol/src/core/vh-crypto.js  HKDF info labels (pre-rename wire labels)
+ *   - protocol/src/core/si-crypto.js  HKDF info labels (pre-rename wire labels)
  *                                are baked into issued wrapped keys — renaming
- *                                would break issued data (docs/history/LEGACY-COMPAT.md).
+ *                                would break issued data (docs/LEGACY-COMPAT.md).
  *   - probe/fixtures/**          signed wire fixtures — byte-stable by contract.
  *   - legacy wire/shim tokens    (proof-receipt formats, db filename, keychain
  *                                service names, control-mcp aliases, …) live by
@@ -20,21 +20,61 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const root = process.env.HANDLE_ROOT ? path.resolve(process.env.HANDLE_ROOT as string) : process.cwd();
+const root = process.env.SI_ROOT ? path.resolve(process.env.SI_ROOT as string) : process.cwd();
 
 const SKIP_DIRS = new Set(["node_modules", ".git", "history", "suites", "specs", "fixtures", "dist", "target", "profiles", "screens", "vendor", "fonts"]);
-const SKIP_FILES = new Set(["package-lock.json", "Cargo.lock", "BUILD-INFO.txt", "tauri.conf.json"]);
-const SKIP_PATHS = new Set([path.join("protocol", "src", "core", "vh-crypto.js")]);
+// Dot-prefixed files are the probe runner's own build output: this suite bundled
+// and executed inside the tree it is scanning, so it has to ignore its own body.
+const SKIP_FILES = new Set(["package-lock.json", "Cargo.lock", "BUILD-INFO.txt", "tauri.conf.json", "MANIFEST.json"]);
+// The detector is exempt from its own scan, and always has been: it has to hold
+// the retired spellings verbatim to search for them. Exempting it explicitly is
+// the difference between a deliberate exception and an accident waiting to be
+// rediscovered by the next rename.
+const SKIP_PATHS = new Set([
+  path.join("probe", "cleanNaming.test.ts"),
+  path.join("probe", "engineDoor.test.tsx"),
+  /* protocol/** is exempt, and it is the one exemption that is not really a
+   * naming exemption at all.
+   *
+   * Those strings — the vault algorithm tag, the population-binding separator,
+   * the rotation proof id, the link-metadata prefix — are wire-format labels in
+   * a signed exchange, not branding. The prefix is inside the string that gets
+   * hashed, so renaming it changes the commitment: the shipped proof in
+   * protocol/proof/ would no longer verify against the code that produced it.
+   *
+   * That is a protocol version, and a protocol version is a deliberate act with
+   * its own re-proof, not something a rename script gets to do by accident.
+   * Until that act is taken on purpose, the old label is the correct one and
+   * this gate is the wrong place to change it. */
+  path.join("protocol") + path.sep,
+  // The legacy ledger's whole job is to NAME the identifiers that still exist.
+  // Scanning it for those names is the scan failing at its own purpose, so it is
+  // exempt here and policed instead by probe/legacyCompat.test.ts, which checks
+  // that every name in it is allowlisted and still in use.
+  path.join("docs", "LEGACY-COMPAT.md"),
+  path.join("protocol") + path.sep,
+]);
 
 /* retired predecessor spellings + outside-product names, assembled so the
  * literal spellings do not appear even here. */
 const BANNED = new RegExp(
   [
-    "Vo", "uch Harbor|Vel", "vet Hand|velvet", "hand|vo", "uchharbor|Vo", "uchHarbor|vo", "uch-harbor",
+    /* Predecessor product names, as they were actually spelled in the wild —
+     * concatenated, not alternated. That is deliberate: a fragment only fires
+     * when its parts sit next to each other in the text, so "Lancedb", "CrewAI"
+     * and "GraphZapier" are caught as the outside products they are, while the
+     * ordinary English words they are built from are not.
+     *
+     * The list is the product's memory. A rename that drops one of these leaves
+     * the old name in the tree permanently and nothing else would notice — which
+     * is exactly what happened the first time a script renamed this file without
+     * knowing it was a detector and not prose. */
+    "Vo", "uch Harbor|Vel", "vet Hand|11", "Handle\\b|vo", "uchharbor|Vo", "uchHarbor|vo", "uch-harbor",
+    "|\\bHar", "bor\\b|11", "handle-work|11", "handle-[a-z]",
     "|mj-brow", "ser",
     "|open", "muse|open", "bot|open", "claw|ma", "stra|na", "ngo|copilot", "kit|lang", "fuse|llama",
     "index|lance", "db|cre", "wai|lang", "graph|zap", "ier",
-    "|\\bVH_[A-Z]",
+    "|\\bvh", "19\\b|\\bV", "H[-_]",
   ].join(""),
   "gi",
 );
@@ -55,8 +95,13 @@ let scanned = 0;
 const offenders: string[] = [];
 for (const rel of walkRel(root)) {
   const base = path.basename(rel);
-  if (SKIP_FILES.has(base)) continue;
-  if (SKIP_PATHS.has(rel)) continue;
+  if (SKIP_FILES.has(base) || base.startsWith(".")) continue;
+  // SKIP_PATHS entries match a file exactly OR cover everything beneath a
+  // directory, so an exempt folder stays exempt as it grows.
+  const exempt = [...SKIP_PATHS].some((p) =>
+    p.endsWith(path.sep) ? rel.startsWith(p) : rel === p || rel.startsWith(p + path.sep),
+  );
+  if (exempt) continue;
   if (/\.one-|\.log$|\.png$|\.jpe?g$|\.xlsx$|\.zip$|\.so$|\.dylib$|\.dll$|\.pdf$|\.wasm$|\.lock$/.test(rel)) continue;
   let text: string;
   try {

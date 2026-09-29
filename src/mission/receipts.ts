@@ -37,11 +37,11 @@ export interface ReceiptEvent {
 
 export interface ProofReceipt {
   /**
-   * vh-proof-receipt/2 (16.1.0): the 11Handle proof standard — chain + seal, plus `issuer`/`signature` — an Ed25519
+   * si-proof-receipt/2 (16.1.0): the SelfImpulse proof standard — chain + seal, plus `issuer`/`signature` — an Ed25519
    * signature over the final chain hash, verifiable with the exported public key alone.
    * verifyProofReceipt accepts BOTH formats: v1 receipts stay verifiable forever.
    */
-  format: "vh-proof-receipt/2" | "mj-proof-receipt/2" | "mj-proof-receipt/1";
+  format: "si-proof-receipt/2" | "mj-proof-receipt/2" | "mj-proof-receipt/1";
   header: {
     mission: string;
     teamId: string;
@@ -176,7 +176,7 @@ export async function buildProofReceipt(args: {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal,
@@ -185,7 +185,7 @@ export async function buildProofReceipt(args: {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal,
@@ -197,13 +197,13 @@ export async function buildProofReceipt(args: {
 
 /**
  * External verification: no VH state, just the receipt and public constants.
- * Accepts the current vh-proof-receipt/2 and the legacy mj-proof-receipt/1|2 — older receipts verify exactly as
+ * Accepts the current si-proof-receipt/2 and the legacy mj-proof-receipt/1|2 — older receipts verify exactly as
  * before; v2 adds the issuer-signature check when a signature is present. A null
  * signature with an accompanying signatureNote is HONEST (no Ed25519 in the runtime)
  * and is not a failure — the seal still attests tamper-evidence.
  */
 export async function verifyProofReceipt(rc: ProofReceipt): Promise<{ ok: true; events: number } | { ok: false; reason: string }> {
-  if (rc.format !== "vh-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
+  if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
   let prev = "0".repeat(64);
   for (const e of rc.events) {
     if (e.prev !== prev) return { ok: false, reason: `chain broken at seq ${e.seq}` };
@@ -215,7 +215,7 @@ export async function verifyProofReceipt(rc: ProofReceipt): Promise<{ ok: true; 
   const sealSecret = SEAL_SECRET_BY_FORMAT[rc.format as keyof typeof SEAL_SECRET_BY_FORMAT] ?? VERIFY_SECRET;
   const seal = await hmacHex(prev, sealSecret);
   if (seal !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "vh-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok = await verifyIssuerSignature(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
@@ -264,7 +264,7 @@ export async function buildChainedReceipt(args: {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal,
@@ -273,7 +273,7 @@ export async function buildChainedReceipt(args: {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal,

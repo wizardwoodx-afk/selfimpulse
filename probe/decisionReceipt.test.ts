@@ -20,7 +20,7 @@ import {
 } from "../src/security/decisionReceipt";
 import { NO_EVIDENCE, NO_GRANT, narrowTo } from "../src/security/authority";
 
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 
 let passed = 0;
 let failed = 0;
@@ -31,7 +31,7 @@ const ok = (label: string, cond: boolean, detail = ""): void => {
 };
 const section = (n: string): void => console.log(`\n== ${n}`);
 
-const PACK = { journal: 12, head: "abc123", policy: "11handle-baseline", graph: 41 };
+const PACK = { journal: 12, head: "abc123", policy: "selfimpulse-baseline", graph: 41 };
 const WRITER = { capabilities: ["read", "write", "shell"] as const, budgetCents: 5000 };
 
 function bodyOf(over: Partial<DecisionBody> = {}): DecisionBody {

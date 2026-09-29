@@ -18,7 +18,7 @@ import {
   LOTUS_MODES, LOTUS_DEFAULT_MODE, LOTUS_MIN_SAVE, compressToolOutput, isErrorShaped,
   lotusExpand, lotusReport, lotusLine, noteLotus, resetLotusSession, spillSize,
   type LotusResult,
-} from "../src/vh19/lotus";
+} from "../src/engine/lotus";
 
 function noisy(n: number): string {
   const lines: string[] = [];

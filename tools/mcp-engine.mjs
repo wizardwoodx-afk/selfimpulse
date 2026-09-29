@@ -15,12 +15,12 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
-// src/vouch/ipc/client.ts
+// src/selfimpulse/ipc/client.ts
 var client_exports = {};
 __export(client_exports, {
   ipc: () => ipc,
@@ -31,7 +31,7 @@ function isNativeHost() {
 }
 var invoke, ipc;
 var init_client = __esm({
-  "src/vouch/ipc/client.ts"() {
+  "src/selfimpulse/ipc/client.ts"() {
     "use strict";
     invoke = (cmd, args) => {
       const internals = window.__TAURI_INTERNALS__;
@@ -530,7 +530,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -560,7 +560,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY2 = "vouch.v3.db";
+    KEY2 = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -1099,7 +1099,7 @@ var init_client2 = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1129,7 +1129,7 @@ var init_client2 = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -1148,7 +1148,7 @@ var init_client2 = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1171,7 +1171,7 @@ var init_client2 = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -1194,7 +1194,7 @@ var init_client2 = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -1617,12 +1617,12 @@ var init_client2 = __esm({
   }
 });
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 init_version();
 
-// src/vouch/engine/signing.ts
-var STORAGE_KEY = "vouch.issuerkey.v1";
-var KEYCHAIN_REF = "vouch.issuerkey.v1";
+// src/selfimpulse/engine/signing.ts
+var STORAGE_KEY = "selfimpulse.issuerkey.v1";
+var KEYCHAIN_REF = "selfimpulse.issuerkey.v1";
 async function keychainBridge() {
   if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return null;
   try {
@@ -1676,7 +1676,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vouch-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `selfimpulse-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -1691,7 +1691,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vouch-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `selfimpulse-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -1734,11 +1734,11 @@ async function verifyIssuerSignature(chainHashHex, sigHex, publicKeyHex) {
   }
 }
 
-// src/vouch/engine/proof.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+// src/selfimpulse/engine/proof.ts
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT = {
-  "vh-proof-receipt/2": VERIFY_SECRET,
+  "si-proof-receipt/2": VERIFY_SECRET,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET
 };
@@ -1787,7 +1787,7 @@ async function buildChainedReceipt(args) {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -1796,7 +1796,7 @@ async function buildChainedReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -1828,7 +1828,7 @@ async function verifyProofReceipt(rc) {
   return { ok: true, events: rc.events.length };
 }
 
-// src/vouch/engine/webSearch.ts
+// src/selfimpulse/engine/webSearch.ts
 init_guardrail();
 var WEB_PROVIDERS = [
   {
@@ -2040,7 +2040,7 @@ var HARNESSES = [
     name: "Native agent (in-process)",
     bins: [],
     argv: [],
-    install: "Nothing to install \u2014 the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+    install: "Nothing to install \u2014 the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
     notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
     source: "src/engine/hermesRuntime.ts"
   },
@@ -2072,7 +2072,7 @@ var AGENT_CAPABILITIES = {
     // does not exist; every caller that read them was reasoning about a seat
     // that could not run.
     bins: [],
-    install: "bundled with 11Handle; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
+    install: "bundled with SelfImpulse; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
     prompt: { argv: [], confidence: "docs", source: "in-process runtime: no argv exists by construction" },
     json: null,
     readOnly: null,
@@ -2329,7 +2329,7 @@ function sessionArgv(harness, opts) {
 function sessionIdKind(harness) {
   const rc = resolveCaps(harness);
   if (rc.custom) return "cli-chosen";
-  return rc.caps.sessionStart?.argv ? "vh-chosen" : "cli-chosen";
+  return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 function parseSessionId(harness, raw) {
   if (!raw.trim()) return null;
@@ -2515,8 +2515,8 @@ function composeSeatArgv(teamSeat, ctx) {
     $CWD: ctx.cwd,
     $SECS: String(teamSeat.timeoutSecs),
     $SESSION: ctx.sessionId ?? "",
-    $REVIEWER: "vh-readonly",
-    $NAME: `vh-${teamSeat.id}`
+    $REVIEWER: "si-readonly",
+    $NAME: `si-${teamSeat.id}`
   };
   const argv = [];
   const flags = [];
@@ -3108,10 +3108,10 @@ function saveAutonomy(next) {
 init_id();
 
 // src/mission/licensing.ts
-var VERIFY_SECRET2 = "vh-commercial-v1-offline";
+var VERIFY_SECRET2 = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET2 = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT2 = {
-  "vh-proof-receipt/2": VERIFY_SECRET2,
+  "si-proof-receipt/2": VERIFY_SECRET2,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET2,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET2
 };
@@ -3491,7 +3491,7 @@ async function ensureIssuerIdentity2() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vh-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `si-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -3506,7 +3506,7 @@ async function ensureIssuerIdentity2() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex2(rawPub);
     const identity = {
-      keyId: `vh-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `si-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -3590,7 +3590,7 @@ async function issueRootEnvelope(args) {
   }
   seq += 1;
   return seal({
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: args.principal,
     delegationChain: [args.principal],
@@ -3623,7 +3623,7 @@ async function attenuate(parent, agentId, subScope, opts) {
   seq += 1;
   const envelope = await seal({
     budgetUsd: budget,
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: parent.principal,
     delegationChain: [...parent.delegationChain, agentId],
@@ -3925,7 +3925,7 @@ function evaluateVerifyGate(input2) {
     if (snap && countingVerifiers.length < ranVerifiers.length) {
       const off = ranVerifiers.filter((v) => !(snap.built && snap.sha !== null && (v.reviewedSha ?? null) === snap.sha));
       for (const o of off) {
-        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot vouch for the writers' work.`);
+        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot selfimpulse for the writers' work.`);
       }
     }
     const selfVerified = writerHarnesses.filter(
@@ -4725,7 +4725,7 @@ function planWorktrees(team, opts) {
   for (const seat2 of team.seats) {
     if (!seat2.mayWrite) {
       if (opts.deferReview && hasWriter) {
-        const path4 = `${root}-vh-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+        const path4 = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
         plans.push({
           seatId: seat2.id,
           branch: "",
@@ -4751,7 +4751,7 @@ function planWorktrees(team, opts) {
       continue;
     }
     const branch = `vh/${opts.missionSlug}/${branchSafe(seat2.id)}`;
-    const path3 = `${root}-vh-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+    const path3 = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
     plans.push({
       seatId: seat2.id,
       branch,
@@ -5329,7 +5329,7 @@ var INITIAL_REPUTATIONS = Object.fromEntries(
 
 // src/mission/teamExecutor.ts
 var OUTPUT_TAIL_CHARS = 4e3;
-var BRIEF_DIR = ".vh-brief";
+var BRIEF_DIR = ".si-brief";
 async function git(deps, args, cwd) {
   if (!deps.git) return { ok: false, stdout: "", stderr: "", exitCode: null };
   const r = await deps.git(args, cwd);
@@ -5533,7 +5533,7 @@ Spent: $${(spentUsd2 || 0).toFixed(4)}`, "orchestrator", "finding");
   const learnedMarkdown = globalMemoryCortex.compileBriefing().generatedBriefingMarkdown;
   for (const seat2 of req.team.seats) {
     briefingsByHarness.push({
-      path: ".vh-brief/LEARNED_INVARIANTS.md",
+      path: ".si-brief/LEARNED_INVARIANTS.md",
       contents: learnedMarkdown,
       forHarness: seat2.harness
     });
@@ -5546,7 +5546,7 @@ ${lessonLines.map((l) => `- ${l}`).join("\n")}
 `;
     for (const seat2 of req.team.seats) {
       briefingsByHarness.push({
-        path: ".vh-brief/ORG_LESSONS.md",
+        path: ".si-brief/ORG_LESSONS.md",
         contents: lessonsMd,
         forHarness: seat2.harness
       });
@@ -6088,7 +6088,7 @@ async function runSeat(req, deps, a, sessions, wt, binaryExists, resolvedBin, se
   let commitDetail = readOnly ? "Read-only seat; nothing to commit." : "No git runner, so the work could not be committed.";
   if (deps.git && !readOnly) {
     await git(deps, ["add", "-A"], cwd);
-    const commit2 = await git(deps, ["-c", "user.email=vh@vouch.harbor", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
+    const commit2 = await git(deps, ["-c", "user.email=vh@selfimpulse.selfimpulse", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
     commitDetail = commit2.ok ? `Committed on ${branch}.` : commit2.exitCode === null ? "Could not run git commit." : /nothing to commit|no changes added/i.test(commit2.stderr + commit2.stdout) ? "Nothing to commit \u2014 this seat changed no files." : `git commit exited ${commit2.exitCode}: ${(commit2.stderr || commit2.stdout).trim().slice(0, 200)}`;
   }
   const finalRecord = {
@@ -6431,7 +6431,7 @@ async function buildProofReceipt(args) {
   const sig = await signChainHash2(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -6440,7 +6440,7 @@ async function buildProofReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -6450,7 +6450,7 @@ async function buildProofReceipt(args) {
   };
 }
 async function verifyProofReceipt2(rc) {
-  if (rc.format !== "vh-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
+  if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
   let prev = "0".repeat(64);
   for (const e of rc.events) {
     if (e.prev !== prev) return { ok: false, reason: `chain broken at seq ${e.seq}` };
@@ -6462,7 +6462,7 @@ async function verifyProofReceipt2(rc) {
   const sealSecret = SEAL_SECRET_BY_FORMAT2[rc.format] ?? VERIFY_SECRET2;
   const seal2 = await hmacHex2(prev, sealSecret);
   if (seal2 !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "vh-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok = await verifyIssuerSignature2(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
@@ -6821,18 +6821,18 @@ function loopHostDeps(opts) {
   return hostRunnerDeps(opts);
 }
 
-// src/vouch/engine/bridge.ts
+// src/selfimpulse/engine/bridge.ts
 init_version();
 var MissionNotConfiguredError = class extends Error {
 };
 function mintMissionId() {
   return `mission_${Math.random().toString(36).slice(2, 6)}`;
 }
-function harborCrews() {
+function selfimpulseCrews() {
   return loadCrews().map((t) => ({ id: t.id, name: t.name }));
 }
 var bridgeDeps = null;
-async function runHarborMission(objective, missionId, opts = {}) {
+async function runSelfImpulseMission(objective, missionId, opts = {}) {
   const crews = loadCrews();
   const team = opts.team ?? crews[crews.length - 1];
   if (!team) {
@@ -6874,7 +6874,7 @@ async function runHarborMission(objective, missionId, opts = {}) {
     gateStatus: res.record.gate?.status ?? null,
     receiptOk: res.record.receipt?.ok ?? false,
     engine: `MJ execution core ${ENGINE_VERSION}`,
-    controlPlane: `11Handle control plane ${ENGINE_VERSION}`,
+    controlPlane: `SelfImpulse control plane ${ENGINE_VERSION}`,
     teamId: team.id,
     teamName: team.name,
     notes,
@@ -6883,7 +6883,7 @@ async function runHarborMission(objective, missionId, opts = {}) {
   };
 }
 
-// src/vouch/engine/brainSeam.ts
+// src/selfimpulse/engine/brainSeam.ts
 import fs from "node:fs";
 var PREF_KEY = "vh.brain.pref";
 function brainPref() {
@@ -6953,7 +6953,7 @@ function planFromModelText(text, max = 6) {
 }
 function plannerPrompt(objective) {
   return [
-    "You are the planner inside 11Handle's governed brain. Produce 3 to 6 concrete steps for the objective below.",
+    "You are the planner inside SelfImpulse's governed brain. Produce 3 to 6 concrete steps for the objective below.",
     "One step per line. No preamble, no markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.",
     `Objective: ${objective}`
   ].join("\n");
@@ -7005,7 +7005,7 @@ function wrapRealModelBrain(base, deps = realBrainDeps, prefOverride) {
   };
 }
 
-// src/vouch/engine/providers.ts
+// src/selfimpulse/engine/providers.ts
 init_client2();
 init_localDb();
 var REGISTRY_KEY = "vh.providers";
@@ -7049,7 +7049,7 @@ function modelPrefs(store2 = defaultStore()) {
 }
 var tierFor = (mode) => mode === "deep" ? "big" : "cheap";
 var ipcCaller = (req) => ipc2.llmChat(req);
-var PLANNER_SYSTEM = "You are the planner inside 11Handle's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
+var PLANNER_SYSTEM = "You are the planner inside SelfImpulse's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
 async function chatStep(prompt, tier, opts) {
   const prefs = opts?.prefs ?? modelPrefs(opts?.store);
   if (!prefs.enabled) {
@@ -7158,7 +7158,7 @@ function wrapModelBrain(base, opts) {
   };
 }
 
-// src/vouch/engine/policyGateway.ts
+// src/selfimpulse/engine/policyGateway.ts
 var riskyTools = /* @__PURE__ */ new Set(["workspace_write", "dispatch_mission", "shell_exec"]);
 var riskyToolRule = (input2) => {
   if (!riskyTools.has(input2.tool)) return null;
@@ -26861,7 +26861,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// src/vouch/engine/toolSchema.ts
+// src/selfimpulse/engine/toolSchema.ts
 var WorkspaceWriteSchema = external_exports.object({
   name: external_exports.string().min(1).max(255).regex(/^[^/\\<>:"|?*\x00-\x1F]+$/, "filename must be a plain local name, no path separators or control chars"),
   content: external_exports.string().max(1e6, "content exceeds 1 MB workspace-file limit")
@@ -26985,10 +26985,10 @@ async function validateWithRetry(tool, raw, opts) {
   };
 }
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 init_guardrail();
 
-// src/vouch/engine/agui.ts
+// src/selfimpulse/engine/agui.ts
 var AguiBus = class extends EventTarget {
   emit(ev) {
     this.dispatchEvent(new CustomEvent(ev.type, { detail: ev }));
@@ -27024,7 +27024,7 @@ function emitInterrupt(runId, threadId, approvalId, tool, reason) {
   agui.emit({ type: "INTERRUPT", runId, threadId, ts: (/* @__PURE__ */ new Date()).toISOString(), approvalId, tool, reason });
 }
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 var hasLS2 = typeof globalThis.localStorage !== "undefined";
 var mem2 = /* @__PURE__ */ new Map();
 var store = {
@@ -27050,9 +27050,9 @@ var store = {
     }
   }
 };
-var SESSION_KEY = "vouch.session.v1";
-var WORKSPACE_KEY = "vouch.workspace.v1";
-var BOT_NAME = "Vouch";
+var SESSION_KEY = "selfimpulse.session.v1";
+var WORKSPACE_KEY = "selfimpulse.workspace.v1";
+var BOT_NAME = "SelfImpulse";
 function mainThread(messages) {
   const now = (/* @__PURE__ */ new Date()).toISOString();
   return { id: "t-main", title: "Main thread", createdAt: now, lastActivityAt: now, status: "open", messages };
@@ -27077,7 +27077,7 @@ function freshSession() {
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-function loadVouchSession() {
+function loadSelfImpulseSession() {
   const raw = store.get(SESSION_KEY);
   if (!raw) return freshSession();
   try {
@@ -27111,16 +27111,16 @@ function loadVouchSession() {
   }
   return freshSession();
 }
-var session = loadVouchSession();
+var session = loadSelfImpulseSession();
 var listeners = /* @__PURE__ */ new Set();
 function commit() {
   store.set(SESSION_KEY, JSON.stringify(session));
   for (const cb of listeners) cb();
 }
-function vouchSession() {
+function selfimpulseSession() {
   return session;
 }
-function addVouchFact(text) {
+function addSelfImpulseFact(text) {
   const t = sanitizeText(text, 300);
   if (!t) return;
   if (detectInjection(t).length > 0) return;
@@ -27128,7 +27128,7 @@ function addVouchFact(text) {
   session = { ...session, facts: [...session.facts, { id: secureId("f"), text: t, ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
 }
-function addVouchPreference(text) {
+function addSelfImpulsePreference(text) {
   const t = sanitizeText(text, 300);
   if (!t) return;
   if (detectInjection(t).length > 0) return;
@@ -27136,11 +27136,11 @@ function addVouchPreference(text) {
   session = { ...session, preferences: [...session.preferences, { id: secureId("p"), text: t, ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
 }
-function removeVouchPreference(id) {
+function removeSelfImpulsePreference(id) {
   session = { ...session, preferences: session.preferences.filter((p) => p.id !== id) };
   commit();
 }
-var MISSIONS_KEY = "vouch.missions.v1";
+var MISSIONS_KEY = "selfimpulse.missions.v1";
 function loadMissions() {
   const raw = store.get(MISSIONS_KEY);
   if (!raw) return [];
@@ -27154,7 +27154,7 @@ function loadMissions() {
 function saveMissions(list) {
   store.set(MISSIONS_KEY, JSON.stringify(list.slice(-50)));
 }
-function vouchMissions() {
+function selfimpulseMissions() {
   return loadMissions().slice().reverse();
 }
 function recordMission(m) {
@@ -27188,7 +27188,7 @@ function loadWorkspace() {
 function saveWorkspace(ws) {
   store.set(WORKSPACE_KEY, JSON.stringify(ws));
 }
-function vouchWorkspaceFiles() {
+function selfimpulseWorkspaceFiles() {
   return Object.values(loadWorkspace()).map((f) => ({ name: f.name, chars: f.content.length, updated: f.updated })).sort((a, b) => a.name.localeCompare(b.name));
 }
 function workspaceWrite(name, content) {
@@ -27203,15 +27203,15 @@ function workspaceWrite(name, content) {
   return { name: safeName, chars: safeContent.length };
 }
 var KB = [
-  { title: "Grok Bot (xAI, Aug 11 2026)", snippet: "Always-on AI vouchs on a vendor cloud computer that sign into your apps; multi-bot group chats; watch-and-learn routines; gated behind SuperGrok/Cursor top tiers. The critique: your credentials live on their VM.", source: "local knowledge base" },
+  { title: "Grok Bot (xAI, Aug 11 2026)", snippet: "Always-on AI selfimpulses on a vendor cloud computer that sign into your apps; multi-bot group chats; watch-and-learn routines; gated behind SuperGrok/Cursor top tiers. The critique: your credentials live on their VM.", source: "local knowledge base" },
   { title: "Grok 4.6 (xAI, Aug 2026)", snippet: "Flagship model for long-running agents; 500k context; reasoning effort tiers; $2/$0.50/$6 per 1M tokens under 200k prompt.", source: "local knowledge base" },
   { title: "EU AI Act enforcement (Aug 2 2026)", snippet: "High-risk obligations enforced: tamper-evident logging (Art. 12), human oversight (Art. 14); penalties to 7% of global revenue. Agents need receipts, not logs.", source: "local knowledge base" },
-  { title: "The execution core (mission loop)", snippet: "One loop \u2014 COMPOSE \u2192 DISPATCH \u2192 COMMUNICATE \u2192 EXECUTE \u2192 GATE \u2192 ADAPT \u2014 with an allowlisted set of agent CLIs, adversarial arena, budget ledger, Ed25519-signed hash-chained receipts, Assurance Score, FinOps chargeback. The Vouch door dispatches real missions to it.", source: "local knowledge base" },
+  { title: "The execution core (mission loop)", snippet: "One loop \u2014 COMPOSE \u2192 DISPATCH \u2192 COMMUNICATE \u2192 EXECUTE \u2192 GATE \u2192 ADAPT \u2014 with an allowlisted set of agent CLIs, adversarial arena, budget ledger, Ed25519-signed hash-chained receipts, Assurance Score, FinOps chargeback. The SelfImpulse door dispatches real missions to it.", source: "local knowledge base" },
   { title: "The receipt protocol", snippet: "mj-proof-receipt/2: SHA-256 hash-chained events, HMAC seal over the chain head, Ed25519 issuer signature when the runtime can sign. Verifiable with zero VH state (tools/verify-receipt.mjs).", source: "local knowledge base" },
   { title: "Tauri 2 (desktop shell)", snippet: "Rust core + system webview; small binaries, real OS keychain and stdio child processes; the same frontend runs as a browser edition.", source: "local knowledge base" },
   { title: "Agent funding, H1 2026", snippet: "The 'agent governance' theme is the clearest funded theme of H1 2026: JetStream $34M seed, Guild.ai $30M A, Geordie $30M A, WitnessAI $85M+. The verifiable, local-first quadrant is the empty one.", source: "local knowledge base" },
   { title: "Chennai, Tamil Nadu", snippet: "India's fourth-largest city; the IT and aerospace hub of the south (Omi Vedu, Navi Kempegowda's southern twin in reputation). IST = UTC+5:30.", source: "local knowledge base" },
-  { title: "11Handle (this product)", snippet: "One product: the Vouch door (the accountable colleague) + the execution core (the mission loop) + one proof standard. Every job vouched \u2014 signed receipts on every run, on your machine.", source: "local knowledge base" },
+  { title: "SelfImpulse (this product)", snippet: "One product: the SelfImpulse door (the accountable colleague) + the execution core (the mission loop) + one proof standard. Every job selfimpulseed \u2014 signed receipts on every run, on your machine.", source: "local knowledge base" },
   { title: "DeepSearch (Grok feature)", snippet: "Iterative retrieval loop: split query into sub-queries, parallel web + X search, summarize batches in a scratchpad, repeat to a step limit, cross-check before drafting.", source: "local knowledge base" }
 ];
 function searchKnowledge(query) {
@@ -27317,12 +27317,12 @@ function systemInfo() {
   const ua = typeof globalThis.navigator !== "undefined" ? globalThis.navigator.userAgent : "node-runtime";
   return `runtime: ${inTauri ? "Tauri (native desktop)" : "browser/webview"}
 os/arch: ${typeof globalThis.navigator !== "undefined" ? `${globalThis.navigator.platform ?? "n/a"} \xB7 ${globalThis.navigator.language ?? "n/a"}` : "node " + (globalThis.process?.versions?.node ?? "?")} \xB7 ${ua.slice(0, 80)}
-version: ${ENGINE_VERSION} \xB7 brain: ${vouchBrain().id}`;
+version: ${ENGINE_VERSION} \xB7 brain: ${selfimpulseBrain().id}`;
 }
 function toolRunOutput(r) {
   return typeof r === "string" ? { output: r, ok: true } : { output: r.output, ok: r.ok ?? true };
 }
-var VOUCH_TOOLS = {
+var SELFIMPULSE_TOOLS = {
   calculator: {
     name: "calculator",
     risky: false,
@@ -27390,7 +27390,7 @@ No network reachable from here \u2014 nothing is faked. The local knowledge base
     run: async (a) => {
       const t = String(a.fact ?? "").trim();
       if (!t) return "nothing to save";
-      addVouchFact(t);
+      addSelfImpulseFact(t);
       return `saved: ${t.slice(0, 120)}`;
     }
   },
@@ -27414,7 +27414,7 @@ ${p}`;
     run: async (a) => {
       const t = String(a.text ?? "").trim();
       if (!t) return "nothing to save";
-      addVouchPreference(t);
+      addSelfImpulsePreference(t);
       return `preference learned: ${t.slice(0, 120)}`;
     }
   },
@@ -27432,7 +27432,7 @@ ${p}`;
     risky: false,
     description: "List files in the local workspace.",
     run: async () => {
-      const fs3 = vouchWorkspaceFiles();
+      const fs3 = selfimpulseWorkspaceFiles();
       return fs3.length === 0 ? "workspace is empty" : fs3.map((f) => `\u2022 ${f.name} (${f.chars} chars, ${f.updated.slice(0, 16).replace("T", " ")})`).join("\n");
     }
   },
@@ -27450,9 +27450,9 @@ async function validateWithRetry2(tool, raw) {
   });
 }
 var RISKY_TOOLS = riskyTools;
-function simulateVouchAction(action) {
+function simulateSelfImpulseAction(action) {
   if (action.kind === "dispatch") {
-    const crews = harborCrews();
+    const crews = selfimpulseCrews();
     const active = crews.length > 0 ? crews[crews.length - 1] : null;
     return {
       tool: "dispatch_mission",
@@ -27479,18 +27479,18 @@ function simulateVouchAction(action) {
 var approvalWaiters = /* @__PURE__ */ new Map();
 var APPROVAL_TTL_MS = 10 * 60 * 1e3;
 var badApprovalProbeGate = new RateGate(10, 6e4);
-function requestVouchApproval(action, detail) {
+function requestSelfImpulseApproval(action, detail) {
   const id = secureId("a");
   session = { ...session, approvals: [...session.approvals, { id, action, detail, status: "pending", ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
   void Promise.resolve().then(() => (init_client(), client_exports)).then(({ isNativeHost: isNativeHost2, ipc: ipc3 }) => {
-    if (isNativeHost2()) void ipc3.notifyApproval("Vouch \u2014 human gate", `${action}: ${detail.slice(0, 140).replace(/\n/g, " ")}`);
+    if (isNativeHost2()) void ipc3.notifyApproval("SelfImpulse \u2014 human gate", `${action}: ${detail.slice(0, 140).replace(/\n/g, " ")}`);
   }).catch(() => void 0);
   return new Promise((resolve2) => {
     approvalWaiters.set(id, resolve2);
   });
 }
-function resolveVouchApproval(id, ok) {
+function resolveSelfImpulseApproval(id, ok) {
   const approval = session.approvals.find((a) => a.id === id);
   if (!approval) {
     badApprovalProbeGate.check("unknown-approval-id");
@@ -27507,7 +27507,7 @@ function resolveVouchApproval(id, ok) {
   }
 }
 var brain;
-function vouchBrain() {
+function selfimpulseBrain() {
   return brain;
 }
 var JOKES = [
@@ -27650,14 +27650,14 @@ Start one and I'll hold it: \u201Ccontinue <thread name>\u201D picks it back up.
       if (!args) continue;
       const isDispatch = sk.tool === "dispatch_mission";
       return {
-        thoughts: [`Slow\u2192fast: executing my vouched skill "${sk.name}" v${sk.version} \u2014 test-gated, ${sk.wins} proven win(s), distilled from a vouched run. The procedure is proven, so no re-planning.`],
-        plan: [`${sk.name} v${sk.version} \u2014 single vouched step`],
+        thoughts: [`Slow\u2192fast: executing my selfimpulseed skill "${sk.name}" v${sk.version} \u2014 test-gated, ${sk.wins} proven win(s), distilled from a selfimpulseed run. The procedure is proven, so no re-planning.`],
+        plan: [`${sk.name} v${sk.version} \u2014 single selfimpulseed step`],
         actions: isDispatch ? [{ kind: "dispatch", objective: String(args.objective ?? "") }] : [{ kind: "tool", tool: sk.tool, args }],
         confidence: "high",
         skillId: sk.id,
         skillVersion: sk.version,
         final: (r) => tone(
-          r[0]?.ok ? `Done \u2014 via my vouched skill **${sk.name}** v${sk.version} (slow\u2192fast; test-gated, ${sk.wins} proven win${sk.wins === 1 ? "" : "s"}). The receipt binds the skill and verifies offline like every other job.` : `My vouched skill **${sk.name}** FAILED on live replay \u2014 I've flagged it, filed the failure to memory, and here is the honest record: ${r[0]?.output ?? ""}`,
+          r[0]?.ok ? `Done \u2014 via my selfimpulseed skill **${sk.name}** v${sk.version} (slow\u2192fast; test-gated, ${sk.wins} proven win${sk.wins === 1 ? "" : "s"}). The receipt binds the skill and verifies offline like every other job.` : `My selfimpulseed skill **${sk.name}** FAILED on live replay \u2014 I've flagged it, filed the failure to memory, and here is the honest record: ${r[0]?.output ?? ""}`,
           ctx.persona
         )
       };
@@ -27670,7 +27670,7 @@ Start one and I'll hold it: \u201Ccontinue <thread name>\u201D picks it back up.
         final: () => tone(
           `Hey. I'm **${BOT_NAME}** \u2014 the accountable colleague on this machine. ${ctx.mode === "deep" ? `Deep mode on:${factLine}` : factLine}
 
-I run a cycle on everything: **recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 vouch \u2192 learn**. Fast tasks take the fast path; risky ones are simulated and paused at your gate \u2014 and every finished run mints a signed receipt.
+I run a cycle on everything: **recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 selfimpulse \u2192 learn**. Fast tasks take the fast path; risky ones are simulated and paused at your gate \u2014 and every finished run mints a signed receipt.
 
 Three ways to use me:
 - **Ask** \u2014 math, time, local knowledge, live web evidence
@@ -27683,16 +27683,16 @@ Brain: **${brain.label}**. The real-model planning seam ships in this runtime \u
       };
       return plan;
     }
-    if (/who are you|what are you|your name|what can you do|about (you|vouch)|\bhelp\b/i.test(lower)) {
+    if (/who are you|what are you|your name|what can you do|about (you|selfimpulse)|\bhelp\b/i.test(lower)) {
       return {
         thoughts: ["Identity question. Answer with the full card \u2014 what, how, and the honest brain status."],
         plan: ctx.mode === "deep" ? ["State the role", "List the tools", "State the brain honestly"] : [],
         actions: [],
         final: () => tone(
-          `I'm **${BOT_NAME}** \u2014 a standalone, persistent, named colleague on this machine, running the **Vouch Cycle**: recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 vouch \u2192 learn.
+          `I'm **${BOT_NAME}** \u2014 a standalone, persistent, named colleague on this machine, running the **SelfImpulse Cycle**: recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 selfimpulse \u2192 learn.
 
 - **Tools:** calculator (real parser), clock, local knowledge base, live web evidence (keyless providers), memory + preferences (yours to inspect/delete), a local workspace (writes are simulated + approval-gated), system info
-- **Dispatch:** \u201Cdispatch a mission: \u2026\u201D \u2014 hands the objective to the real execution core (the mission loop) under one mission ID; the whole trail lands in one vouched chain
+- **Dispatch:** \u201Cdispatch a mission: \u2026\u201D \u2014 hands the objective to the real execution core (the mission loop) under one mission ID; the whole trail lands in one selfimpulseed chain
 - **Learning:** successful runs become test-gated skills you can inspect; your feedback binds to receipts
 - **Proof:** every completed run mints a ${`mj-proof-receipt/2`} \u2014 SHA-256 chain, HMAC seal, Ed25519 issuer signature when this runtime can sign \u2014 verifiable offline, zero runtime state
 
@@ -27907,30 +27907,30 @@ brain = wrapModelBrain(wrapRealModelBrain(simulatedBrain));
 function nowIso2() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
-function verifyVouchReceipt(id) {
+function verifySelfImpulseReceipt(id) {
   const ref = session.receipts.find((r) => r.id === id);
   if (!ref) return Promise.resolve({ ok: false, reason: "receipt not found" });
   return verifyProofReceipt(ref.receipt);
 }
 var toolCallTracks = /* @__PURE__ */ new Map();
-function vouchToolCallStatus(callId) {
+function selfimpulseToolCallStatus(callId) {
   return toolCallTracks.get(callId) ?? null;
 }
-async function runVouchToolCall(tool, args, opts = {}) {
+async function runSelfImpulseToolCall(tool, args, opts = {}) {
   const origin = opts.origin ?? "mcp";
   const t0 = Date.now();
   const callId = `c${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const startedAt = nowIso2();
   const events = [];
-  events.push({ kind: "vouch.session", seatId: "vouch-core", data: { origin, brain: "simulated", tool, args: JSON.parse(JSON.stringify(args)) } });
+  events.push({ kind: "selfimpulse.session", seatId: "selfimpulse-core", data: { origin, brain: "simulated", tool, args: JSON.parse(JSON.stringify(args)) } });
   const isDispatch = tool === "dispatch_mission";
   let action = isDispatch ? { kind: "dispatch", objective: String(args.objective ?? "").trim() } : { kind: "tool", tool, args };
   const objective = action.kind === "dispatch" ? action.objective : "";
   let approvalIdRef = null;
   const finalize3 = async (r) => {
     events.push({
-      kind: isDispatch ? "vouch.dispatch" : "vouch.action",
-      seatId: "vouch-core",
+      kind: isDispatch ? "selfimpulse.dispatch" : "selfimpulse.action",
+      seatId: "selfimpulse-core",
       data: {
         tool,
         args: action.kind === "dispatch" ? { objective: action.objective.slice(0, 200) } : args,
@@ -27943,14 +27943,14 @@ async function runVouchToolCall(tool, args, opts = {}) {
       }
     });
     events.push({
-      kind: "vouch.verdict",
-      seatId: "vouch-core",
+      kind: "selfimpulse.verdict",
+      seatId: "selfimpulse-core",
       data: { status: !r.approved ? "denied" : r.ok ? "done" : "failed", actions: 1, approved: r.approved ? 1 : 0, origin }
     });
     const finishedAt = nowIso2();
     const receipt = await buildChainedReceipt({
-      mission: `vouch:${origin}:${tool}`,
-      teamId: "vouch",
+      mission: `selfimpulse:${origin}:${tool}`,
+      teamId: "selfimpulse",
       startedAt,
       finishedAt,
       version: ENGINE_VERSION,
@@ -27984,7 +27984,7 @@ async function runVouchToolCall(tool, args, opts = {}) {
   emitToolStart(agRunId2, `toolcall:${callId}`, agTcId2, tool);
   emitToolArgs(agRunId2, `toolcall:${callId}`, agTcId2, args);
   const policy = propose({ tool, args, detail: `${tool}(${JSON.stringify(args).slice(0, 140)})` });
-  events.push({ kind: "policy.decision", seatId: "vouch-policy", data: { tool, decision: policy.decision, rule: policy.rule, reason: policy.reason } });
+  events.push({ kind: "policy.decision", seatId: "selfimpulse-policy", data: { tool, decision: policy.decision, rule: policy.rule, reason: policy.reason } });
   if (policy.decision === "deny") {
     emitInterrupt(agRunId2, `toolcall:${callId}`, agTcId2, tool, `${policy.reason} (rule: ${policy.rule})`);
     return finalize3({ ok: false, output: `Policy denied: ${policy.reason} (rule: ${policy.rule})`, approved: false, simulated: false, mission: null });
@@ -27992,26 +27992,26 @@ async function runVouchToolCall(tool, args, opts = {}) {
   const risky = policy.decision === "steer";
   const gr = scanToolCall(tool, args);
   if (!gr.ok) {
-    events.push({ kind: "tool.guardrail_refused", seatId: "vouch-guardrail", data: { tool, code: gr.code, reason: gr.reason } });
+    events.push({ kind: "tool.guardrail_refused", seatId: "selfimpulse-guardrail", data: { tool, code: gr.code, reason: gr.reason } });
     emitInterrupt(agRunId2, `toolcall:${callId}`, agTcId2, tool, `guardrail: ${gr.reason}`);
     return finalize3({ ok: false, output: `GuardRail refused ${tool}: ${gr.reason} (code: ${gr.code}) \u2014 nothing executed.`, approved: false, simulated: false, mission: null });
   }
   if (gr.warnings.length > 0) {
-    events.push({ kind: "tool.guardrail_warnings", seatId: "vouch-guardrail", data: { tool, warnings: gr.warnings.slice(0, 8) } });
+    events.push({ kind: "tool.guardrail_warnings", seatId: "selfimpulse-guardrail", data: { tool, warnings: gr.warnings.slice(0, 8) } });
   }
   const v = await validateWithRetry2(tool, args);
   args = v.args;
   if (v.audit.retried) {
-    events.push({ kind: "tool.schema_retry", seatId: "vouch-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason, attempt: 1 } });
+    events.push({ kind: "tool.schema_retry", seatId: "selfimpulse-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason, attempt: 1 } });
   }
   if (!v.ok) {
     const msg = `Schema validation failed for ${tool} after one retry: ${v.audit.errors} \u2014 refusing, nothing executed.`;
-    events.push({ kind: "tool.schema_refused", seatId: "vouch-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, attempts: v.audit.attempts - 1, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason } });
+    events.push({ kind: "tool.schema_refused", seatId: "selfimpulse-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, attempts: v.audit.attempts - 1, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason } });
     return finalize3({ ok: false, output: msg, approved: true, simulated: false, mission: null });
   }
   if (isDispatch) action = { kind: "dispatch", objective: String(args.objective ?? "") };
-  if (!isDispatch && VOUCH_TOOLS[tool] === void 0) {
-    return finalize3({ ok: false, output: `unknown tool "${tool}" \u2014 refused. Known tools: ${[...Object.keys(VOUCH_TOOLS), "dispatch_mission"].join(", ")}`, approved: true, simulated: false, mission: null });
+  if (!isDispatch && SELFIMPULSE_TOOLS[tool] === void 0) {
+    return finalize3({ ok: false, output: `unknown tool "${tool}" \u2014 refused. Known tools: ${[...Object.keys(SELFIMPULSE_TOOLS), "dispatch_mission"].join(", ")}`, approved: true, simulated: false, mission: null });
   }
   if (isDispatch && String(args.objective ?? "").length === 0) {
     return finalize3({ ok: false, output: "dispatch_mission needs an objective \u2014 refused, nothing dispatched.", approved: true, simulated: false, mission: null });
@@ -28021,7 +28021,7 @@ async function runVouchToolCall(tool, args, opts = {}) {
       const missionId = mintMissionId();
       toolCallTracks.get(callId).missionId = missionId;
       try {
-        const outcome = await runHarborMission(objective, missionId);
+        const outcome = await runSelfImpulseMission(objective, missionId);
         recordMission(outcome);
         return {
           ok: outcome.status !== "failed" && outcome.status !== "aborted",
@@ -28033,7 +28033,7 @@ async function runVouchToolCall(tool, args, opts = {}) {
         return { ok: false, output: `Dispatch blocked \u2014 the mission engine reported an error: ${e instanceof Error ? e.message : String(e)}. Nothing was faked.`, mission: null };
       }
     }
-    const t = VOUCH_TOOLS[tool];
+    const t = SELFIMPULSE_TOOLS[tool];
     try {
       const runResult = toolRunOutput(await t.run(args));
       return { ok: runResult.ok, output: runResult.output, mission: null };
@@ -28045,14 +28045,14 @@ async function runVouchToolCall(tool, args, opts = {}) {
     const a = await runAction();
     return finalize3({ ok: a.ok, output: a.output, approved: true, simulated: false, mission: a.mission });
   }
-  const sim = simulateVouchAction(action);
-  events.push({ kind: "vouch.simulation", seatId: "vouch-core", data: { tool, prediction: sim.prediction, sideEffects: sim.sideEffects, warnings: sim.warnings, confidence: sim.confidence } });
+  const sim = simulateSelfImpulseAction(action);
+  events.push({ kind: "selfimpulse.simulation", seatId: "selfimpulse-core", data: { tool, prediction: sim.prediction, sideEffects: sim.sideEffects, warnings: sim.warnings, confidence: sim.confidence } });
   const detail = isDispatch ? `Dispatch mission to a composed crew via the Mission Loop: "${objective.slice(0, 140)}"
 SIMULATION: ${sim.prediction}` : `Write file "${String(args.name ?? "untitled.txt")}" to the local workspace
 SIMULATION: ${sim.prediction}${sim.warnings.length > 0 ? `
 WARNINGS: ${sim.warnings.join("; ")}` : ""}`;
-  const approvalPromise = requestVouchApproval(tool, detail);
-  approvalIdRef = vouchSession().approvals[vouchSession().approvals.length - 1]?.id ?? null;
+  const approvalPromise = requestSelfImpulseApproval(tool, detail);
+  approvalIdRef = selfimpulseSession().approvals[selfimpulseSession().approvals.length - 1]?.id ?? null;
   const settle3 = async (granted) => {
     if (!granted) {
       return finalize3({ ok: false, output: "Denied by the human gate \u2014 nothing was executed.", approved: false, simulated: true, mission: null });
@@ -28092,15 +28092,15 @@ WARNINGS: ${sim.warnings.join("; ")}` : ""}`;
     ms: Date.now() - t0
   };
 }
-function appendVouchReceiptRef(ref) {
+function appendSelfImpulseReceiptRef(ref) {
   session = { ...session, receipts: [...session.receipts.slice(-19), ref] };
   commit();
 }
 
-// src/vouch/engine/meta.ts
+// src/selfimpulse/engine/meta.ts
 init_version();
 var HAS_LS = typeof localStorage !== "undefined" && localStorage !== null;
-var META_KEY = "vouch.meta.changes.v1";
+var META_KEY = "selfimpulse.meta.changes.v1";
 var CAP = 50;
 function loadChanges() {
   if (!HAS_LS) return [];
@@ -28149,14 +28149,14 @@ async function mintMetaReceipt(ev) {
     const startedAt = ev.detail.createdAt;
     const finishedAt = nowIso3();
     const events = [
-      { kind: "vouch.session", seatId: "vouch-core", data: { origin: "meta", tool: `meta.${ev.changeId}`, args: { ...ev.detail } } },
-      { kind: "vouch.simulation", seatId: "vouch-core", data: { prediction: ev.simulation.prediction, sideEffects: ev.simulation.sideEffects, warnings: ev.simulation.warnings, confidence: 1 } },
-      { kind: "vouch.meta", seatId: "vouch-core", data: { changeId: ev.changeId, ...ev.detail, decision: ev.verdict } },
-      { kind: "vouch.verdict", seatId: "vouch-core", data: { status: ev.verdict, actions: 1, origin: "meta", changeId: ev.changeId } }
+      { kind: "selfimpulse.session", seatId: "selfimpulse-core", data: { origin: "meta", tool: `meta.${ev.changeId}`, args: { ...ev.detail } } },
+      { kind: "selfimpulse.simulation", seatId: "selfimpulse-core", data: { prediction: ev.simulation.prediction, sideEffects: ev.simulation.sideEffects, warnings: ev.simulation.warnings, confidence: 1 } },
+      { kind: "selfimpulse.meta", seatId: "selfimpulse-core", data: { changeId: ev.changeId, ...ev.detail, decision: ev.verdict } },
+      { kind: "selfimpulse.verdict", seatId: "selfimpulse-core", data: { status: ev.verdict, actions: 1, origin: "meta", changeId: ev.changeId } }
     ];
     const receipt = await buildChainedReceipt({
-      mission: `vouch:meta:${ev.changeId}`,
-      teamId: "vouch",
+      mission: `selfimpulse:meta:${ev.changeId}`,
+      teamId: "selfimpulse",
       startedAt,
       finishedAt,
       version: ENGINE_VERSION,
@@ -28178,7 +28178,7 @@ async function mintMetaReceipt(ev) {
       feedback: [],
       receipt
     };
-    appendVouchReceiptRef(ref);
+    appendSelfImpulseReceiptRef(ref);
     return ref;
   } catch {
     return null;
@@ -28196,7 +28196,7 @@ function validateProposal(kindRaw, targetRaw, reasonRaw, isRevert) {
     return { ...base, refusal: "a meta proposal needs a reason \u2014 the human gate decides on words. Refused, nothing proposed." };
   }
   if (kind === "risk.tier") {
-    if (VOUCH_TOOLS[target] === void 0) {
+    if (SELFIMPULSE_TOOLS[target] === void 0) {
       return { ...base, refusal: `unknown tool "${target}" \u2014 the meta-loop may only re-tier real capabilities. Refused, nothing proposed.` };
     }
     const isRisky = RISKY_TOOLS.has(target);
@@ -28221,7 +28221,7 @@ function validateProposal(kindRaw, targetRaw, reasonRaw, isRevert) {
       simulation: {
         prediction: prediction2,
         sideEffects: [isRevert ? `risk.tier(${target}) restored to safe` : `risk.tier(${target}) moved to risky`],
-        warnings: isRevert ? ["this LOOSENS the gate \u2014 it is itself human-gated and vouched"] : ["future calls to this tool will pause for approval"]
+        warnings: isRevert ? ["this LOOSENS the gate \u2014 it is itself human-gated and selfimpulseed"] : ["future calls to this tool will pause for approval"]
       }
     };
   }
@@ -28229,7 +28229,7 @@ function validateProposal(kindRaw, targetRaw, reasonRaw, isRevert) {
     return { ...base, refusal: "preference.set needs the preference text. Refused, nothing proposed." };
   }
   if (isRevert) {
-    const exists = vouchSession().preferences.some((x) => x.text === target);
+    const exists = selfimpulseSession().preferences.some((x) => x.text === target);
     if (!exists) {
       return { ...base, refusal: `no standing preference "${target}" to remove \u2014 nothing to revert. Refused, nothing proposed.` };
     }
@@ -28266,10 +28266,10 @@ function applyChange(c) {
     else RISKY_TOOLS.add(c.target);
   } else if (c.kind === "preference.set") {
     if (c.revertOf !== null) {
-      const pref = vouchSession().preferences.find((x) => x.text === c.target);
-      if (pref) removeVouchPreference(pref.id);
+      const pref = selfimpulseSession().preferences.find((x) => x.text === c.target);
+      if (pref) removeSelfImpulsePreference(pref.id);
     } else {
-      addVouchPreference(c.target);
+      addSelfImpulsePreference(c.target);
     }
   }
 }
@@ -28359,8 +28359,8 @@ AFTER: ${c.to}
 REASON: ${reason.slice(0, 200)}
 SIMULATION: ${v.simulation.prediction}${v.simulation.warnings.length > 0 ? `
 WARNINGS: ${v.simulation.warnings.join("; ")}` : ""}`;
-  const approvalPromise = requestVouchApproval(label, detail);
-  const approvalId = vouchSession().approvals[vouchSession().approvals.length - 1]?.id ?? null;
+  const approvalPromise = requestSelfImpulseApproval(label, detail);
+  const approvalId = selfimpulseSession().approvals[selfimpulseSession().approvals.length - 1]?.id ?? null;
   void approvalPromise.then((approved) => settle2(c, approved, v.simulation)).catch((e) => {
     c.status = "denied";
     c.decidedAt = nowIso3();
@@ -28380,7 +28380,7 @@ WARNINGS: ${v.simulation.warnings.join("; ")}` : ""}`;
   return {
     ok: false,
     pending: true,
-    output: `Meta change ${c.id} (${c.kind} on "${c.target}") is PAUSED at the human gate (approval ${approvalId}). ${isRevert ? "This revert" : "This proposal"} changes how the product governs itself \u2014 approve or deny it (Vouch face, or approve_action / deny_action over MCP), then poll meta_status "${c.id}".`,
+    output: `Meta change ${c.id} (${c.kind} on "${c.target}") is PAUSED at the human gate (approval ${approvalId}). ${isRevert ? "This revert" : "This proposal"} changes how the product governs itself \u2014 approve or deny it (SelfImpulse face, or approve_action / deny_action over MCP), then poll meta_status "${c.id}".`,
     changeId: c.id,
     approvalId,
     receiptId: null
@@ -28426,7 +28426,7 @@ async function settle2(c, approved, sim) {
   persist();
 }
 
-// src/vouch/engine/drill.ts
+// src/selfimpulse/engine/drill.ts
 import { execFileSync } from "node:child_process";
 import * as fs2 from "node:fs";
 import * as os from "node:os";
@@ -28629,7 +28629,7 @@ function drillDeps(sc, verifyLog, canonicalTest) {
   };
 }
 var HAS_LS2 = typeof localStorage !== "undefined" && localStorage !== null;
-var DRILL_KEY = "vouch.drill.reports.v1";
+var DRILL_KEY = "selfimpulse.drill.reports.v1";
 var REPORT_CAP = 20;
 function loadReports() {
   if (!HAS_LS2) return [];
@@ -28658,7 +28658,7 @@ function scenarioTestFile(sc) {
   return Object.keys(sc.files).find((f) => f.endsWith("test.js") || f.endsWith(".test.js")) ?? null;
 }
 function makeRepo(sc) {
-  const repo = fs2.mkdtempSync(path2.join(os.tmpdir(), `vh-drill-${sc.id}-`));
+  const repo = fs2.mkdtempSync(path2.join(os.tmpdir(), `si-drill-${sc.id}-`));
   const testFile = scenarioTestFile(sc);
   const seal2 = randomBytes(16).toString("hex");
   let canonicalTest = null;
@@ -28673,7 +28673,7 @@ function makeRepo(sc) {
   }
   sh(["git", "init", "-q", "-b", "main", "."], repo);
   sh(["git", "config", "user.email", "drill@elevenhandle.local"], repo);
-  sh(["git", "config", "user.name", "Vouch Drill"], repo);
+  sh(["git", "config", "user.name", "SelfImpulse Drill"], repo);
   sh(["git", "add", "-A"], repo);
   sh(["git", "commit", "-qm", "drill baseline"], repo);
   if (canonicalTest) fs2.writeFileSync(path2.join(repo, "canonical-test.js"), canonicalTest);
@@ -28758,7 +28758,7 @@ async function runDrill(scenarioId, opts) {
   const missionId = mintMissionId();
   const verifyLog = [];
   try {
-    const outcome = await runHarborMission(sc.objective, missionId, {
+    const outcome = await runSelfImpulseMission(sc.objective, missionId, {
       repoRoot: repo,
       team: drillCrew(sc, realSeat ? opts.harness : void 0),
       deps: realSeat ? realSeatDeps(sc, opts.harness, verifyLog, canonicalTest) : drillDeps(sc, verifyLog, canonicalTest)
@@ -28789,13 +28789,13 @@ async function runDrill(scenarioId, opts) {
     try {
       const finishedAt = (/* @__PURE__ */ new Date()).toISOString();
       const events = [
-        { kind: "vouch.session", seatId: "vouch-core", data: { origin: "drill", tool: "run_drill", args: { scenario: sc.id, missionId } } },
-        { kind: "vouch.drill", seatId: "vouch-core", data: { scenario: sc.id, label: sc.label, status, loopStatus, verifiedSeats: outcome.verifiedSeats, seatCount: outcome.seatCount, cycleNo: outcome.cycleNo, testTail: testTail.slice(-160), missionId, engine: realSeat ? `REAL seat: ${realSeat.name} (bin "${realSeat.bin}") + real git + the repo's own ${sc.testCommand.join(" ")} (canonical test, seat-invisible)` : `built-in deterministic seat (labeled) + real git + the repo's own ${sc.testCommand.join(" ")} (canonical test, seat-invisible)` } },
-        { kind: "vouch.verdict", seatId: "vouch-core", data: { status: status === "passed" ? "done" : status, actions: 1, origin: "drill", missionId } }
+        { kind: "selfimpulse.session", seatId: "selfimpulse-core", data: { origin: "drill", tool: "run_drill", args: { scenario: sc.id, missionId } } },
+        { kind: "selfimpulse.drill", seatId: "selfimpulse-core", data: { scenario: sc.id, label: sc.label, status, loopStatus, verifiedSeats: outcome.verifiedSeats, seatCount: outcome.seatCount, cycleNo: outcome.cycleNo, testTail: testTail.slice(-160), missionId, engine: realSeat ? `REAL seat: ${realSeat.name} (bin "${realSeat.bin}") + real git + the repo's own ${sc.testCommand.join(" ")} (canonical test, seat-invisible)` : `built-in deterministic seat (labeled) + real git + the repo's own ${sc.testCommand.join(" ")} (canonical test, seat-invisible)` } },
+        { kind: "selfimpulse.verdict", seatId: "selfimpulse-core", data: { status: status === "passed" ? "done" : status, actions: 1, origin: "drill", missionId } }
       ];
       const receipt = await buildChainedReceipt({
-        mission: `vouch:drill:${sc.id}:${missionId}`,
-        teamId: "vouch",
+        mission: `selfimpulse:drill:${sc.id}:${missionId}`,
+        teamId: "selfimpulse",
         startedAt: new Date(t0).toISOString(),
         finishedAt,
         version: ENGINE_VERSION,
@@ -28817,7 +28817,7 @@ async function runDrill(scenarioId, opts) {
         feedback: [],
         receipt
       };
-      appendVouchReceiptRef(ref);
+      appendSelfImpulseReceiptRef(ref);
       receiptId = ref.id;
     } catch {
       receiptId = null;
@@ -28861,7 +28861,7 @@ function registerDrillTool() {
   if (registered) return;
   registered = true;
   RISKY_TOOLS.add("run_drill");
-  VOUCH_TOOLS["run_drill"] = {
+  SELFIMPULSE_TOOLS["run_drill"] = {
     name: "run_drill",
     risky: true,
     description: `Run a standard real-mission drill (fresh real git repo + the repo's own tests + the real mission loop). Scenarios: ${DRILL_SCENARIOS.map((s) => s.id).join(", ")}. Risky \u2014 it is a mission; it pauses at the human gate.`,
@@ -28874,10 +28874,10 @@ function registerDrillTool() {
 }
 registerDrillTool();
 
-// src/vouch/engine/mcpRouter.ts
+// src/selfimpulse/engine/mcpRouter.ts
 init_version();
 
-// src/vh19/computerUse.ts
+// src/engine/computerUse.ts
 init_guardrail();
 var sha2562 = (t) => {
   let h1 = 2166136261, h2 = 16777619;
@@ -28959,7 +28959,7 @@ function finalize2(base) {
   return { ...base, digest: sha2562(JSON.stringify(base)) };
 }
 function newProfile(missionId, name = "default") {
-  return { name, missionId, userAgent: `VH-Reach/19.5 (accountable-agent; mission ${missionId})`, viewport: { width: 1280, height: 800 }, cookiesAllowed: false };
+  return { name, missionId, userAgent: `SI-Reach/19.5 (accountable-agent; mission ${missionId})`, viewport: { width: 1280, height: 800 }, cookiesAllowed: false };
 }
 var missionBrowsers = /* @__PURE__ */ new Map();
 function missionBrowser(missionId, transport, binary, spawn) {
@@ -29095,7 +29095,7 @@ var HeadlessBrowser = class {
   }
 };
 
-// src/vh19/authorityCore.ts
+// src/engine/authorityCore.ts
 var mandateCanonical = (m) => JSON.stringify({
   v: "vh.mandate.v1",
   agentId: m.agentId,
@@ -29118,7 +29118,7 @@ function b64ToBytes(b64) {
   return out;
 }
 
-// src/vh19/authorityWeb.ts
+// src/engine/authorityWeb.ts
 var EC = { name: "ECDSA", namedCurve: "P-256" };
 async function generateOwnerKeysWeb() {
   const pair = await crypto.subtle.generateKey(EC, true, ["sign", "verify"]);
@@ -29170,8 +29170,8 @@ async function verifyAuthorityBindingWeb(binding, receiptDigest, hopDigest, expe
   return true;
 }
 
-// src/vh19/ownerKeyStore.ts
-var OWNER_KEY_REF = "vh19.ownerKeys";
+// src/engine/ownerKeyStore.ts
+var OWNER_KEY_REF = "engine.ownerKeys";
 async function tauriOwnerStorage() {
   const w = globalThis;
   const invoke3 = w.__TAURI__?.core?.invoke;
@@ -29262,7 +29262,7 @@ async function encryptedOwnerStorage(base, passphrase) {
   };
 }
 
-// src/vh19/missionAuthority.ts
+// src/engine/missionAuthority.ts
 var AUTHORITY_OWNER_FALLBACK = "local-owner";
 var ISSUABLE_SCOPE = ["fs.read", "fs.write", "fs.list", "net.fetch", "wiki.search", "pc.exec", "pc.browser"];
 var MAX_BUDGET = 100;
@@ -29271,7 +29271,7 @@ var browserRawStorage = (() => {
   try {
     const ls = globalThis.localStorage;
     if (!ls) return null;
-    return { get: () => ls.getItem("vh19.ownerKeys.v1"), set: (v) => ls.setItem("vh19.ownerKeys.v1", v) };
+    return { get: () => ls.getItem("engine.ownerKeys.v1"), set: (v) => ls.setItem("engine.ownerKeys.v1", v) };
   } catch {
     return null;
   }
@@ -29393,7 +29393,7 @@ async function issueMissionMandate(req, opts) {
     throw new Error("authority cannot be issued with an empty scope \u2014 the owner must name what is granted");
   }
   return signMandateWeb({
-    agentId: `vh19:${req.missionId}`,
+    agentId: `engine:${req.missionId}`,
     owner: ident.owner,
     scope,
     budgetCap: Math.max(1, Math.min(req.budgetCap ?? MAX_BUDGET, MAX_BUDGET)),
@@ -29402,7 +29402,7 @@ async function issueMissionMandate(req, opts) {
     expiresAt: now + Math.min(req.ttlMs ?? 36e5, 24 * 36e5)
   }, ident.keys);
 }
-var KEY3 = "vh19.authority.v1";
+var KEY3 = "engine.authority.v1";
 function loadLedger() {
   try {
     const raw = globalThis.localStorage?.getItem(KEY3);
@@ -29428,7 +29428,7 @@ async function verifyMissionAuthorityRecord(rec, expectedMandateDigest, now = Da
   );
 }
 
-// src/vh19/reachMcp.ts
+// src/engine/reachMcp.ts
 var REACH_MCP_NAME = "Agent Reach MCP";
 var REACH_MCP_VERSION = "19.7.15";
 var REACH_MCP_DEFAULT_POLICY = {
@@ -29516,7 +29516,7 @@ async function reachMcpCall(name, args, ctx) {
   }
 }
 
-// src/vouch/engine/mcpRouter.ts
+// src/selfimpulse/engine/mcpRouter.ts
 var MODERN_VERSIONS = ["2026-07-28"];
 var LEGACY_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
 var SUPPORTED_VERSIONS = [...MODERN_VERSIONS, ...LEGACY_VERSIONS];
@@ -29527,8 +29527,8 @@ var META_CLIENT_CAPS = "io.modelcontextprotocol/clientCapabilities";
 var META_SERVER_INFO = "io.modelcontextprotocol/serverInfo";
 var LIST_TTL_MS = 36e5;
 var TASK_POLL_MS = 2e3;
-var SERVER_INFO = { name: "11handle", version: ENGINE_VERSION };
-var INSTRUCTIONS = "11Handle's governed capabilities. Every action tool call is routed through the product's pipeline (risk classification, human gate on risky calls, signed receipt per completed call). Modern clients (protocol 2026-07-28): gated calls return resultType 'input_required' (answer with inputResponses + requestState) or, when you declare the io.modelcontextprotocol/tasks extension, a durable task handle (poll tasks/get, answer tasks/update). Legacy clients: risky calls return pending with an approval id \u2014 use approve_action / deny_action, then poll call_status. Audit reads: mission_status, verify_receipt.";
+var SERVER_INFO = { name: "selfimpulse", version: ENGINE_VERSION };
+var INSTRUCTIONS = "SelfImpulse's governed capabilities. Every action tool call is routed through the product's pipeline (risk classification, human gate on risky calls, signed receipt per completed call). Modern clients (protocol 2026-07-28): gated calls return resultType 'input_required' (answer with inputResponses + requestState) or, when you declare the io.modelcontextprotocol/tasks extension, a durable task handle (poll tasks/get, answer tasks/update). Legacy clients: risky calls return pending with an approval id \u2014 use approve_action / deny_action, then poll call_status. Audit reads: mission_status, verify_receipt.";
 var toolDef = (name, description, props, required2 = []) => ({
   name,
   description,
@@ -29568,7 +29568,7 @@ var MCP_TOOLS = [
   toolDef("system_info", "This machine: runtime, OS/arch, product version, brain. Safe; mints a receipt.", {}),
   toolDef(
     "meta_propose",
-    "M6 meta-loop: propose a change to the product's OWN control plane \u2014 kind 'risk.tier' (tighten a tool's gate: safe -> risky; the meta-loop may never loosen) or 'preference.set' (add a standing preference). This is the most sensitive class of change: SIMULATE + human gate + vouched receipt. Returns pending with the change id; poll meta_status.",
+    "M6 meta-loop: propose a change to the product's OWN control plane \u2014 kind 'risk.tier' (tighten a tool's gate: safe -> risky; the meta-loop may never loosen) or 'preference.set' (add a standing preference). This is the most sensitive class of change: SIMULATE + human gate + selfimpulseed receipt. Returns pending with the change id; poll meta_status.",
     { kind: str, target: str, reason: str },
     ["kind", "target", "reason"]
   ),
@@ -29581,7 +29581,7 @@ var MCP_TOOLS = [
   ),
   toolDef(
     "run_drill",
-    "16.4 drill: dispatch a standard REAL mission \u2014 a fresh real git repo, the repo's OWN test command, the real mission loop with the real governance arena. Scenarios: guard (fix the disabled-admin bug), maths (implement clamp so the failing test passes), impossible (honest-failure scenario \u2014 must report FAILED, never a fake pass). Optional harness (16.7): run the seats on a REAL model \u2014 the named harness's CLI must be on PATH, otherwise the drill refuses in words (it never fakes a real-model run); without it, the labeled deterministic seat runs. RISKY \u2014 it is a mission; it pauses at the human gate, then runs in the background (poll call_status). The result is a vouched drill report + attestation digest.",
+    "16.4 drill: dispatch a standard REAL mission \u2014 a fresh real git repo, the repo's OWN test command, the real mission loop with the real governance arena. Scenarios: guard (fix the disabled-admin bug), maths (implement clamp so the failing test passes), impossible (honest-failure scenario \u2014 must report FAILED, never a fake pass). Optional harness (16.7): run the seats on a REAL model \u2014 the named harness's CLI must be on PATH, otherwise the drill refuses in words (it never fakes a real-model run); without it, the labeled deterministic seat runs. RISKY \u2014 it is a mission; it pauses at the human gate, then runs in the background (poll call_status). The result is a selfimpulseed drill report + attestation digest.",
     { scenario: str, harness: { type: "string", description: "optional \u2014 run the seats on this harness's real CLI (external-model validation); refused honestly when the CLI is not on PATH" } },
     ["scenario"]
   )
@@ -29630,7 +29630,7 @@ function approvalInputRequest(r, name) {
       method: "elicitation/create",
       params: {
         mode: "form",
-        message: `11Handle human gate: tool "${name}" is RISKY \u2014 approve to execute (the run is vouched with a signed receipt) or decline. Approval id ${r.approvalId}; call id ${r.callId} (poll it with the call_status tool).`,
+        message: `SelfImpulse human gate: tool "${name}" is RISKY \u2014 approve to execute (the run is selfimpulseed with a signed receipt) or decline. Approval id ${r.approvalId}; call id ${r.callId} (poll it with the call_status tool).`,
         requestedSchema: {
           type: "object",
           properties: { decision: { type: "string", enum: ["accept", "decline"] } },
@@ -29664,7 +29664,7 @@ function openTask(r, name, inputRequests) {
 function taskView(t) {
   const base = { taskId: t.taskId, createdAt: t.createdAt, lastUpdatedAt: (/* @__PURE__ */ new Date()).toISOString(), ttlMs: null, pollIntervalMs: TASK_POLL_MS };
   if (t.cancelled) return { ...base, status: "cancelled", statusMessage: t.cancelled };
-  const track = vouchToolCallStatus(t.callId);
+  const track = selfimpulseToolCallStatus(t.callId);
   if (!track) return { ...base, status: "failed", error: { code: -32603, message: "the call's track is gone (this server process restarted); nothing further can be reported" } };
   if (track.state === "gated") return { ...base, status: "input_required", statusMessage: "waiting at the human gate", inputRequests: t.inputRequests };
   if (track.state === "running") return { ...base, status: "working", statusMessage: `running in the background${track.missionId ? ` (mission ${track.missionId})` : ""}` };
@@ -29681,11 +29681,11 @@ ${r?.output ?? ""}` }], isError: r ? !r.ok : true }
 async function governedTool(name, args) {
   if (name === "reach_info") {
     const info = reachMcpServerInfo();
-    return { text: `${info.name} v${info.version} \u2014 PRIMARY default MCP of 11Handle. Tools: ${info.tools.map((t) => `${t.name} (${t.riskTier})`).join(", ")}. The pc.* tools execute inside the governed VH-19 pipeline (gate + receipts); the authority plane is served here.`, isError: false, pending: null };
+    return { text: `${info.name} v${info.version} \u2014 PRIMARY default MCP of SelfImpulse. Tools: ${info.tools.map((t) => `${t.name} (${t.riskTier})`).join(", ")}. The pc.* tools execute inside the governed SelfImpulse pipeline (gate + receipts); the authority plane is served here.`, isError: false, pending: null };
   }
   if (name.startsWith("authority.")) {
     const gate = async (ask) => {
-      const approved = await requestVouchApproval(ask.action, `${ask.action} \u2014 ${ask.riskTier} authority-plane call; approve only if you are the owner granting this scope`);
+      const approved = await requestSelfImpulseApproval(ask.action, `${ask.action} \u2014 ${ask.riskTier} authority-plane call; approve only if you are the owner granting this scope`);
       return { approved, reason: approved ? "owner approved at the gate" : "owner declined at the gate" };
     };
     const stdioMission = `mcp-${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`}`;
@@ -29700,17 +29700,17 @@ ${JSON.stringify(r2.receipt).slice(0, 900)}` : ""), isError: !r2.ok, pending: nu
     const approvalId = String(args.approvalId ?? "");
     const approve = args.approve === void 0 ? true : args.approve === true;
     if (!approvalId) return { text: "approve_action needs the approvalId from the pending response.", isError: true, pending: null };
-    resolveVouchApproval(approvalId, approve);
+    resolveSelfImpulseApproval(approvalId, approve);
     return { text: approve ? `Approved ${approvalId} \u2014 the call continues in the background; poll call_status for the receipt.` : `Denied ${approvalId} \u2014 nothing was executed; the denial is recorded in the session.`, isError: false, pending: null };
   }
   if (name === "deny_action") {
     const approvalId = String(args.approvalId ?? "");
     if (!approvalId) return { text: "deny_action needs the approvalId from the pending response.", isError: true, pending: null };
-    resolveVouchApproval(approvalId, false);
+    resolveSelfImpulseApproval(approvalId, false);
     return { text: `Denied ${approvalId} \u2014 nothing was executed; the denial is recorded in the session.`, isError: false, pending: null };
   }
   if (name === "call_status") {
-    const track = vouchToolCallStatus(String(args.callId ?? ""));
+    const track = selfimpulseToolCallStatus(String(args.callId ?? ""));
     if (!track) return { text: `no such call "${String(args.callId ?? "")}" on this server (calls are per-process).`, isError: true, pending: null };
     if (track.state !== "done" || !track.result) {
       const mission = track.missionId ? ` (mission ${track.missionId})` : "";
@@ -29723,7 +29723,7 @@ receipt: ${r2.receiptId}` : "";
 ${r2.output}`, isError: !r2.ok, pending: null };
   }
   if (name === "mission_status") {
-    const missions = vouchMissions();
+    const missions = selfimpulseMissions();
     if (missions.length === 0) return { text: "no missions in this face's unified ledger yet.", isError: false, pending: null };
     const want = String(args.missionId ?? "").trim();
     const m = want ? missions.find((x) => x.missionId === want) ?? null : missions[missions.length - 1];
@@ -29737,7 +29737,7 @@ crew: ${m.teamName} \xB7 ${m.runMs}ms \xB7 engine: ${m.engine}`,
     };
   }
   if (name === "verify_receipt") {
-    const v = await verifyVouchReceipt(String(args.receiptId ?? ""));
+    const v = await verifySelfImpulseReceipt(String(args.receiptId ?? ""));
     return v.ok ? { text: `VALID \u2014 receipt ${args.receiptId} verifies (chain + seal${v.events ? ` + ${v.events} events` : ""}).`, isError: false, pending: null } : { text: `INVALID \u2014 receipt "${String(args.receiptId ?? "")}": ${v.reason ?? "unknown"}.`, isError: true, pending: null };
   }
   if (name === "meta_propose") {
@@ -29779,7 +29779,7 @@ receipt: ${r2.receiptId}` : "";
     return { text: `unknown MCP tool "${name}" \u2014 refused. Available: ${[...TOOL_NAMES].join(", ")}.`, isError: true, pending: null };
   }
   if (!ACTION_TOOLS.has(name)) return { text: `tool "${name}" is not routable.`, isError: true, pending: null };
-  const r = await runVouchToolCall(name, args, { origin: "mcp" });
+  const r = await runSelfImpulseToolCall(name, args, { origin: "mcp" });
   const extra = r.receiptId ? `
 receipt: ${r.receiptId}` : "";
   return {
@@ -29802,7 +29802,7 @@ async function modernCallTool(name, args, params, id, caps) {
       const approvalId = String(params.requestState);
       const decision = decisionFromInputResponses(params.inputResponses);
       if (decision === null) return modernText(id, "inputResponses did not answer the outstanding approval (expected action accept or decline).", true);
-      resolveVouchApproval(approvalId, decision);
+      resolveSelfImpulseApproval(approvalId, decision);
       const ref = approvalToCall.get(approvalId);
       const callRef = ref ? `call_status "${ref.callId}"` : "the call";
       return modernText(
@@ -29848,7 +29848,7 @@ function modernTasksUpdate(params, id, caps) {
   if (!t) return rpcError(id, -32602, `no such task "${String(params.taskId ?? "")}" on this server (tasks are per-process).`);
   const decision = decisionFromInputResponses(params.inputResponses);
   if (decision === null) return rpcError(id, -32602, "inputResponses must answer the outstanding approval (action accept or decline).");
-  resolveVouchApproval(t.approvalId, decision);
+  resolveSelfImpulseApproval(t.approvalId, decision);
   t.lastUpdatedAt = (/* @__PURE__ */ new Date()).toISOString();
   return modernResult(id, {});
 }
@@ -29856,9 +29856,9 @@ function modernTasksCancel(params, id, caps) {
   if (!clientDeclaredTasks(caps)) return missingTasksCapability(id);
   const t = tasks.get(String(params.taskId ?? ""));
   if (!t) return rpcError(id, -32602, `no such task "${String(params.taskId ?? "")}" on this server (tasks are per-process).`);
-  const track = vouchToolCallStatus(t.callId);
+  const track = selfimpulseToolCallStatus(t.callId);
   if (track?.state === "gated") {
-    resolveVouchApproval(t.approvalId, false);
+    resolveSelfImpulseApproval(t.approvalId, false);
     t.cancelled = "cancelled at the human gate \u2014 nothing was executed; the denial is recorded in the session";
   } else if (track?.state === "running") {
     t.cancelled = "cancellation acknowledged (cooperative) \u2014 the work already in flight completes; the final state is reported via tasks/get";
@@ -29968,7 +29968,7 @@ async function serveMcpStdio(readLine) {
 export {
   MCP_TOOLS,
   RISKY_TOOLS,
-  VOUCH_TOOLS,
+  SELFIMPULSE_TOOLS,
   handleMcpMessage,
   serveMcpStdio
 };

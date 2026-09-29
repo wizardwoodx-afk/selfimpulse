@@ -5,7 +5,7 @@
  * matching, network-behaviour controls, destructive-action gating, and output
  * caps) is adapted from agent-browser's documented security layer
  * (github.com/vercel-labs/agent-browser, `docs/src/app/security/page.mdx`,
- * Apache-2.0, Copyright 2025 Vercel, Inc.) and re-expressed as 11Handle's own
+ * Apache-2.0, Copyright 2025 Vercel, Inc.) and re-expressed as SelfImpulse's own
  * policy module. No source file was copied and no runtime dependency was added;
  * this is first-party TypeScript implementing the adopted model.
  *
@@ -23,8 +23,8 @@
  * NOT ADOPTED — the runtime:
  *   agent-browser is a native Rust CLI whose allowlist REJECTS persistent
  *   profiles, pre-existing CDP sessions, auto-connect and state replay while
- *   the allowlist is active. 11Handle's browser is profile-based
- *   (`src/vh19/browserWorkspace.ts`), so adopting that runtime would have
+ *   the allowlist is active. SelfImpulse's browser is profile-based
+ *   (`src/engine/browserWorkspace.ts`), so adopting that runtime would have
  *   disabled the feature it is meant to protect. The plan (§3) says to take the
  *   security patterns, not the framework — this module is that outcome.
  *

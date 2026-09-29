@@ -19,10 +19,10 @@ function ok(label: string, cond: boolean, detail = ""): void {
   else { failed++; failures.push(`${label}${detail ? ` — ${detail}` : ""}`); console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`); }
 }
 
-const { runMemberAgent } = await import("../src/vh19/agentLoop");
-const { replayGuardCheck, replayGuardStats, resetReplayGuard } = await import("../src/vh19/federation/live");
-const { pairKey } = await import("../src/vh19/vouchMesh");
-import type { ProviderConfig } from "../src/vh19/types";
+const { runMemberAgent } = await import("../src/engine/agentLoop");
+const { replayGuardCheck, replayGuardStats, resetReplayGuard } = await import("../src/engine/federation/live");
+const { pairKey } = await import("../src/engine/selfimpulseMesh");
+import type { ProviderConfig } from "../src/engine/types";
 
 const provider: ProviderConfig = { kind: "openai-compatible", baseUrl: "https://provider.example/v1", apiKey: "sk-test-abcdef123456", model: "probe-1" };
 

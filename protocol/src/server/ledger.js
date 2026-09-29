@@ -1,8 +1,8 @@
 import fs       from "node:fs";
 import path     from "node:path";
 import readline from "node:readline";
-import { sha256Hex, verify, sign as vhSign, GENESIS } from "../core/vh-crypto.js";
-import { VHTamperError, VHLedgerError } from "../core/vh-errors.js";
+import { sha256Hex, verify, sign as vhSign, GENESIS } from "../core/si-crypto.js";
+import { VHTamperError, VHLedgerError } from "../core/si-errors.js";
 import { log } from "./logger.js";
 
 const MAX_PAYLOAD_BYTES = 512 * 1024;
@@ -62,11 +62,11 @@ export class Ledger {
     this.seq              = 0;
     this._queue           = Promise.resolve();
     this._storage         = storage ?? new JsonlStorage(file);
-    this._harborKey       = null;
+    this._selfimpulseKey       = null;
     this._firstMetaSigSeq = null;
   }
 
-  setHarborKey(harborKey) { this._harborKey = harborKey; }
+  setSelfImpulseKey(selfimpulseKey) { this._selfimpulseKey = selfimpulseKey; }
 
   get length()   { return this.seq; }
   get lastHash() { return this.links.length ? this.links[this.links.length - 1].hash : GENESIS; }
@@ -98,10 +98,10 @@ export class Ledger {
 
       if (link.metaSig) {
         if (this._firstMetaSigSeq === null) this._firstMetaSigSeq = seq;
-        if (this._harborKey) {
+        if (this._selfimpulseKey) {
           const header = _linkHeader(link.seq, link.prev, link.hash, link.tsRecorded);
-          if (!(await verify(this._harborKey.jwk, header, link.metaSig)))
-            throw new VHTamperError(seq, "harbor meta-signature mismatch");
+          if (!(await verify(this._selfimpulseKey.jwk, header, link.metaSig)))
+            throw new VHTamperError(seq, "selfimpulse meta-signature mismatch");
         }
       } else if (this._firstMetaSigSeq !== null && this.requireMetaSig) {
         throw new VHTamperError(
@@ -146,16 +146,16 @@ export class Ledger {
     const tsRecorded = Date.now();
 
     let metaSig = null;
-    if (this._harborKey?.privateKey) {
+    if (this._selfimpulseKey?.privateKey) {
       const header = _linkHeader(seq, prev, hash, tsRecorded);
       try {
-        metaSig = await vhSign(this._harborKey.privateKey, header);
+        metaSig = await vhSign(this._selfimpulseKey.privateKey, header);
       } catch (e) {
         /* requireMetaSig=true: signing failure halts the append */
         if (this.requireMetaSig) {
           throw new VHLedgerError(
             `metaSig computation failed for seq ${seq}: ${e.message}. ` +
-            `Harbor key unavailable or corrupt. Set HANDLE_REQUIRE_META_SIG=false to skip (not recommended).`,
+            `SelfImpulse key unavailable or corrupt. Set HANDLE_REQUIRE_META_SIG=false to skip (not recommended).`,
           );
         }
         /* requireMetaSig=false: log the failure and continue without metaSig */
@@ -164,12 +164,12 @@ export class Ledger {
       if (metaSig && this._firstMetaSigSeq === null) this._firstMetaSigSeq = seq;
     } else if (this.requireMetaSig && this._firstMetaSigSeq !== null) {
       /*
-       * harborKey disappeared after firstMetaSigSeq was set.
+       * selfimpulseKey disappeared after firstMetaSigSeq was set.
        * This is a configuration error — refuse to write an unsigned link
        * into a ledger that has already established the metaSig invariant.
        */
       throw new VHLedgerError(
-        `Harbor key is unavailable but seq ${this._firstMetaSigSeq} established the metaSig ` +
+        `SelfImpulse key is unavailable but seq ${this._firstMetaSigSeq} established the metaSig ` +
         `requirement. Cannot append seq ${seq} without metaSig (requireMetaSig=true).`,
       );
     }
@@ -199,12 +199,12 @@ export class Ledger {
 
     let metaSigValid = 0;
     let metaSigTotal = 0;
-    if (this._harborKey) {
+    if (this._selfimpulseKey) {
       const withMeta = links.filter((l) => l.metaSig);
       metaSigTotal   = withMeta.length;
       for (const l of withMeta) {
         const header = _linkHeader(l.seq, l.prev, l.hash, l.tsRecorded);
-        if (await verify(this._harborKey.jwk, header, l.metaSig)) metaSigValid++;
+        if (await verify(this._selfimpulseKey.jwk, header, l.metaSig)) metaSigValid++;
       }
     }
 

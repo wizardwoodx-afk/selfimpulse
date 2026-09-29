@@ -37,8 +37,8 @@ import {
   teamIdFor,
   teamMemoryReport,
   teamRuns,
-} from "../src/vh19/teamEvolve";
-import type { RouteCandidate } from "../src/vh19/types";
+} from "../src/engine/teamEvolve";
+import type { RouteCandidate } from "../src/engine/types";
 
 let pass = 0;
 let fail = 0;

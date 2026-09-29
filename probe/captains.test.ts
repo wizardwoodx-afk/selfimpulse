@@ -1,5 +1,5 @@
 /**
- * VH-19 — Captains + failure-handling probe (19.1.0 "Shipyard").
+ * SelfImpulse — Captains + failure-handling probe (19.1.0 "Shipyard").
  *
  * Pins the lead layer (leads exist per domain, plans are real member plans,
  * reports are computed from real outcomes and never inflate status) and the
@@ -22,12 +22,12 @@ if (typeof globalThis.localStorage === "undefined") {
     },
   } as Storage;
 }
-import { CAPTAINS, buildCaptainReport, getCaptain, captainForDomain, captainForRoute, planDomainWork } from "../src/vh19/captains";
-import { classifyFailure, shouldRetry } from "../src/vh19/failures";
-import { SPECIALISTS } from "../src/vh19/registry";
-import { askVH19 } from "../src/vh19/generalist";
-import { clearTokenLedger, usageReport } from "../src/vh19/tokenOptim";
-import type { ProviderConfig } from "../src/vh19/types";
+import { CAPTAINS, buildCaptainReport, getCaptain, captainForDomain, captainForRoute, planDomainWork } from "../src/engine/captains";
+import { classifyFailure, shouldRetry } from "../src/engine/failures";
+import { SPECIALISTS } from "../src/engine/registry";
+import { askSelfImpulse19 } from "../src/engine/generalist";
+import { clearTokenLedger, usageReport } from "../src/engine/tokenOptim";
+import type { ProviderConfig } from "../src/engine/types";
 
 test("captains + failures — oversight that never fabricates", async () => {
   let pass = 0, fail = 0;
@@ -77,7 +77,7 @@ test("captains + failures — oversight that never fabricates", async () => {
   }));
 
   console.log("\n── 5. the generalist attaches both to every routed exit ──");
-  const resp = await askVH19({ text: "refactor the typescript types in the parser", userId: "probe-user" });
+  const resp = await askSelfImpulse19({ text: "refactor the typescript types in the parser", userId: "probe-user" });
   check("a routed response carries its captain report", resp.captain != null && resp.captain.captainId.startsWith("captain.") && resp.captain.members.length > 0, resp.outcome);
   check("a non-executed response carries classified failure advice", resp.failure != null && resp.failure.meaning.length > 20 && resp.outcome !== "answered");
   check("the captain report covers EVERY routed member (19.0.0 review fix)", (resp.captain?.members.length ?? 0) === resp.specialistIds.length);
@@ -105,7 +105,7 @@ test("captains + failures — oversight that never fabricates", async () => {
 
   clearTokenLedger();
   callNo = 0; calls.length = 0;
-  const multi = await askVH19({ text: MULTI_TEXT, userId: "probe-user" }, { provider: prov, fetchImpl: memberFetch });
+  const multi = await askSelfImpulse19({ text: MULTI_TEXT, userId: "probe-user" }, { provider: prov, fetchImpl: memberFetch });
   const nMem = multi.specialistIds.length;
   check("a multi-routed request makes ONE PROVIDER CALL PER MEMBER (+1 re-rank, +1 captain synthesis)", nMem > 1 && calls.length === nMem + 2, { routed: nMem, calls: calls.length });
   const memberAnswers = [...multi.reply.matchAll(/member answer #(\d+)/g)].map((m) => m[1]);
@@ -117,7 +117,7 @@ test("captains + failures — oversight that never fabricates", async () => {
   check("the run ends in the captain's OWN synthesis (19.3.0)", multi.synthesis !== undefined && multi.reply.includes("CAPTAIN-SYNTHESIS") && /^[0-9a-f]{64}$/.test(multi.synthesis?.digest ?? ""), multi.synthesis?.digest);
 
   callNo = 0; calls.length = 0; failCallNo = 2;
-  const partialRun = await askVH19({ text: MULTI_TEXT, userId: "probe-user" }, { provider: prov, fetchImpl: memberFetch });
+  const partialRun = await askSelfImpulse19({ text: MULTI_TEXT, userId: "probe-user" }, { provider: prov, fetchImpl: memberFetch });
   failCallNo = -1;
   const failedMember = partialRun.captain?.members.find((m) => m.outcome === "error");
   check("a member whose OWN call failed is recorded as error — never relabelled answered", partialRun.captain?.status === "partial" && failedMember !== undefined && (failedMember.note ?? "").includes("http-error"));
@@ -125,7 +125,7 @@ test("captains + failures — oversight that never fabricates", async () => {
   check("a partial run is still honestly executed (some member really ran)", partialRun.executed === true && partialRun.outcome === "answered");
 
   const downFetch = (async () => new Response(JSON.stringify({ error: "all down" }), { status: 500 })) as unknown as typeof fetch;
-  const dead = await askVH19({ text: MULTI_TEXT, userId: "probe-user" }, { provider: prov, fetchImpl: downFetch });
+  const dead = await askSelfImpulse19({ text: MULTI_TEXT, userId: "probe-user" }, { provider: prov, fetchImpl: downFetch });
   check("when NO member executes: error, executed:false, captain blocked — never a fake synthesis", dead.outcome === "error" && dead.executed === false && dead.captain?.status === "blocked");
 
   console.log(`\n${fail === 0 ? "✅" : "❌"} captains probe: ${pass} passed, ${fail} failed\n`);

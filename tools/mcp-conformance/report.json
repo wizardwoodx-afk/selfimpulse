@@ -1,5 +1,5 @@
 {
-  "suite": "11handle-mcp-conformance",
+  "suite": "selfimpulse-mcp-conformance",
   "spec": "Model Context Protocol",
   "eras": {
     "modern": "2026-07-28",
@@ -10,8 +10,8 @@
     "schema-2025-06-18.json": "af845e7e5b9d27107d1690f0936022546177a1403e63ffb11470135b296a2e01",
     "ext-tasks-2026-07-28.json": "bf30afb7ac251e3e22c037b7a685f60ef6603031b5484c0d08b1fa0bbe86d460"
   },
-  "totalChecks": 72,
-  "passed": 72,
+  "totalChecks": 73,
+  "passed": 73,
   "failed": 0,
   "checks": [
     {
@@ -443,6 +443,12 @@
     {
       "area": "response",
       "name": "legacy call_status poll 1 → CallToolResult",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "area": "response",
+      "name": "legacy call_status poll 2 → CallToolResult",
       "ok": true,
       "detail": ""
     }

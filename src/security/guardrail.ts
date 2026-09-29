@@ -1,5 +1,5 @@
 /**
- * 11Handle GuardRail — one decision seam in front of every action.
+ * SelfImpulse GuardRail — one decision seam in front of every action.
  *
  * The 17.6.2 governance pipeline (risk classification → human gate → signed
  * receipt) decides WHETHER an action may run. The GuardRail decides whether
@@ -241,7 +241,7 @@ export const callRateGate = new RateGate(120, 60_000);
 /**
  * The GuardRail's verdict on one proposed tool call. Applied BEFORE schema
  * validation and the human gate: a refusal here means the pipeline never
- * even simulates the action, and the refusal is still receipt-vouched by
+ * even simulates the action, and the refusal is still receipt-selfimpulseed by
  * the caller — the audit trail records guardrail denials like every other.
  */
 export function scanToolCall(tool: string, args: Record<string, unknown>): GuardrailVerdict {

@@ -26,7 +26,7 @@
  */
 
 export interface IssuerIdentity {
-  /** Stable id for this issuer key: "vh-issuer-" + first 12 hex chars of the public key. */
+  /** Stable id for this issuer key: "si-issuer-" + first 12 hex chars of the public key. */
   keyId: string;
   /** Hex-encoded 32-byte Ed25519 public key. This is what auditors receive. */
   publicKeyHex: string;
@@ -121,7 +121,7 @@ export async function ensureIssuerIdentity(): Promise<{ identity: IssuerIdentity
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity: IssuerIdentity = {
-          keyId: `vh-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `si-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? new Date(0).toISOString(),
         };
@@ -138,7 +138,7 @@ export async function ensureIssuerIdentity(): Promise<{ identity: IssuerIdentity
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity: IssuerIdentity = {
-      keyId: `vh-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `si-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: new Date().toISOString(),
     };

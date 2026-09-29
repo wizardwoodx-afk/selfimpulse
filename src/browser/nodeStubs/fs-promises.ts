@@ -20,7 +20,7 @@
 const unavailable = (fn: string): Promise<never> =>
   Promise.reject(
     new Error(
-      `node:fs/promises.${fn} is not available in the 11Handle web build — the WebView has no filesystem. ` +
+      `node:fs/promises.${fn} is not available in the SelfImpulse web build — the WebView has no filesystem. ` +
         `Run checkRunner from the Tauri desktop build, where it executes real commands.`,
     ),
   );

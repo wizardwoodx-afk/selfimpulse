@@ -1,7 +1,7 @@
 import { createRequire as __mjCreateRequire } from "node:module"; const require = __mjCreateRequire(import.meta.url);
 
-// src/vh19/tokenOptim.ts
-var LEDGER_KEY = "vh19.tokens.v1";
+// src/engine/tokenOptim.ts
+var LEDGER_KEY = "engine.tokens.v1";
 var LEDGER_CAP = 500;
 function estimateTokens(text) {
   return Math.ceil(text.length / 4);
@@ -60,7 +60,7 @@ function recordUsage(entry, now = () => /* @__PURE__ */ new Date()) {
   storage()?.setItem(LEDGER_KEY, JSON.stringify(list.slice(-LEDGER_CAP)));
 }
 
-// src/vh19/lotus.ts
+// src/engine/lotus.ts
 var LOTUS_MODES = ["conservative", "balanced", "aggressive", "auto"];
 var LOTUS_DEFAULT_MODE = "auto";
 var LOTUS_MIN_SAVE = 16;

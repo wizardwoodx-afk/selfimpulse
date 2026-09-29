@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 // src/mission/licensing.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 var TRIAL_DAYS = 14;
 var b64u = (bytes) => {
@@ -73,7 +73,7 @@ var section = (s) => console.log(`
 var ROOT = ".".length > 0 ? "." : process.cwd();
 function declareRootCheck() {
   if (!fs.existsSync(path.join(ROOT, "package.json"))) {
-    console.error("licensing: project root not found; rebuild with --define:HANDLE_ROOT");
+    console.error("licensing: project root not found; rebuild with --define:SI_ROOT");
     process.exit(2);
   }
 }
@@ -97,7 +97,7 @@ void (async () => {
   const wrongSecret = await issueLicenseKey(payload, "some-other-secret");
   const wv = await verifyLicenseKey(wrongSecret, NOW);
   ok("a key from another secret does not verify", wv.ok === false, JSON.stringify(wv));
-  ok("the embedded verification secret is the published one", VERIFY_SECRET === "vh-commercial-v1-offline", VERIFY_SECRET);
+  ok("the embedded verification secret is the published one", VERIFY_SECRET === "si-commercial-v1-offline", VERIFY_SECRET);
   ok("the legacy wire secret is preserved for pre-16.1 receipts", LEGACY_SEAL_SECRET === "mj-commercial-v1-offline", LEGACY_SEAL_SECRET);
   section("3. the edition clock is pure and honest");
   ok("valid pro license -> pro", computeEdition(NOW, payload, null) === "pro", "");

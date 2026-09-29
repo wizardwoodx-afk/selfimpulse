@@ -38,7 +38,7 @@ function mintSubject() {
   if (c && typeof c.getRandomValues === "function") c.getRandomValues(entropy);
   else for (let i = 0; i < entropy.length; i++) entropy[i] = Math.floor(Math.random() * 256);
   const hex = [...entropy].map((b2) => b2.toString(16).padStart(2, "0")).join("");
-  const subject2 = `vh-owner-${hex.slice(0, 16)}`;
+  const subject2 = `si-owner-${hex.slice(0, 16)}`;
   writeLs(SUBJECT_KEY, subject2);
   return subject2;
 }
@@ -180,7 +180,7 @@ function rotateSubject() {
 }
 
 // probe/identity.test.ts
-var ROOT = process.env.HANDLE_ROOT ? path.resolve(process.env.HANDLE_ROOT) : process.cwd();
+var ROOT = process.env.SI_ROOT ? path.resolve(process.env.SI_ROOT) : process.cwd();
 var readSrc = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 var passed = 0;
 var failed = 0;
@@ -216,12 +216,12 @@ console.log("== 1. no hardcoded USER constant remains");
 var storeSrc = readSrc("src/ui/store.ts");
 var settingsSrc = readSrc("src/ui/screens/Settings.tsx");
 ok("the store no longer exports a USER constant", !/export const USER\s*=/.test(storeSrc));
-ok("no call site passes a hardcoded 'vh-owner' as a userId", !/userId:\s*"vh-owner"/.test(storeSrc));
+ok("no call site passes a hardcoded 'si-owner' as a userId", !/userId:\s*"si-owner"/.test(storeSrc));
 ok("the store asks the identity seam for the subject", /identityProvider\(\)\.subject\(\)/.test(storeSrc), "the seam is imported but not used for attribution");
 ok(
   "a run with no subject is refused before the engine is called",
   /if \(!subject\)[\s\S]{0,400}?return;/.test(storeSrc),
-  "the send() path must gate on a subject before askVH19"
+  "the send() path must gate on a subject before askSelfImpulse19"
 );
 console.log("== 2. the local provider mints ONE stable subject");
 setIdentityProvider(new LocalIdentityProvider());
@@ -230,8 +230,8 @@ var a = p1.current();
 var b = p1.current();
 ok("a subject exists", !!a?.subject);
 ok("the subject is stable across calls", a?.subject === b?.subject);
-ok("the subject is namespaced to this product", /^vh-owner-[0-9a-f]{16}$/.test(a?.subject ?? ""), a?.subject);
-ok("it is not a bare random number", !/^vh-owner-\d{1,6}$/.test(a?.subject ?? ""));
+ok("the subject is namespaced to this product", /^si-owner-[0-9a-f]{16}$/.test(a?.subject ?? ""), a?.subject);
+ok("it is not a bare random number", !/^si-owner-\d{1,6}$/.test(a?.subject ?? ""));
 ok("the provider reports ready", p1.ready());
 ok("the subject accessor agrees with current()", p1.subject() === a?.subject);
 console.log("== 3. capabilities are a closed vocabulary and are granted here");
@@ -360,7 +360,7 @@ online = true;
 ok("when it comes back, the seam grants again", can("ask"), "recovering must not require a reinstall");
 console.log("== 8. back to local, and the handle writes through the seam");
 setIdentityProvider(new LocalIdentityProvider());
-ok("the local provider is installed again", identityProvider().current()?.subject?.startsWith("vh-owner-"));
+ok("the local provider is installed again", identityProvider().current()?.subject?.startsWith("si-owner-"));
 var saved = setOwnerDisplay("  Ravi  ");
 ok("a handle is saved", saved.ok);
 ok("the handle is trimmed", identityProvider().current()?.display === "Ravi", identityProvider().current()?.display);
@@ -383,7 +383,7 @@ console.log("== 10. rotating the subject is an identity CHANGE, and says so");
 var before = identityProvider().current()?.subject ?? "";
 var rot = rotateSubject();
 ok("rotation produces a new subject", rot.subject !== before, `${before} -> ${rot.subject}`);
-ok("the new subject has the same shape", /^vh-owner-[0-9a-f]{16}$/.test(rot.subject), rot.subject);
+ok("the new subject has the same shape", /^si-owner-[0-9a-f]{16}$/.test(rot.subject), rot.subject);
 ok("the rotation says earlier records keep the old subject", /remain attributed to the previous subject|not undone/i.test(rot.note), rot.note);
 ok("the rotation is immediate", identityProvider().current()?.subject === rot.subject);
 ok("the handle survives a rotation", identityProvider().current()?.display === "Ravi", "re-minting the id must not wipe the owner's name");

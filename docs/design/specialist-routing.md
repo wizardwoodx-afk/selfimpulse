@@ -15,7 +15,7 @@ different layers.
 
 ## 1. Catalog (static)
 
-The Catalog (`src/vh19/specialists/registry.ts`) is the static registry of
+The Catalog (`src/engine/specialists/registry.ts`) is the static registry of
 every specialist the product knows about. It is a data file, not a live pool.
 Adding a specialist to the catalog is a code change; it makes that
 specialist eligible to be routed to; it does not launch or reserve anything.
@@ -66,8 +66,8 @@ So the three numbers answer different questions:
 
 | Question                     | Answer        | Where                              |
 |------------------------------|---------------|------------------------------------|
-| How many specialists exist?   | Catalog size  | `src/vh19/specialists/registry.ts` |
-| How many are named in a plan? | ≤ 3           | `src/vh19/` (Top-K selector)       |
+| How many specialists exist?   | Catalog size  | `src/engine/specialists/registry.ts` |
+| How many are named in a plan? | ≤ 3           | `src/engine/` (Top-K selector)       |
 | How many can run at once?     | ≤ 25          | `CREW_MAX` in `src/mission/office.ts` |
 
 The promise to the user is: *the receipt always names exactly which 3

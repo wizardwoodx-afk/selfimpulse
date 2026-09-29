@@ -1,5 +1,5 @@
-// 11Handle — built on the MJ engine
-// Copyright (c) 2024-2026 K.S. / 11Handle. All Rights Reserved.
+// SelfImpulse — built on the MJ engine
+// Copyright (c) 2024-2026 K.S. / SelfImpulse. All Rights Reserved.
 
 /* Runtime polyfill — Promise.withResolvers is an ES2024 API (Chrome 119,
    Safari 17.4, Node 22). The bundled pdf.js worker calls it, and older Linux
@@ -26,9 +26,9 @@ if (typeof P.withResolvers !== "function") {
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import VouchApp from './App';
+import SelfImpulseApp from './App';
 import { ErrorBoundary } from './panels/ErrorBoundary';
-// 11Handle — one stylesheet. The design system lives in src/ui/vh.css; nothing else is imported.
+// SelfImpulse — one stylesheet. The design system lives in src/ui/vh.css; nothing else is imported.
 import './ui/vh.css';
 /* §13 — pdf.js parses inside a Worker in the browser and will not start without
  * one. The URL comes from the bundler, so it cannot drift from the shipped
@@ -96,8 +96,8 @@ try {
  * throw in the shell itself, so "reload" is offered rather than a dead app. */
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ErrorBoundary label="11Handle">
-      <VouchApp />
+    <ErrorBoundary label="SelfImpulse">
+      <SelfImpulseApp />
     </ErrorBoundary>
   </React.StrictMode>,
 );

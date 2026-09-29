@@ -25,7 +25,7 @@ import {
 } from "../src/mission/agentTeam";
 import type { HarnessId } from "../src/domain/harness";
 
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 const existsSync = (p: string): boolean => fs.existsSync(p);
 
 let pass = 0;

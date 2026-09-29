@@ -1,5 +1,5 @@
 /**
- * 11Handle — shell containment (the host-escape boundary).
+ * SelfImpulse — shell containment (the host-escape boundary).
  *
  * The security boundary of workspace-restricted execution is NOT "cwd is inside
  * the workspace" — a permitted `node`/`python` process inherits the user's OS

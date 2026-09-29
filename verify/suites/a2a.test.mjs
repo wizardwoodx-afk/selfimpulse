@@ -3,8 +3,8 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 // src/version.ts
 var ENGINE_VERSION = "19.7.15";
 var ENGINE_SHORT = "19.7";
-var ENGINE_CODENAME = "Handle";
-var PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+var ENGINE_CODENAME = "SelfImpulse";
+var PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
 
 // src/mission/a2a.ts
 function a2aEnabled() {

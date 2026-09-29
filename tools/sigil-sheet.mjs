@@ -20,9 +20,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = process.argv[2] ?? path.join(root, "sigil-sheet.html");
 const count = Number(process.argv[3] ?? 24);
 
-const tmp = path.join(os.tmpdir(), `vh-sigil-${process.pid}.mjs`);
+const tmp = path.join(os.tmpdir(), `si-sigil-${process.pid}.mjs`);
 buildSync({
-  entryPoints: [path.join(root, "src", "vh19", "federation", "sigil.ts")],
+  entryPoints: [path.join(root, "src", "engine", "federation", "sigil.ts")],
   bundle: true, platform: "node", format: "esm", packages: "external",
   outfile: tmp, logLevel: "error",
 });
@@ -31,7 +31,7 @@ fs.unlinkSync(tmp);
 
 const NAMES = [
   "owner:priya", "owner:ana", "owner:kenji", "owner:tom", "owner:rosa", "owner:ivan",
-  "harbor:reykjavik", "harbor:lisbon", "harbor:osaka", "harbor:denver", "harbor:nairobi", "harbor:quebec",
+  "selfimpulse:reykjavik", "selfimpulse:lisbon", "selfimpulse:osaka", "selfimpulse:denver", "selfimpulse:nairobi", "selfimpulse:quebec",
   "specialist:energy-systems.assess", "specialist:clinical-trials.verify", "specialist:payments.build",
   "specialist:rail-signalling.audit", "specialist:water-utilities.sustain", "specialist:taxation.design",
   "peer:acme-corp", "peer:northwind", "peer:helio-labs", "peer:brightwater", "peer:meridian", "peer:sable-group",
@@ -59,7 +59,7 @@ const sizeRow = [16, 24, 32, 48, 96]
   .join("\n");
 
 const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>11Handle — Federation sigils</title>
+<title>SelfImpulse — Federation sigils</title>
 <style>
   :root { --paper:#f7f5f1; --ink:#26231d; --line:#e8eaed; --muted:#8a8c96; }
   * { box-sizing:border-box; }

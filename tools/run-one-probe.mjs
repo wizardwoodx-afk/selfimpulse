@@ -38,7 +38,7 @@ buildSync({
   banner: {
     js: 'import { createRequire as __mjCreateRequire } from "node:module"; const require = __mjCreateRequire(import.meta.url);',
   },
-  define: { HANDLE_ROOT: JSON.stringify(root) },
+  define: { SI_ROOT: JSON.stringify(root) },
   outfile: outPath,
   logLevel: "error",
 });

@@ -3,7 +3,7 @@
  *
  * An earlier version of this file held a table of argv templates and described
  * itself as "the source of truth for how to invoke each CLI". There are no
- * CLIs. External coding-agent CLIs were removed from 11Handle in 19.7.15, and
+ * CLIs. External coding-agent CLIs were removed from SelfImpulse in 19.7.15, and
  * every agent now runs in-process on the owner's own provider key. What
  * survived is the part that was never about binaries:
  *

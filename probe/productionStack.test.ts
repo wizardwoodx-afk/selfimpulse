@@ -19,16 +19,16 @@ import {
   addProvider, listProviders, updateProvider, chatStep, pingProvider,
   modelPrefs, setModelPrefs, usageSummary, clearUsage, wrapModelBrain,
   keyRef, type LlmCaller, type ModelPrefs,
-} from "../src/vouch/engine/providers";
-import type { VouchBrain } from "../src/vouch/engine/vouch";
+} from "../src/selfimpulse/engine/providers";
+import type { SelfImpulseBrain } from "../src/selfimpulse/engine/selfimpulse";
 import { durableSave, durableResume, DoneLedger } from "../src/mission/durable";
 import { ConstraintLedger, askHuman, answerAsk, proofBeforeDone } from "../src/mission/discipline";
 import { TriggerEngine, type TriggerSpec } from "../src/mission/triggers";
-import { buildCatalog, importFromCatalog, sha256hex } from "../src/vouch/engine/skillStore";
+import { buildCatalog, importFromCatalog, sha256hex } from "../src/selfimpulse/engine/skillStore";
 import { ReceiptedBrowser, fetchModeDeps } from "../src/browser/receipted";
 
-declare const HANDLE_ROOT: string;
-const root = typeof HANDLE_ROOT !== "undefined" ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string;
+const root = typeof SI_ROOT !== "undefined" ? SI_ROOT : process.cwd();
 
 const store = (): Map<string, string> => new Map();
 
@@ -44,7 +44,7 @@ if (typeof (globalThis as { localStorage?: unknown }).localStorage === "undefine
   };
 }
 
-const fakeCaller = (answer = "1. read the state\n2. act under the gate\n3. vouch the receipt", fail = false): LlmCaller =>
+const fakeCaller = (answer = "1. read the state\n2. act under the gate\n3. selfimpulse the receipt", fail = false): LlmCaller =>
   async (req) => {
     if (fail) throw new Error("connection refused — the endpoint is down");
     assert.ok(req.secret_ref.startsWith("vh.providerkey."), "the call carries the keyRef (the key itself NEVER travels in the registry)");
@@ -74,7 +74,7 @@ describe("productionStack — the six production features", () => {
     updateProvider("openai-main", { enabled: true }, s);
     assert.match((await chatStep("hi", "cheap", { store: s })).refused as string, /no API key/, "missing key refused (BYOK)");
     // WORK: a real (fake-caller) tiered call — labeled, recorded
-    const { setProviderKey } = await import("../src/vouch/engine/providers");
+    const { setProviderKey } = await import("../src/selfimpulse/engine/providers");
     const { localDb } = await import("../src/ipc/localDb");
     const webRefusal = setProviderKey("openai-main", "sk-test");
     assert.equal(webRefusal.ok, false, "16.10.1: the web edition refuses CLOUD keys — nothing stored");
@@ -95,7 +95,7 @@ describe("productionStack — the six production features", () => {
     assert.equal(ping.ok, true);
     assert.match(ping.detail, /answered in/);
     // the brain wrapper: identity + labeled plan + refusal passthrough
-    const base: VouchBrain = { id: "simulated", label: "Simulated", decide: async () => ({ thoughts: [], plan: ["base step"], actions: [], final: () => "base" }) };
+    const base: SelfImpulseBrain = { id: "simulated", label: "Simulated", decide: async () => ({ thoughts: [], plan: ["base step"], actions: [], final: () => "base" }) };
     const off = wrapModelBrain(base, { prefs: { enabled: false }, store: s });
     assert.equal(off.id, "simulated", "off → base identity");
     const on = wrapModelBrain(base, { prefs: modelPrefs(s), store: s, caller: fakeCaller() });
@@ -114,7 +114,7 @@ describe("productionStack — the six production features", () => {
       restore: (st: { missionId: string }) => (st.missionId === "m1" ? { ok: true, errors: [] } : { ok: false, errors: [`state belongs to ${st.missionId}, not m1`] }),
     };
     const env = durableSave(rt as never, s as unknown as Storage);
-    assert.equal(env.format, "vh-durable-mission/1");
+    assert.equal(env.format, "si-durable-mission/1");
     const r = durableResume(rt as never, s as unknown as Storage);
     assert.equal(r.ok, true);
     assert.ok(r.ok && r.completedNodeIds.includes("n1"), "finished nodes are known — their work is not repeated");
@@ -181,7 +181,7 @@ describe("productionStack — the six production features", () => {
     const stripped = { ...cat, signature: null };
     const unsigned = await importFromCatalog(stripped, "s1");
     assert.equal(unsigned.ok, false);
-    assert.ok(!unsigned.ok && unsigned.refused.includes("UNSIGNED"), "an import nobody vouches for is refused");
+    assert.ok(!unsigned.ok && unsigned.refused.includes("UNSIGNED"), "an import nobody selfimpulsees for is refused");
     const tampered = { ...cat, skills: [{ ...cat.skills[0], title: "EVIL" }] };
     const t = await importFromCatalog(tampered as typeof cat, "s1");
     assert.equal(t.ok, false);
@@ -212,8 +212,8 @@ describe("productionStack — the six production features", () => {
     assert.match(r.detail, /refused/);
     // the wiring pins
     const root = process.cwd();
-    const vouchSrc = fs.readFileSync(path.join(root, "src", "vouch", "engine", "vouch.ts"), "utf8");
-    assert.ok(vouchSrc.includes("wrapModelBrain(wrapRealModelBrain(simulatedBrain))"), "model brain wraps the harness seam wraps the labeled core");
+    const selfimpulseSrc = fs.readFileSync(path.join(root, "src", "selfimpulse", "engine", "selfimpulse.ts"), "utf8");
+    assert.ok(selfimpulseSrc.includes("wrapModelBrain(wrapRealModelBrain(simulatedBrain))"), "model brain wraps the harness seam wraps the labeled core");
     // 19.7.12 (UI): this page was unmounted dead code since 19.6.6 and is now deleted; pin the seam it wrapped.
     assert.ok(!fs.existsSync(path.join(root, "src", "pages")), "the retired pages tree is gone (19.7.12 UI)");
     const rb = fs.readFileSync(path.join(root, "src", "browser", "receipted.ts"), "utf8");
@@ -224,9 +224,9 @@ describe("productionStack — the six production features", () => {
     const rustSrc = fs.readFileSync(path.join(root, "src-tauri", "src", "commands.rs"), "utf8");
     const runtimeSrc = fs.readFileSync(path.join(root, "src", "mission", "missionRuntime.ts"), "utf8");
     // 19.7.12 (UI): this page was unmounted dead code since 19.6.6 and is now deleted; pin the seam it wrapped.
-    const opsSrc = fs.readFileSync(path.join(root, "src", "vouch", "engine", "vouch.ts"), "utf8") + fs.readFileSync(path.join(root, "src", "vouch", "engine", "skillStore.ts"), "utf8");
+    const opsSrc = fs.readFileSync(path.join(root, "src", "selfimpulse", "engine", "selfimpulse.ts"), "utf8") + fs.readFileSync(path.join(root, "src", "selfimpulse", "engine", "skillStore.ts"), "utf8");
     const browserSrc = fs.readFileSync(path.join(root, "src", "browser", "receipted.ts"), "utf8") + fs.readFileSync(path.join(root, "src", "ipc", "client.ts"), "utf8");
-    const providersSrc = fs.readFileSync(path.join(root, "src", "vouch", "engine", "providers.ts"), "utf8");
+    const providersSrc = fs.readFileSync(path.join(root, "src", "selfimpulse", "engine", "providers.ts"), "utf8");
 
     // ── 1. DURABLE: the storage adapter is structurally correct now ──
     // A REAL Storage shape (getItem/setItem — what localStorage actually is)
@@ -248,7 +248,7 @@ describe("productionStack — the six production features", () => {
     assert.ok(runtimeSrc.includes("this.doneLedger.markDone(doneKey, true)"), "the once-guard marks VERIFIED completions only");
 
     // ── 2. PROVIDERS: the web edition holds NO cloud keys — in words ──
-    const { setProviderKey } = await import("../src/vouch/engine/providers");
+    const { setProviderKey } = await import("../src/selfimpulse/engine/providers");
     const { localDb } = await import("../src/ipc/localDb");
     const refused = setProviderKey("cloud-x", "sk-secret", "openai");
     assert.equal(refused.ok, false, "a cloud key on the web is refused");
@@ -260,7 +260,7 @@ describe("productionStack — the six production features", () => {
     // the review's exact scenario: the DEFAULT registry path (what the UI
     // calls) against a REAL getItem/setItem store — 16.10.1 threw TypeError
     // here (silent [] on read, a thrown write); now it round-trips.
-    const { listProviders, addProvider, removeProvider } = await import("../src/vouch/engine/providers");
+    const { listProviders, addProvider, removeProvider } = await import("../src/selfimpulse/engine/providers");
     const added = addProvider({ id: "web-local", kind: "ollama", label: "Ollama (this machine)", defaultModel: "llama3.1" });
     assert.ok(!("error" in added), "addProvider works through the DEFAULT store — no thrown write");
     assert.ok(listProviders().some((x) => x.id === "web-local"), "the registry round-trips the DEFAULT path — no silent []");
@@ -268,7 +268,7 @@ describe("productionStack — the six production features", () => {
     assert.ok(!listProviders().some((x) => x.id === "web-local"), "the removal actually persisted");
 
     // ── 3. SKILL STORE: import mutates a REAL genome registry, persisted ──
-    const { buildCatalog } = await import("../src/vouch/engine/skillStore");
+    const { buildCatalog } = await import("../src/selfimpulse/engine/skillStore");
     const cat = await buildCatalog([{ id: "hard1", title: "Clamp", objective: "add clamp", when: "like: clamp", steps: ["write", "test"], provenance: { missionId: "msn-77", verifiedSeats: ["writer"], version: "1" } }]);
     const reg: { genomes: Map<string, { id: string; status: string; version: number }> } = { genomes: new Map() };
     const imported = await importFromCatalog(cat, "hard1", cat.signature?.publicKeyHex, { registry: reg as never });

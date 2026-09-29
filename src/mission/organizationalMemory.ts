@@ -6,7 +6,7 @@
  *
  * VH's Organizational Memory Cortex extracts verified failure-to-repair causal
  * chains from the Flight Recorder, distills empirical invariants, and automatically
- * compiles them into machine-readable briefings (`.vh-brief/LEARNED_INVARIANTS.md`)
+ * compiles them into machine-readable briefings (`.si-brief/LEARNED_INVARIANTS.md`)
  * and `AGENTS.md` before subsequent missions execute.
  */
 

@@ -6,7 +6,7 @@
  * prior `success` row — which let a RECORD stand in for a DECISION.
  *
  * Terminology, kept precise throughout this file: each side's approval is signed
- * by that harbor's OWNER AUTHORITY KEY and names the human it acts on behalf of.
+ * by that selfimpulse's OWNER AUTHORITY KEY and names the human it acts on behalf of.
  * The suite pins both halves — see §8b for what an approval proves, and what it
  * does not. §2 below
  * inserts exactly that row, presents exactly no approval, and requires the
@@ -19,26 +19,26 @@ import assert from "node:assert/strict";
 import {
   CROSSING_FORMAT, DEFAULT_ENVELOPE_TTL_MS, openCrossing, verifyEnvelope, crossFederation, decideCrossing,
   type CrossingEnvelope,
-} from "../src/vh19/federation/bridge";
-import { memoryApprovalLedger, APPROVAL_ATTESTATION, APPROVAL_NOT_ATTESTED } from "../src/vh19/federation/approval";
-import { keyHandle } from "../src/vh19/federation/identity";
-import { generateOwnerKeysWeb } from "../src/vh19/authorityWeb";
-import { pairKey } from "../src/vh19/vouchMesh";
-import { pureSha256 } from "../src/vh19/pureHash";
-import type { PairStanding } from "../src/vh19/reach/delegationGrant";
+} from "../src/engine/federation/bridge";
+import { memoryApprovalLedger, APPROVAL_ATTESTATION, APPROVAL_NOT_ATTESTED } from "../src/engine/federation/approval";
+import { keyHandle } from "../src/engine/federation/identity";
+import { generateOwnerKeysWeb } from "../src/engine/authorityWeb";
+import { pairKey } from "../src/engine/selfimpulseMesh";
+import { pureSha256 } from "../src/engine/pureHash";
+import type { PairStanding } from "../src/engine/reach/delegationGrant";
 import {
   STANDING_FORMAT, OUT_OF_SCOPE_ESCALATE, STANDING_ATTESTATION, STANDING_NOT_ATTESTED,
   issueStandingGrant, verifyStandingGrant, authoriseUnderGrant, freshGrantUsage,
   revokeStandingGrant, standingAcknowledgement, standingDigest, standingNotice, type StandingGrantBody,
-} from "../src/vh19/federation/standing";
+} from "../src/engine/federation/standing";
 import {
   compareRoots, ledgerRoot, pairLedgerView, ledgerRowSentence, mirrorAttestation, mirrorVerifies,
   LEDGER_ATTESTATION, type PairLedgerEntry,
-} from "../src/vh19/federation/ledger";
+} from "../src/engine/federation/ledger";
 
 const AT = 1_760_000_000_000;
-const A = "harbor-alpha";
-const B = "harbor-beta";
+const A = "selfimpulse-alpha";
+const B = "selfimpulse-beta";
 const proven = () => "proven" as PairStanding;
 /** Deterministic ids for the probe only; the shipped default is CSPRNG. */
 const seq = (() => { let n = 0; return () => `id-${(n += 1).toString(36)}-9f2c1d4e6a8b0c3d`; })();
@@ -75,9 +75,9 @@ test("federated crossing — both owner keys approve, or nothing crosses", async
     if (!initiator.ok) throw new Error("initiator decision failed");
 
     /* The exact shape the alpha trusted: a ledger row saying a person at the
-       other harbor walked this pair through once already. Here it is nothing —
+       other selfimpulse walked this pair through once already. Here it is nothing —
        the responder brings no approval of its own. */
-    const priorSuccess = [{ kind: "success", pair: pairKey(A, B), note: "a person at harbor-beta walked this pair through once already" }];
+    const priorSuccess = [{ kind: "success", pair: pairKey(A, B), note: "a person at selfimpulse-beta walked this pair through once already" }];
     assert.equal(priorSuccess.length, 1, "the historical record is present and is ignored");
 
     const outcome = await crossFederation(
@@ -175,7 +175,7 @@ test("federated crossing — both owner keys approve, or nothing crosses", async
     const rb = await decideCrossing(env, "responder", "ana", kb, { entropy: seq, now: () => AT });
     if (!ia.ok || !rb.ok) throw new Error("decisions failed");
 
-    /* No standing injected: the module must consult VouchMesh, which on a
+    /* No standing injected: the module must consult SelfImpulseMesh, which on a
        fresh machine knows this pair not at all. */
     const outcome = await crossFederation(
       {
@@ -237,7 +237,7 @@ test("federated crossing — both owner keys approve, or nothing crosses", async
 
     /* The success line names the KEY as the approver and the human as the party
        authorised — it does not say "a human signed". */
-    assert.match(outcome.detail, /owner key of each harbor approved it, naming who authorised it/);
+    assert.match(outcome.detail, /owner key of each selfimpulse approved it, naming who authorised it/);
     assert.equal(/both humans (decided|signed)/.test(outcome.detail), false, "no surface may say a human signed it");
 
     assert.equal(outcome.attestation.attests, APPROVAL_ATTESTATION);
@@ -265,7 +265,7 @@ test("federated crossing — both owner keys approve, or nothing crosses", async
 
   await t.test("§9 TWO LOCAL STORES — distributed evidence, local trust, in the runtime", async () => {
     /* The reviewer's P1: one `standing` reader for both sides cannot express
-       two harbors whose local trust states disagree. Each side now reads its
+       two selfimpulses whose local trust states disagree. Each side now reads its
        OWN store, and the outcome records which store answered. */
     const env = await envelope("repo.write");
     const ia = await decideCrossing(env, "initiator", "priya", ka, { entropy: seq, now: () => AT });
@@ -311,7 +311,7 @@ test("federated crossing — both owner keys approve, or nothing crosses", async
     });
     assert.equal(responderSaysNo.status, "refused");
     assert.equal(responderSaysNo.reason, "responder-below-standing");
-    assert.equal(responderSaysNo.tierInitiator, "proven", "the initiator's own store vouched for the pair");
+    assert.equal(responderSaysNo.tierInitiator, "proven", "the initiator's own store selfimpulseed for the pair");
     assert.equal(responderSaysNo.tierResponder, "probation", "…and the responder's own store did not");
     assert.match(responderSaysNo.detail, /the responder's own local trust store \(lisbon\)/);
     assert.match(responderSaysNo.detail, /not the other side's \(reykjavik\)/);

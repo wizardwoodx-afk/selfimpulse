@@ -145,7 +145,7 @@ function resolveRole(configured) {
   return KNOWN_ROLES.includes(trimmed) ? trimmed : UNASSIGNED_ROLE;
 }
 var DEFAULT_POLICY_SOURCE = {
-  name: "11handle-baseline",
+  name: "selfimpulse-baseline",
   deny: [
     /* A seat that never declared a role gets no authority at all. This rule
      * exists because the shipped read rule below is deliberately role-INDEPENDENT:
@@ -182,7 +182,7 @@ var DEFAULT_POLICY_SOURCE = {
 var DEFAULT_POLICY = compile(DEFAULT_POLICY_SOURCE).policy;
 
 // probe/declarativePolicy.test.ts
-var ROOT = process.env.HANDLE_ROOT ?? process.cwd();
+var ROOT = process.env.SI_ROOT ?? process.cwd();
 var passed = 0;
 var failed = 0;
 var failures = [];

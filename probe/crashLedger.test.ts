@@ -75,14 +75,14 @@ ok("an empty message is safe", redact("") === "");
 console.log("== 2. frames — shape kept, noise dropped");
 const stack = [
   "TypeError: cannot read properties of undefined (reading 'map')",
-  "    at renderDesk (D:\\11handle-work\\src\\ui\\screens\\Specialists.tsx:83:12)",
+  "    at renderDesk (D:\\selfimpulse-work\\src\\ui\\screens\\Specialists.tsx:83:12)",
   "    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom.js:1:2)",
   "    at Array.map (<anonymous>)",
 ].join("\n");
 const frames = frameList(stack);
 ok("frames were extracted", frames.length >= 2, `got ${frames.length}`);
 ok("an app frame keeps its file and line", frames.some((f) => f.where.includes("Specialists.tsx") && f.line === 83), JSON.stringify(frames));
-ok("an app frame keeps only the last two path segments", !frames.some((f) => f.where.includes("11handle-work")));
+ok("an app frame keeps only the last two path segments", !frames.some((f) => f.where.includes("selfimpulse-work")));
 ok("a non-frame line is not invented", !frames.some((f) => f.line === 0 && f.where === ""));
 ok("frames are capped", frameList(Array.from({ length: 50 }, (_, i) => `    at f${i} (/a/b/c.ts:${i}:1)`).join("\n")).length <= 6);
 ok("a non-string stack yields no frames", frameList(undefined).length === 0);
@@ -92,7 +92,7 @@ console.log("== 3. append + read");
 const s = new MemStore();
 const a = await recordCrash({ kind: "render", where: "Specialists", error: new TypeError("x.map is not a function") }, s);
 ok("the first crash is recorded", a.ok, a.note);
-const b = await recordCrash({ kind: "engine", where: "askVH19", error: new Error("provider fetch failed") }, s);
+const b = await recordCrash({ kind: "engine", where: "askSelfImpulse19", error: new Error("provider fetch failed") }, s);
 ok("the second crash is recorded", b.ok);
 ok("two entries are stored", readCrashes(s).length === 2);
 ok("the first entry chains onto genesis", readCrashes(s)[0]!.prev === "genesis");
@@ -228,13 +228,13 @@ ok("the legacy file was upgraded to the wrapped shape on append", !Array.isArray
 
 console.log("== 10. export is self-describing and carries no user content");
 const e = new MemStore();
-await recordCrash({ kind: "engine", where: "askVH19", error: new Error("fetch https://api.example.com failed"), stack }, e);
+await recordCrash({ kind: "engine", where: "askSelfImpulse19", error: new Error("fetch https://api.example.com failed"), stack }, e);
 const rep = await exportCrashReport(e);
-ok("the report names the product", rep.product === "11Handle" && rep.engine === "MJ");
+ok("the report names the product", rep.product === "SelfImpulse" && rep.engine === "MJ");
 ok("the report carries the chain verdict", typeof rep.chain.ok === "boolean" && rep.chain.entries === 1);
 ok("the report carries the entries", rep.entries.length === 1);
 ok("the report has an export timestamp", !Number.isNaN(Date.parse(rep.exportedAt)));
-ok("the exported entry is redacted", !/11handle-work/.test(JSON.stringify(rep)), "an absolute build path leaked into the export");
+ok("the exported entry is redacted", !/selfimpulse-work/.test(JSON.stringify(rep)), "an absolute build path leaked into the export");
 
 console.log("== 10b. the export carries the chain verdict and the window fact");
 const wc = new MemStore();

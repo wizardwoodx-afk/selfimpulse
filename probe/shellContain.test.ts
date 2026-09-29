@@ -28,9 +28,9 @@ import {
   runContained,
 } from "../src/mission/shellContain";
 
-const root = process.env.HANDLE_ROOT ? path.resolve(process.env.HANDLE_ROOT as string) : process.cwd();
+const root = process.env.SI_ROOT ? path.resolve(process.env.SI_ROOT as string) : process.cwd();
 const read = (rel: string): string => fs.readFileSync(path.join(root, rel), "utf8");
-const MARKER = "S3CRET_11HANDLE_CANARY_f7a91c";
+const MARKER = "S3CRET_SELFIMPULSE_CANARY_f7a91c";
 
 let checks = 0;
 const ok = (cond: boolean, msg: string): void => {

@@ -1,5 +1,5 @@
 /**
- * §A2A RUNTIME — the ONE bootstrap that mounts a harbor on the A2A v1.0 wire.
+ * §A2A RUNTIME — the ONE bootstrap that mounts a selfimpulse on the A2A v1.0 wire.
  *
  * WHY THIS FILE EXISTS. Until 17.10.7 rev 3 the A2A stack was complete and
  * unreachable: `createA2AServer()` (transport), `makeDelegationHandler()`
@@ -14,8 +14,8 @@
  * This is the mount. One function, the whole ladder, in the order the product
  * claims it runs:
  *
- *     load harbor identity            → ECDSA P-256 keypair + fingerprint
- *     load the team this harbor speaks for
+ *     load selfimpulse identity            → ECDSA P-256 keypair + fingerprint
+ *     load the team this selfimpulse speaks for
  *     sign the A2A v1.0.0 card        → JWS over the canonical card bytes
  *     build the delegation handler    → receiver GuardRail + routing + gate
  *     attach the LiveBridge           → real TeamExecutor, real CLI, real git
@@ -25,7 +25,7 @@
  *
  * Everything below is Node-only by construction: the browser app cannot listen
  * on a port, so the mount lives in the host runtime (`npm run host` →
- * tools/vh-host.mjs) and in probes. The desktop face stays an A2A *client*
+ * tools/si-host.mjs) and in probes. The desktop face stays an A2A *client*
  * (discover → delegate → verify the returned receipt).
  *
  * HONESTY RULES, inherited from the bridge and restated here because this is
@@ -61,7 +61,7 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 import { secureId } from "../security/guardrail";
-import { addTeammate, createTeam, delegateViaA2A, harborCardForTeamV10, makeDelegationHandler, type DeclaredAuthority, type DelegationOutcome, type HarborTeam, type HumanGate, type ReceiverRiskMode, type RiskTier } from "./harborTeams";
+import { addTeammate, createTeam, delegateViaA2A, selfimpulseCardForTeamV10, makeDelegationHandler, type DeclaredAuthority, type DelegationOutcome, type SelfImpulseTeam, type HumanGate, type ReceiverRiskMode, type RiskTier } from "./selfimpulseTeams";
 import { createA2AServer, type A2AServerHandle } from "./a2aServer";
 import { signAgentCardV10, type AgentCardV10, type CardSigningIdentityV10 } from "./a2aV10";
 import type { BridgeConfig } from "./a2aBridge";
@@ -70,17 +70,17 @@ import type { CliResult, TeamRunnerDeps } from "./teamExecutor";
 import { scrubEnv } from "./sandbox";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   1 · HARBOR IDENTITY — the trust anchor the card is signed with
+   1 · SELFIMPULSE IDENTITY — the trust anchor the card is signed with
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const ECDSA = { name: "ECDSA", namedCurve: "P-256" } as const;
 
 /**
- * A harbor's card-signing identity: a real ECDSA P-256 keypair plus the
+ * A selfimpulse's card-signing identity: a real ECDSA P-256 keypair plus the
  * fingerprint a peer pins. Peers verify the card's JWS against `publicJwk`, so
  * any mutation of any card field after signing fails discovery.
  */
-export async function makeHarborIdentity(): Promise<CardSigningIdentityV10> {
+export async function makeSelfImpulseIdentity(): Promise<CardSigningIdentityV10> {
   const kp = await crypto.subtle.generateKey(ECDSA, true, ["sign", "verify"]);
   const publicJwk = (await crypto.subtle.exportKey("jwk", kp.publicKey)) as JsonWebKey;
   const fp = createHash("sha256").update(JSON.stringify(publicJwk)).digest("hex").slice(0, 16);
@@ -88,7 +88,7 @@ export async function makeHarborIdentity(): Promise<CardSigningIdentityV10> {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   2 · NODE EXECUTION DEPS — what lets a mounted harbor actually run a seat
+   2 · NODE EXECUTION DEPS — what lets a mounted selfimpulse actually run a seat
    ═══════════════════════════════════════════════════════════════════════════ */
 
 export interface NodeDepsOptions {
@@ -187,7 +187,7 @@ function spawnCli(
  * The host-side `TeamRunnerDeps`: real process spawning, real git, real fs,
  * and the repository's own test command as the verdict. This is the piece the
  * app's `hostRunnerDeps` cannot provide — that one rides the Tauri IPC layer on
- * desktop and simulates in the browser. A mounted A2A harbor needs the real
+ * desktop and simulates in the browser. A mounted A2A selfimpulse needs the real
  * thing, because the receipt it seals has to mean something.
  */
 export function nodeRunnerDeps(opts?: NodeDepsOptions): TeamRunnerDeps {
@@ -205,7 +205,7 @@ export function nodeRunnerDeps(opts?: NodeDepsOptions): TeamRunnerDeps {
         return {
           exitCode: 1,
           stdout: "",
-          stderr: "this A2A host has no provider key configured — pass --provider-key or set 11H_A2A_PROVIDER_KEY. No seat ran.",
+          stderr: "this A2A host has no provider key configured — pass --provider-key or set SI_A2A_PROVIDER_KEY. No seat ran.",
           durationMs: Date.now() - t0,
           timedOut: false,
         };
@@ -292,9 +292,9 @@ export interface RuntimeTeammateSpec {
 }
 
 export interface A2ARuntimeOptions {
-  /** This harbor's user identity — what inbound packets must be addressed to. */
-  harborUser: string;
-  /** The team this harbor speaks for. At least one teammate or routing fails. */
+  /** This selfimpulse's user identity — what inbound packets must be addressed to. */
+  selfimpulseUser: string;
+  /** The team this selfimpulse speaks for. At least one teammate or routing fails. */
   teammates: RuntimeTeammateSpec[];
   /** Bind host. Defaults to 127.0.0.1 — the server refuses to guess wider. */
   host?: string;
@@ -315,10 +315,10 @@ export interface A2ARuntimeOptions {
   port?: number;
   /**
    * Shared bearer token. Every JSON-RPC call must carry it. OMIT IT AND ONE IS
-   * MINTED: the harbor's card declares the `harborIdentity` scheme, and a card
+   * MINTED: the selfimpulse's card declares the `selfimpulseIdentity` scheme, and a card
    * that declares a scheme the listener does not enforce refuses everything —
    * so the honest choices are "enforce a token" or "publish a card that claims
-   * no security". A mounted harbor that silently accepted strangers' work would
+   * no security". A mounted selfimpulse that silently accepted strangers' work would
    * be the worst of the three, so that option does not exist here. The minted
    * token is reported on the handle and in `describe()` so the operator can hand
    * it to a peer.
@@ -340,7 +340,7 @@ export interface RuntimeDescriptor {
   mounted: true;
   product: string;
   version: string;
-  harborUser: string;
+  selfimpulseUser: string;
   /** The port this process actually bound — the one the signed card advertises. */
   port: number;
   interfaceUrl: string;
@@ -388,7 +388,7 @@ export interface RuntimeDescriptor {
     writerBin: string | null;
     reviewerBin: string | null;
     allowUnexecuted: boolean;
-    /** Why this harbor cannot execute, in words, when it cannot. */
+    /** Why this selfimpulse cannot execute, in words, when it cannot. */
     refusalReason: string | null;
   };
 }
@@ -401,11 +401,11 @@ export interface A2ARuntime {
   readonly identity: CardSigningIdentityV10;
   /** The bearer token a peer must present. Minted when none was configured. */
   readonly token: string;
-  readonly team: HarborTeam;
+  readonly team: SelfImpulseTeam;
   readonly server: A2AServerHandle;
   /** What is actually mounted, for the operator and for peer probes. */
   describe(): RuntimeDescriptor;
-  /** This harbor acting as the SENDER: discover a peer, delegate, verify. */
+  /** This selfimpulse acting as the SENDER: discover a peer, delegate, verify. */
   delegateTo(opts: {
     remoteRoot: string;
     remotePublicJwk: JsonWebKey;
@@ -413,7 +413,7 @@ export interface A2ARuntime {
     tier: RiskTier;
     /**
      * What the remote machine may do for this task. Required and explicit:
-     * this harbor's human is stating it, and the remote harbor will narrow it
+     * this selfimpulse's human is stating it, and the remote selfimpulse will narrow it
      * against its own bounds. A delegation that does not state its authority
      * is refused there by name, so there is nothing sensible to default to here.
      */
@@ -442,10 +442,10 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
   const log = opts.onLog ?? (() => undefined);
 
   /* 1 · identity ─────────────────────────────────────────────────────────── */
-  const identity = opts.identity ?? (await makeHarborIdentity());
+  const identity = opts.identity ?? (await makeSelfImpulseIdentity());
 
-  /* 2 · the team this harbor speaks for ──────────────────────────────────── */
-  let team = createTeam(opts.harborUser);
+  /* 2 · the team this selfimpulse speaks for ──────────────────────────────────── */
+  let team = createTeam(opts.selfimpulseUser);
   for (const spec of opts.teammates) {
     const added = addTeammate(team, {
       name: spec.name,
@@ -456,15 +456,15 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
     if (!added.ok) throw new Error(`teammate "${spec.name}" refused: ${added.reason}`);
     team = added.value.team;
   }
-  if (team.teammates.length === 0) throw new Error("a mounted harbor needs at least one teammate — routing has nothing to route to");
+  if (team.teammates.length === 0) throw new Error("a mounted selfimpulse needs at least one teammate — routing has nothing to route to");
 
   /* 3 · the interface URL, known before the card is signed ───────────────── */
   const port = opts.port && opts.port > 0 ? opts.port : await pickFreePort(host);
   const interfaceUrl = `http://${host}:${port}/`;
-  const unsigned = harborCardForTeamV10(team, interfaceUrl);
+  const unsigned = selfimpulseCardForTeamV10(team, interfaceUrl);
   const card = await signAgentCardV10(unsigned, identity);
 
-  /* 4 · the receiver ladder: GuardRail + routing + THIS harbor's gate ────── */
+  /* 4 · the receiver ladder: GuardRail + routing + THIS selfimpulse's gate ────── */
   const riskyGate = opts.riskyGate ?? "deny";
   const gate: HumanGate =
     typeof riskyGate === "function"
@@ -479,12 +479,12 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
 
   /* 6 · transport ────────────────────────────────────────────────────────── */
   const tokenMinted = opts.token === undefined;
-  const token = opts.token ?? `vh-${secureId("link")}`;
+  const token = opts.token ?? `si-${secureId("link")}`;
 
   /* PEER PAIRING STATE — live only while this process lives, which is the point.
    * The invitation is one record; a redeemed credential is added here and
-   * disappears with the host, so "which machines is this harbor paired with" has
-   * a truthful answer only while the harbor is up, and a stale credential cannot
+   * disappears with the host, so "which machines is this selfimpulse paired with" has
+   * a truthful answer only while the selfimpulse is up, and a stale credential cannot
    * outlive the machine that issued it. */
   let invitation: Invitation | null = null;
   let pairingCode: string | null = null;
@@ -493,7 +493,7 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
   // pairing. Minting a second one would mean two live codes, and "which code is
   // live?" is not a question a screen can answer honestly.
   if (opts.pairing === true) {
-    const minted = await createInvitation({ hostFp: identity.fp, harbor: team.user });
+    const minted = await createInvitation({ hostFp: identity.fp, selfimpulse: team.user });
     invitation = minted.invitation;
     pairingCode = minted.code;
   }
@@ -545,14 +545,14 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
   const runtime: { shutdownThenExit: () => Promise<void> } = {
     shutdownThenExit: async () => {
       try { await server.stop(); } catch { /* already down */ }
-      process.stdout.write("VH-A2A-STOPPED\n");
+      process.stdout.write("SI-A2A-STOPPED\n");
       process.exit(0);
     },
   };
   const boundPort = await server.start();
   if (boundPort !== port) throw new Error(`listener bound ${boundPort} but the signed card advertises ${port} — refusing to serve a card that lies about its own interface`);
   const baseUrl = server.baseUrl;
-  log(`a2a: mounted ${opts.harborUser} on ${baseUrl} (card ${cardUrlOf(baseUrl)}, identity ${identity.fp})`);
+  log(`a2a: mounted ${opts.selfimpulseUser} on ${baseUrl} (card ${cardUrlOf(baseUrl)}, identity ${identity.fp})`);
   if (tokenMinted) log(`a2a: no --token supplied, so this listener minted one — peers must present it (see describe().token)`);
 
   const bridge = opts.bridge ?? {};
@@ -567,7 +567,7 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
   if (!bridge.deps) missing.push("no execution deps");
   if (!bridge.harness) missing.push("no harness configured");
   if (bridge.harness && !canRunSeats) {
-    missing.push("no in-process seat runner on this host (set 11H_A2A_PROVIDER_KEY to run seats)");
+    missing.push("no in-process seat runner on this host (set SI_A2A_PROVIDER_KEY to run seats)");
   }
   if (!bridge.repoRoot) missing.push("no repository bound");
 
@@ -576,9 +576,9 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
       ? { offered: true, code: pairingCode, expiresAt: new Date(invitation.expiresAt).toISOString(), state: invitation.state, peers: peers.size }
       : { offered: false, code: null, expiresAt: null, state: "closed", peers: peers.size },
     mounted: true,
-    product: "11Handle",
+    product: "SelfImpulse",
     version: ENGINE_VERSION,
-    harborUser: team.user,
+    selfimpulseUser: team.user,
     port: boundPort,
     interfaceUrl,
     cardUrl: cardUrlOf(baseUrl),
@@ -604,7 +604,7 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
       writerBin: null,
       reviewerBin: null,
       allowUnexecuted: bridge.allowUnexecuted === true,
-      refusalReason: missing.length === 0 ? null : `this harbor cannot execute: ${missing.join("; ")} — delegations will be refused in words, never answered with a completion`,
+      refusalReason: missing.length === 0 ? null : `this selfimpulse cannot execute: ${missing.join("; ")} — delegations will be refused in words, never answered with a completion`,
     },
   });
 

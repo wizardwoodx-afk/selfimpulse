@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/vouch/ipc/client.ts
+// src/selfimpulse/ipc/client.ts
 var client_exports = {};
 __export(client_exports, {
   ipc: () => ipc,
@@ -20,7 +20,7 @@ function isNativeHost() {
 }
 var invoke, ipc;
 var init_client = __esm({
-  "src/vouch/ipc/client.ts"() {
+  "src/selfimpulse/ipc/client.ts"() {
     "use strict";
     invoke = (cmd, args) => {
       const internals = window.__TAURI_INTERNALS__;
@@ -50,9 +50,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-// src/vouch/engine/signing.ts
-var STORAGE_KEY = "vouch.issuerkey.v1";
-var KEYCHAIN_REF = "vouch.issuerkey.v1";
+// src/selfimpulse/engine/signing.ts
+var STORAGE_KEY = "selfimpulse.issuerkey.v1";
+var KEYCHAIN_REF = "selfimpulse.issuerkey.v1";
 async function keychainBridge() {
   if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return null;
   try {
@@ -106,7 +106,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vouch-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `selfimpulse-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -121,7 +121,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vouch-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `selfimpulse-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -164,11 +164,11 @@ async function verifyIssuerSignature(chainHashHex, sigHex, publicKeyHex) {
   }
 }
 
-// src/vouch/engine/proof.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+// src/selfimpulse/engine/proof.ts
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT = {
-  "vh-proof-receipt/2": VERIFY_SECRET,
+  "si-proof-receipt/2": VERIFY_SECRET,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET
 };
@@ -217,7 +217,7 @@ async function buildChainedReceipt(args) {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal,
@@ -226,7 +226,7 @@ async function buildChainedReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal,
@@ -273,9 +273,9 @@ describe("F16 \u2014 issuer signatures are verified on every wire format", () =>
       edition: "personal",
       events: [{ kind: "probe.event", seatId: "s1", data: { hello: "f16" } }]
     });
-    assert.equal(rc.format, "vh-proof-receipt/2");
+    assert.equal(rc.format, "si-proof-receipt/2");
   });
-  it("a forged signature on vh-proof-receipt/2 is REJECTED", async () => {
+  it("a forged signature on si-proof-receipt/2 is REJECTED", async () => {
     const rc = await buildChainedReceipt({
       mission: "enforcement-f16",
       teamId: "probe",
@@ -340,7 +340,7 @@ describe("F17 \u2014 one outcome classifier, denials never read as success", () 
 });
 describe("F5a \u2014 egress policy guards every outbound URL", () => {
   it("wiki.search checks the URL it actually fetches", () => {
-    const src = read("src/vh19/tools.ts");
+    const src = read("src/engine/tools.ts");
     const fn = src.slice(src.indexOf("async function execWikiSearch"));
     const guard = fn.indexOf("checkEgressUrl(");
     const fetch = fn.indexOf("await doFetch(");
@@ -349,12 +349,12 @@ describe("F5a \u2014 egress policy guards every outbound URL", () => {
     assert.ok(guard < fetch, "the egress guard runs after the fetch \u2014 that is not a guard");
   });
   it("net.fetch is still guarded", () => {
-    assert.match(read("src/vh19/tools.ts"), /const egress = checkEgressUrl\(url\)/);
+    assert.match(read("src/engine/tools.ts"), /const egress = checkEgressUrl\(url\)/);
   });
 });
 describe("F5b \u2014 an autonomy grant cannot open the gate for other domains", () => {
   it("the grant must cover every routed specialist", () => {
-    const src = read("src/vh19/generalist.ts");
+    const src = read("src/engine/generalist.ts");
     assert.ok(
       !/autonomyCovers\(userId, primaryCategory\)/.test(src),
       "autonomy is still decided from a single specialist"
@@ -362,7 +362,7 @@ describe("F5b \u2014 an autonomy grant cannot open the gate for other domains", 
     assert.match(src, /specialists\.every\(\(s\) => autonomyCovers\(userId, s\.category\)\)/);
   });
   it("worstTier still spans the whole routing", () => {
-    assert.match(read("src/vh19/generalist.ts"), /const worstTier = specialists\.some\(\(s\) => s\.riskTier === "critical"\)/);
+    assert.match(read("src/engine/generalist.ts"), /const worstTier = specialists\.some\(\(s\) => s\.riskTier === "critical"\)/);
   });
 });
 describe("F18 \u2014 the theme resolves before the first paint", () => {

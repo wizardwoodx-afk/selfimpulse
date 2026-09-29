@@ -1,11 +1,11 @@
 /**
- * 11Handle — M6 meta-loop probe (16.3.0, suite #87)
+ * SelfImpulse — M6 meta-loop probe (16.3.0, suite #87)
  *
  * The meta-loop is the product proposing changes to its OWN control plane.
  * The acceptance bar is deliberately strict, because a self-modifying
  * governance layer is a loop or a feature depending on these five:
  *
- *   1. PROPOSED IN WORDS  — a reason is mandatory; refusals are vouched
+ *   1. PROPOSED IN WORDS  — a reason is mandatory; refusals are selfimpulseed
  *   2. SIMULATED          — a dry-run prediction before the gate
  *   3. HUMAN-GATED        — the same gate primitive as every risky action;
  *                           the REVERT is gated too
@@ -14,7 +14,7 @@
  *   5. REVERSIBLE         — revert restores the exact previous state
  *
  * plus the tightening-only rule (the meta loop may add gates, never remove
- * them — loosening happens only via a gated, vouched revert).
+ * them — loosening happens only via a gated, selfimpulseed revert).
  *
  * The strongest assertions are BEHAVIORAL: after a risk.tier tightening is
  * applied, a call to that tool through the governed executor ACTUALLY
@@ -37,17 +37,17 @@ import {
   metaChanges,
   metaChange,
   currentGatedTools,
-} from "../src/vouch/engine/meta";
+} from "../src/selfimpulse/engine/meta";
 import {
   RISKY_TOOLS,
-  runVouchToolCall,
-  resolveVouchApproval,
-  vouchSession,
-  verifyVouchReceipt,
-} from "../src/vouch/engine/vouch";
+  runSelfImpulseToolCall,
+  resolveSelfImpulseApproval,
+  selfimpulseSession,
+  verifySelfImpulseReceipt,
+} from "../src/selfimpulse/engine/selfimpulse";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 async function pollMeta(changeId: string, timeoutMs = 15000): Promise<ReturnType<typeof metaChange>> {
@@ -61,37 +61,37 @@ async function pollMeta(changeId: string, timeoutMs = 15000): Promise<ReturnType
 }
 
 /* ── engine: the five properties, in-process ─────────────────────────────── */
-describe("M6 engine — propose → simulate → gate → apply → vouch → revert", () => {
-  it("a tightening is gated, applies the REAL control change, and is vouched", async () => {
+describe("M6 engine — propose → simulate → gate → apply → selfimpulse → revert", () => {
+  it("a tightening is gated, applies the REAL control change, and is selfimpulseed", async () => {
     assert.equal(RISKY_TOOLS.has("search"), false, "precondition: search starts safe");
     const p = await proposeMetaChange("risk.tier", "search", "probe: tighten search to prove the loop");
     assert.equal(p.pending, true, "meta changes are non-blocking at the gate");
     assert.ok(p.changeId && p.approvalId, "handles returned");
     assert.equal(metaChange(p.changeId)!.status, "proposed");
-    resolveVouchApproval(p.approvalId!, true);
+    resolveSelfImpulseApproval(p.approvalId!, true);
     const c = await pollMeta(p.changeId!);
     assert.equal(c.status, "applied");
     assert.equal(c.decision, "approved");
     assert.ok(c.receiptId, "the application mints a receipt");
     assert.equal(RISKY_TOOLS.has("search"), true, "the control plane changed: search is now risky");
     assert.ok(currentGatedTools().includes("search"), "the gated surface reports it");
-    const v = await verifyVouchReceipt(c.receiptId!);
+    const v = await verifySelfImpulseReceipt(c.receiptId!);
     assert.equal(v.ok, true, "the meta receipt verifies offline — " + JSON.stringify(v));
   });
 
   it("BEHAVIOR PROOF: a re-tiered tool now pauses at the human gate", async () => {
-    const r = await runVouchToolCall("search", { query: "does the loop work" }, { origin: "probe" });
+    const r = await runSelfImpulseToolCall("search", { query: "does the loop work" }, { origin: "probe" });
     assert.equal(r.pending, true, "search now GATES — the control change is real, not cosmetic");
-    resolveVouchApproval(r.approvalId!, true);
+    resolveSelfImpulseApproval(r.approvalId!, true);
     await sleep(400);
   });
 
-  it("the revert is itself gated, restores the exact state, and vouches itself", async () => {
+  it("the revert is itself gated, restores the exact state, and selfimpulsees itself", async () => {
     const origId = metaChanges().find((c) => c.status === "applied")!.id;
     const rv = await revertMetaChange(origId);
     assert.equal(rv.pending, true, "a revert is gated — it changes governance too");
     assert.ok(rv.changeId && rv.changeId !== origId, "the revert is its own audited entry");
-    resolveVouchApproval(rv.approvalId!, true);
+    resolveSelfImpulseApproval(rv.approvalId!, true);
     const rc = await pollMeta(rv.changeId!);
     assert.equal(rc.status, "applied", "the revert applied");
     assert.equal(rc.revertOf, origId, "the revert entry names what it reverts");
@@ -100,22 +100,22 @@ describe("M6 engine — propose → simulate → gate → apply → vouch → re
     assert.equal(orig.status, "reverted", "the original change is marked reverted");
     assert.ok(orig.revertedAt && orig.revertReceiptId, "with the revert's receipt bound to it");
     assert.equal(RISKY_TOOLS.has("search"), false, "the control plane is RESTORED");
-    const r2 = await runVouchToolCall("search", { query: "and is it reversible" }, { origin: "probe" });
+    const r2 = await runSelfImpulseToolCall("search", { query: "and is it reversible" }, { origin: "probe" });
     assert.equal(r2.pending, false, "search runs freely again — reversibility proven behaviorally");
-    const v = await verifyVouchReceipt(rc.receiptId!);
+    const v = await verifySelfImpulseReceipt(rc.receiptId!);
     assert.equal(v.ok, true, "the revert receipt verifies offline");
   });
 
-  it("the tightening-only rule: no demotions, no double reverts, no unknowns — all refused in words and vouched", async () => {
+  it("the tightening-only rule: no demotions, no double reverts, no unknowns — all refused in words and selfimpulseed", async () => {
     const d1 = await proposeMetaChange("risk.tier", "workspace_write", "try to loosen the gate");
     assert.equal(d1.ok, false);
     assert.ok(/already at the maximum gate/i.test(d1.output), d1.output);
-    assert.ok(d1.receiptId, "the refusal is vouched");
+    assert.ok(d1.receiptId, "the refusal is selfimpulseed");
 
     const d2 = await revertMetaChange("mc-does-not-exist");
     assert.equal(d2.ok, false);
     assert.ok(/unknown meta change/.test(d2.output));
-    assert.ok(d2.receiptId, "the refusal is vouched");
+    assert.ok(d2.receiptId, "the refusal is selfimpulseed");
 
     const appliedId = metaChanges().find((c) => c.status === "reverted")!.id;
     const d3 = await revertMetaChange(appliedId);
@@ -127,7 +127,7 @@ describe("M6 engine — propose → simulate → gate → apply → vouch → re
     assert.equal(d4.ok, false);
     assert.ok(/IS a revert/.test(d4.output), "reverts are terminal");
 
-    const d5 = await proposeMetaChange("self_upgrade", "vouch.ts", "nope");
+    const d5 = await proposeMetaChange("self_upgrade", "selfimpulse.ts", "nope");
     assert.equal(d5.ok, false);
     assert.ok(/unknown meta kind/.test(d5.output));
 
@@ -139,30 +139,30 @@ describe("M6 engine — propose → simulate → gate → apply → vouch → re
     assert.equal(RISKY_TOOLS.has("search"), false);
   });
 
-  it("preference.set: applied to the real session, reverted from it, both vouched", async () => {
+  it("preference.set: applied to the real session, reverted from it, both selfimpulseed", async () => {
     const p = await proposeMetaChange("preference.set", "always prefer concise answers in probes", "probe: standing preference");
     assert.equal(p.pending, true);
-    resolveVouchApproval(p.approvalId!, true);
+    resolveSelfImpulseApproval(p.approvalId!, true);
     const c = await pollMeta(p.changeId!);
     assert.equal(c.status, "applied");
-    assert.ok(vouchSession().preferences.some((x) => x.text === "always prefer concise answers in probes"), "RECALL now carries the preference");
+    assert.ok(selfimpulseSession().preferences.some((x) => x.text === "always prefer concise answers in probes"), "RECALL now carries the preference");
     const rv = await revertMetaChange(c.id);
     assert.equal(rv.pending, true);
-    resolveVouchApproval(rv.approvalId!, true);
+    resolveSelfImpulseApproval(rv.approvalId!, true);
     const rc = await pollMeta(rv.changeId!);
     assert.equal(rc.status, "applied");
-    assert.ok(!vouchSession().preferences.some((x) => x.text === "always prefer concise answers in probes"), "the revert removed it from the session");
+    assert.ok(!selfimpulseSession().preferences.some((x) => x.text === "always prefer concise answers in probes"), "the revert removed it from the session");
   });
 
-  it("a DENIED meta change changes nothing and is still vouched", async () => {
+  it("a DENIED meta change changes nothing and is still selfimpulseed", async () => {
     const p = await proposeMetaChange("preference.set", "a preference the human will refuse", "probe: denial path");
-    resolveVouchApproval(p.approvalId!, false);
+    resolveSelfImpulseApproval(p.approvalId!, false);
     const c = await pollMeta(p.changeId!);
     assert.equal(c.status, "denied");
     assert.equal(c.decision, "denied");
-    assert.ok(c.receiptId, "the denial is vouched");
-    assert.ok(!vouchSession().preferences.some((x) => x.text === "a preference the human will refuse"), "nothing was applied");
-    const v = await verifyVouchReceipt(c.receiptId!);
+    assert.ok(c.receiptId, "the denial is selfimpulseed");
+    assert.ok(!selfimpulseSession().preferences.some((x) => x.text === "a preference the human will refuse"), "nothing was applied");
+    const v = await verifySelfImpulseReceipt(c.receiptId!);
     assert.equal(v.ok, true);
   });
 
@@ -172,12 +172,12 @@ describe("M6 engine — propose → simulate → gate → apply → vouch → re
     let verified = 0;
     for (const c of all) {
       if (c.receiptId) {
-        const v = await verifyVouchReceipt(c.receiptId);
+        const v = await verifySelfImpulseReceipt(c.receiptId);
         assert.equal(v.ok, true, `receipt for ${c.id} (${c.status}) verifies — ${JSON.stringify(v)}`);
         verified++;
       }
     }
-    assert.ok(verified >= 8, `at least the decisions vouched: ${verified}`);
+    assert.ok(verified >= 8, `at least the decisions selfimpulseed: ${verified}`);
   });
 });
 

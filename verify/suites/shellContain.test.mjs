@@ -222,9 +222,9 @@ var ESCAPE_FIXTURES = [
 ];
 
 // probe/shellContain.test.ts
-var root = process.env.HANDLE_ROOT ? path2.resolve(process.env.HANDLE_ROOT) : process.cwd();
+var root = process.env.SI_ROOT ? path2.resolve(process.env.SI_ROOT) : process.cwd();
 var read = (rel) => fs.readFileSync(path2.join(root, rel), "utf8");
-var MARKER = "S3CRET_11HANDLE_CANARY_f7a91c";
+var MARKER = "S3CRET_SELFIMPULSE_CANARY_f7a91c";
 var checks = 0;
 var ok = (cond, msg) => {
   assert.ok(cond, msg);

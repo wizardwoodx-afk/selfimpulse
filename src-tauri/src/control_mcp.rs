@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-/// VH-authored Control MCP. In-process, stdio-shaped. Mutations are Plan → Apply → Verify.
+/// SI-authored Control MCP. In-process, stdio-shaped. Mutations are Plan → Apply → Verify.
 ///
 /// V7 rewrite (bug U). This module used to answer `ok: true` to every tool it advertised —
 /// `connect_ports`, `run_workflow`, `cancel_execution` and the rest all echoed their arguments

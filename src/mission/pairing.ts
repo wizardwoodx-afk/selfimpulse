@@ -50,9 +50,9 @@ export type InvitationState = "open" | "redeemed" | "expired" | "destroyed";
 
 export interface Invitation {
   id: string;
-  /** The identity fingerprint of the harbor issuing the invitation. */
+  /** The identity fingerprint of the selfimpulse issuing the invitation. */
   hostFp: string;
-  harbor: string;
+  selfimpulse: string;
   /** Never the code: a salted digest of it, so a memory dump is not a code list. */
   codeHash: string;
   issuedAt: number;
@@ -67,7 +67,7 @@ export interface Invitation {
 /** What a peer receives. Scoped, expiring, and not the host's own token. */
 export interface PeerCredential {
   token: string;
-  harbor: string;
+  selfimpulse: string;
   hostFp: string;
   peerFp: string;
   issuedAt: number;
@@ -136,7 +136,7 @@ function constantTimeEquals(a: string, b: string): boolean {
 
 export async function createInvitation(args: {
   hostFp: string;
-  harbor: string;
+  selfimpulse: string;
   ttlSecs?: number;
   id?: string;
 }): Promise<MintedInvitation> {
@@ -146,7 +146,7 @@ export async function createInvitation(args: {
   const invitation: Invitation = {
     id: args.id ?? randomId("pair"),
     hostFp: args.hostFp,
-    harbor: args.harbor,
+    selfimpulse: args.selfimpulse,
     codeHash: await hashCode(code),
     issuedAt: now,
     expiresAt: now + ttl * 1000,
@@ -222,7 +222,7 @@ export async function redeemInvitation(args: {
     invitation: inv,
     credential: {
       token: `vhp_${b64url(randomBytes(32))}`,
-      harbor: inv.harbor,
+      selfimpulse: inv.selfimpulse,
       hostFp: inv.hostFp,
       peerFp: args.peer.fp,
       issuedAt: now,
@@ -230,7 +230,7 @@ export async function redeemInvitation(args: {
       // Stated, not implied: what a paired peer may ask for. The host still
       // runs every inbound delegation through its gates, so this is a ceiling
       // an operator can read, not the authority itself.
-      scope: ["discover:card", "delegate"],
+      scope: ["discover:card", "delegate", "files:send", "files:receive"],
     },
   };
 }

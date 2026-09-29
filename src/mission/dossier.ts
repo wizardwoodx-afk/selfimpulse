@@ -28,7 +28,7 @@ import { loadExperimentRuns } from "./selfEvolveRuntime";
 import { loadLearningReceipts } from "./learningReceipt";
 
 export interface ProofDossier {
-  format: "vh-dossier/1";
+  format: "si-dossier/1";
   mjVersion: string;
   generatedAt: string;
   /** typed memory: what VH remembers, by ledger type */
@@ -69,7 +69,7 @@ export async function buildProofDossier(now: number): Promise<ProofDossier> {
   const adopted = adoptedVersion(imp);
   const receipts = loadLearningReceipts();
   const payload: Omit<ProofDossier, "digest"> = {
-    format: "vh-dossier/1",
+    format: "si-dossier/1",
     mjVersion: ENGINE_VERSION,
     generatedAt: new Date(now).toISOString(),
     memory: {
@@ -97,7 +97,7 @@ export async function buildProofDossier(now: number): Promise<ProofDossier> {
 
 /** Verify an exported dossier: re-hash its payload and compare. */
 export async function verifyProofDossier(d: ProofDossier): Promise<{ ok: boolean; reason?: string }> {
-  if (d.format !== "vh-dossier/1" && d.format !== "mj-dossier/1") return { ok: false, reason: `unknown dossier format: ${String(d.format)}` };
+  if (d.format !== "si-dossier/1" && d.format !== "mj-dossier/1") return { ok: false, reason: `unknown dossier format: ${String(d.format)}` };
   // "mj-dossier/1" = the pre-16.1 legacy export; older exported dossiers must stay verifiable.
   const { digest, ...payload } = d;
   const recomputed = await sha256Hex(dossierCanonical(payload as Omit<ProofDossier, "digest">));

@@ -23,7 +23,7 @@ import { sha256Hex } from "./learningReceipt";
 import { signHexDigest, verifyIssuerSignature, signingSupported } from "./signing";
 
 export interface AuthorityEnvelope {
-  format: "vh-envelope/1";
+  format: "si-envelope/1";
   id: string;
   /** ultimate authority: a human identifier, never an agent */
   principal: string;
@@ -85,7 +85,7 @@ export async function issueRootEnvelope(args: { principal: string; scope: string
   }
   seq += 1;
   return seal({
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: args.principal,
     delegationChain: [args.principal],
@@ -127,7 +127,7 @@ export async function attenuate(parent: AuthorityEnvelope, agentId: string, subS
   seq += 1;
   const envelope = await seal({
     budgetUsd: budget,
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: parent.principal,
     delegationChain: [...parent.delegationChain, agentId],

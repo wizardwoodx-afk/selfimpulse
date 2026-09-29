@@ -15,30 +15,30 @@ function ok(label: string, cond: boolean, detail = ""): void {
   else { failed++; failures.push(`${label}${detail ? ` — ${detail}` : ""}`); console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`); }
 }
 
-const mg = await import("../src/vh19/memoryGraph");
+const mg = await import("../src/engine/memoryGraph");
 
 console.log("== keyword extraction is deterministic and honest ==");
-const text = "11Handle signs every mission receipt with OpenSSL and the Harbor ledger; the receipt chain is verified nightly.";
+const text = "SelfImpulse signs every mission receipt with OpenSSL and the SelfImpulse ledger; the receipt chain is verified nightly.";
 const k1 = mg.extractKeywords(text);
 const k2 = mg.extractKeywords(text);
 ok("same text in, same keywords out", JSON.stringify(k1) === JSON.stringify(k2) && k1.length > 0);
 ok("stopwords never become nodes", !k1.includes("the") && !k1.includes("with") && !k1.includes("every"));
-ok("proper nouns rank up (harbor present)", k1.includes("harbor"));
+ok("proper nouns rank up (selfimpulse present)", k1.includes("selfimpulse"));
 ok("cap at the requested max", mg.extractKeywords(text, 3).length === 3);
 
 console.log("== ingest: a conversation becomes a graph session ==");
 mg.clearGraph();
 const at = (h: number) => new Date(Date.UTC(2026, 8, 12, 10 + h, 0, 0)).toISOString();
 const convo = [
-  { role: "user" as const, text: "Deploy the 11Handle federation bridge on Tuesday and verify the ledger", at: at(0) },
+  { role: "user" as const, text: "Deploy the SelfImpulse federation bridge on Tuesday and verify the ledger", at: at(0) },
   { role: "vh" as const, text: "The federation bridge deployment plan: sign the grant, run the crossing, compare ledger roots.", at: at(1) },
-  { role: "user" as const, text: "Also remember the Zephyr database migration for the Harbor dashboard", at: at(2) },
-  { role: "vh" as const, text: "Noted: the Zephyr migration for the Harbor dashboard joins the mission ledger.", at: at(3) },
+  { role: "user" as const, text: "Also remember the Zephyr database migration for the SelfImpulse dashboard", at: at(2) },
+  { role: "vh" as const, text: "Noted: the Zephyr migration for the SelfImpulse dashboard joins the mission ledger.", at: at(3) },
 ];
 const s = mg.ingestSession(convo, { id: "chat-test-1" });
 ok("the session carries the dated transcript", s.messageCount === 4 && s.messages.length === 4);
-ok("the session title comes from the first user message", s.title.startsWith("Deploy the 11Handle federation bridge"));
-ok("keywords were drawn from the whole conversation", s.keywords.includes("federation") || s.keywords.includes("harbor") || s.keywords.includes("zephyr"));
+ok("the session title comes from the first user message", s.title.startsWith("Deploy the SelfImpulse federation bridge"));
+ok("keywords were drawn from the whole conversation", s.keywords.includes("federation") || s.keywords.includes("selfimpulse") || s.keywords.includes("zephyr"));
 const g = mg.graph();
 ok("graph nodes exist for the session keywords", g.nodes.length >= 3);
 ok("co-occurrence edges exist", g.edges.length >= 3);

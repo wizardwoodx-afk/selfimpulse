@@ -376,7 +376,7 @@ export interface DlqRecord {
  *  Every other page the app ever shipped was consolidated INTO these (see
  *  docs/INFORMATION-ARCHITECTURE.md §12.0): legacy feature pages remain in the
  *  source tree only where probes still exercise them and are not navigable.
- *  15.0.0 (11Handle) adds the sixth door: "teammate" — the named human
+ *  15.0.0 (SelfImpulse) adds the sixth door: "teammate" — the named human
  *  face over the same engine. */
 export type PageKind =
   | "teammate"

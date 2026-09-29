@@ -24,9 +24,9 @@ class MemStore implements Storage {
 }
 (globalThis as { localStorage?: Storage }).localStorage = new MemStore();
 
-import { getSpecialist, listSpecialists } from "../src/vh19/registry";
-import { scanDomains, crewGate, selectCrewV2, setReservesEnabled, reservesEnabledState, moeV2Line, CREW_MAX, POOL_CATEGORY_MIN } from "../src/vh19/moeV2";
-import { FLEET_SPECIALISTS, ESTABLISHED_SPECIALISTS, REGISTERED_SIZE } from "../src/vh19/federation/fleet";
+import { getSpecialist, listSpecialists } from "../src/engine/registry";
+import { scanDomains, crewGate, selectCrewV2, setReservesEnabled, reservesEnabledState, moeV2Line, CREW_MAX, POOL_CATEGORY_MIN } from "../src/engine/moeV2";
+import { FLEET_SPECIALISTS, ESTABLISHED_SPECIALISTS, REGISTERED_SIZE } from "../src/engine/federation/fleet";
 
 function main(): void {
   console.log("moeV2 — domain pools and the crew gate");

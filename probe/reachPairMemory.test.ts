@@ -1,5 +1,5 @@
 /**
- * probe/reachPairMemory.test.ts — what two harbors learned together.
+ * probe/reachPairMemory.test.ts — what two selfimpulses learned together.
  *
  * The org already remembers missions, teams, agents, artefacts, decisions and
  * failures (§20/§21 memory) and the blackboard already versions shared state
@@ -11,7 +11,7 @@
  *
  *   §1 refusals are in words: no key, no value, no why, and never a secret
  *   §2 pair/org facts are receipt-bound — a rumour cannot be filed
- *   §3 pair identity IS VouchMesh's pairKey; there is no second notion of pair
+ *   §3 pair identity IS SelfImpulseMesh's pairKey; there is no second notion of pair
  *   §4 supersession never deletes; history and asOf reconstruct any instant
  *   §5 a bounded read reports what it withheld
  *   §6 every entry digest re-derives, and the log digest moves when a row moves
@@ -23,8 +23,8 @@ import {
   RECEIPT_BOUND_SCOPES, looksLikeSecret, remember, resolve, history, scopeAsOf, cuts,
   memoryDigest, pairMemoryScope, entryDigest, verifyEntry,
   type MemoryEntry,
-} from "../src/vh19/reach/pairMemory";
-import { pairKey } from "../src/vh19/vouchMesh";
+} from "../src/engine/reach/pairMemory";
+import { pairKey } from "../src/engine/selfimpulseMesh";
 
 const DIGEST_A = "a".repeat(64);
 const DIGEST_B = "b".repeat(64);
@@ -80,13 +80,13 @@ test("reach pair memory — receipt-bound, append-only, honest about cuts", asyn
     assert.equal(runScoped.ok, true, "a run fact is witnessed by the run itself");
   });
 
-  await t.test("§3 the pair is VouchMesh's pair — one identity, not two", () => {
-    assert.equal(pairMemoryScope("harbor-a", "harbor-b"), pairKey("harbor-a", "harbor-b"));
-    assert.equal(pairMemoryScope("harbor-a", "harbor-b"), pairMemoryScope("harbor-b", "harbor-a"), "the pair key is order-free, like the mesh's");
+  await t.test("§3 the pair is SelfImpulseMesh's pair — one identity, not two", () => {
+    assert.equal(pairMemoryScope("selfimpulse-a", "selfimpulse-b"), pairKey("selfimpulse-a", "selfimpulse-b"));
+    assert.equal(pairMemoryScope("selfimpulse-a", "selfimpulse-b"), pairMemoryScope("selfimpulse-b", "selfimpulse-a"), "the pair key is order-free, like the mesh's");
   });
 
   await t.test("§4 supersession is append-only; asOf answers on any date", () => {
-    const key = pairMemoryScope("harbor-a", "harbor-b");
+    const key = pairMemoryScope("selfimpulse-a", "selfimpulse-b");
     let log: MemoryEntry[] = [];
     log = add(log, { id: "e1", scope: "pair", key, value: "the shared staging window is tuesday 09:00", why: "agreed in the joint run", at: T("2026-09-01T09:00:00Z"), receiptDigest: DIGEST_A });
     log = add(log, { id: "e2", scope: "pair", key, value: "the shared staging window moved to thursday 14:00", why: "second joint run re-negotiated it", at: T("2026-09-10T09:00:00Z"), receiptDigest: DIGEST_B });

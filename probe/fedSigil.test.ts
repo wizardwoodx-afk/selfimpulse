@@ -2,7 +2,7 @@
  * probe/fedSigil.test.ts — the Face, derived and not selectable.
  *
  * A face in an identity product is a claim, so the claim is measured here:
- * derivation from the harbor's own SHA-256, determinism, palette membership,
+ * derivation from the selfimpulse's own SHA-256, determinism, palette membership,
  * no eye/mouth arrangement by construction, and a distinctness number that
  * includes the TRUE collision count rather than a flattering average.
  */
@@ -14,23 +14,23 @@ import {
   SIGIL_ENCODING_BITS, SIGIL_LAYERS,
   sigilOf, fingerprintOf, sigilTraits, sigilSummary, sigilBits, sigilDistance, collisionReport,
   chargeCentres, sigilSvg, sigilCardHtml, wash, type SigilState,
-} from "../src/vh19/federation/sigil";
-import { pureSha256 } from "../src/vh19/pureHash";
-import { AVATAR_INKS, AVATAR_FIELDS } from "../src/vh19/avatarEngine";
+} from "../src/engine/federation/sigil";
+import { pureSha256 } from "../src/engine/pureHash";
+import { AVATAR_INKS, AVATAR_FIELDS } from "../src/engine/avatarEngine";
 
-/** A fixed spread: owners, harbors, peers, specialists, seats — the real population. */
+/** A fixed spread: owners, selfimpulses, peers, specialists, seats — the real population. */
 const SEEDS = Array.from({ length: 120 }, (_, i) => `identity:probe-${i}`);
 
 test("federation sigil — a face that is derived, measured and never selectable", async (t) => {
-  await t.test("§1 the derivation is the harbor's own SHA-256, and it is total", () => {
-    const s = sigilOf("harbor:reykjavik");
-    const hex = pureSha256("vh.fed.sigil.v1:harbor:reykjavik");
+  await t.test("§1 the derivation is the selfimpulse's own SHA-256, and it is total", () => {
+    const s = sigilOf("selfimpulse:reykjavik");
+    const hex = pureSha256("vh.fed.sigil.v1:selfimpulse:reykjavik");
     assert.equal(hex.length, 64);
     assert.equal(s.field, ["heater", "lozenge", "rondel"][Number.parseInt(hex.slice(0, 2), 16) % 3]);
-    assert.equal(s.fingerprint, fingerprintOf("harbor:reykjavik"));
+    assert.equal(s.fingerprint, fingerprintOf("selfimpulse:reykjavik"));
     assert.match(s.fingerprint, /^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/);
-    assert.equal(s.fingerprint, fingerprintOf("harbor:reykjavik"), "the handle is stable");
-    assert.notEqual(s.fingerprint, fingerprintOf("harbor:lisbon"));
+    assert.equal(s.fingerprint, fingerprintOf("selfimpulse:reykjavik"), "the handle is stable");
+    assert.notEqual(s.fingerprint, fingerprintOf("selfimpulse:lisbon"));
 
     // every layer is populated for every seed — no undefined faces
     for (const layer of ["field", "division", "seme", "chief", "charge", "chargeCount", "tincture", "ground", "bordure", "tilt"] as const) {
@@ -116,7 +116,7 @@ test("federation sigil — a face that is derived, measured and never selectable
     for (const state of states) {
       const svg = sigilSvg(s, { state, size: 64 });
       assert.ok(svg.startsWith("<svg"), `${state} did not render`);
-      assert.ok(svg.includes(`vh-sigil--${state}`));
+      assert.ok(svg.includes(`si-sigil--${state}`));
       assert.ok(svg.includes(`aria-label="sigil ${s.fingerprint}`), `${state} lost its readable label`);
       assert.ok(svg.includes(SIGIL_STATE_WORDS[state]), `${state} does not read its own state`);
       seen.add(svg);
@@ -142,7 +142,7 @@ test("federation sigil — a face that is derived, measured and never selectable
     const card = sigilCardHtml(s, { state: "sealed", size: 48 });
     assert.ok(card.includes(s.fingerprint));
     assert.ok(card.includes("<ul>"));
-    assert.equal(card.includes("vh-sigil-card"), true);
+    assert.equal(card.includes("si-sigil-card"), true);
   });
 
   await t.test("§7 the encoding is wide enough that near-identical faces are rare", () => {

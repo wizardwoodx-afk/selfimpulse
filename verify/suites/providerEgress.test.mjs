@@ -58,7 +58,7 @@ var callRateGate = new RateGate(120, 6e4);
 // probe/providerEgress.test.ts
 import * as fs from "node:fs";
 import * as path from "node:path";
-var ROOT = process.env.HANDLE_ROOT ?? process.cwd();
+var ROOT = process.env.SI_ROOT ?? process.cwd();
 var readSrc = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 var passed = 0;
 var failed = 0;

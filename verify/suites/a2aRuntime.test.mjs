@@ -138,8 +138,8 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
@@ -428,7 +428,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -458,7 +458,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY = "vouch.v3.db";
+    KEY = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -997,7 +997,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1027,7 +1027,7 @@ var init_client = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -1046,7 +1046,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1069,7 +1069,7 @@ var init_client = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -1092,7 +1092,7 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -1580,7 +1580,7 @@ async function createInvitation(args) {
   const invitation = {
     id: args.id ?? randomId("pair"),
     hostFp: args.hostFp,
-    harbor: args.harbor,
+    selfimpulse: args.selfimpulse,
     codeHash: await hashCode(code),
     issuedAt: now,
     expiresAt: now + ttl * 1e3,
@@ -1627,7 +1627,7 @@ async function redeemInvitation(args) {
     invitation: inv,
     credential: {
       token: `vhp_${b64url(randomBytes(32))}`,
-      harbor: inv.harbor,
+      selfimpulse: inv.selfimpulse,
       hostFp: inv.hostFp,
       peerFp: args.peer.fp,
       issuedAt: now,
@@ -1635,7 +1635,7 @@ async function redeemInvitation(args) {
       // Stated, not implied: what a paired peer may ask for. The host still
       // runs every inbound delegation through its gates, so this is a ceiling
       // an operator can read, not the authority itself.
-      scope: ["discover:card", "delegate"]
+      scope: ["discover:card", "delegate", "files:send", "files:receive"]
     }
   };
 }
@@ -1652,7 +1652,7 @@ init_guardrail();
 init_version();
 var v1Encoder = new TextEncoder();
 
-// src/mission/harborTeams.ts
+// src/mission/selfimpulseTeams.ts
 init_guardrail();
 
 // src/mission/riskPolicy.ts
@@ -1696,7 +1696,7 @@ function classifyRisk(action, toolName) {
   };
 }
 
-// src/mission/harborTeams.ts
+// src/mission/selfimpulseTeams.ts
 init_version();
 
 // src/security/authority.ts
@@ -1988,7 +1988,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vh-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `si-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -2003,7 +2003,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vh-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `si-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -2087,7 +2087,7 @@ async function issueRootEnvelope(args) {
   }
   seq += 1;
   return seal({
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: args.principal,
     delegationChain: [args.principal],
@@ -2120,7 +2120,7 @@ async function attenuate(parent, agentId, subScope, opts) {
   seq += 1;
   const envelope = await seal({
     budgetUsd: budget,
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: parent.principal,
     delegationChain: [...parent.delegationChain, agentId],
@@ -2422,7 +2422,7 @@ function evaluateVerifyGate(input) {
     if (snap && countingVerifiers.length < ranVerifiers.length) {
       const off = ranVerifiers.filter((v) => !(snap.built && snap.sha !== null && (v.reviewedSha ?? null) === snap.sha));
       for (const o of off) {
-        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot vouch for the writers' work.`);
+        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot selfimpulse for the writers' work.`);
       }
     }
     const selfVerified = writerHarnesses.filter(
@@ -2858,7 +2858,7 @@ var HARNESSES = [
     name: "Native agent (in-process)",
     bins: [],
     argv: [],
-    install: "Nothing to install \u2014 the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+    install: "Nothing to install \u2014 the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
     notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
     source: "src/engine/hermesRuntime.ts"
   },
@@ -2890,7 +2890,7 @@ var AGENT_CAPABILITIES = {
     // does not exist; every caller that read them was reasoning about a seat
     // that could not run.
     bins: [],
-    install: "bundled with 11Handle; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
+    install: "bundled with SelfImpulse; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
     prompt: { argv: [], confidence: "docs", source: "in-process runtime: no argv exists by construction" },
     json: null,
     readOnly: null,
@@ -3147,7 +3147,7 @@ function sessionArgv(harness, opts) {
 function sessionIdKind(harness) {
   const rc = resolveCaps(harness);
   if (rc.custom) return "cli-chosen";
-  return rc.caps.sessionStart?.argv ? "vh-chosen" : "cli-chosen";
+  return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 function parseSessionId(harness, raw) {
   if (!raw.trim()) return null;
@@ -3333,8 +3333,8 @@ function composeSeatArgv(teamSeat, ctx) {
     $CWD: ctx.cwd,
     $SECS: String(teamSeat.timeoutSecs),
     $SESSION: ctx.sessionId ?? "",
-    $REVIEWER: "vh-readonly",
-    $NAME: `vh-${teamSeat.id}`
+    $REVIEWER: "si-readonly",
+    $NAME: `si-${teamSeat.id}`
   };
   const argv = [];
   const flags = [];
@@ -3690,7 +3690,7 @@ function planWorktrees(team, opts) {
   for (const seat2 of team.seats) {
     if (!seat2.mayWrite) {
       if (opts.deferReview && hasWriter) {
-        const path5 = `${root}-vh-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+        const path5 = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
         plans.push({
           seatId: seat2.id,
           branch: "",
@@ -3716,7 +3716,7 @@ function planWorktrees(team, opts) {
       continue;
     }
     const branch = `vh/${opts.missionSlug}/${branchSafe(seat2.id)}`;
-    const path4 = `${root}-vh-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+    const path4 = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
     plans.push({
       seatId: seat2.id,
       branch,
@@ -4294,7 +4294,7 @@ var INITIAL_REPUTATIONS = Object.fromEntries(
 
 // src/mission/teamExecutor.ts
 var OUTPUT_TAIL_CHARS = 4e3;
-var BRIEF_DIR = ".vh-brief";
+var BRIEF_DIR = ".si-brief";
 async function git(deps, args, cwd) {
   if (!deps.git) return { ok: false, stdout: "", stderr: "", exitCode: null };
   const r = await deps.git(args, cwd);
@@ -4498,7 +4498,7 @@ Spent: $${(spentUsd2 || 0).toFixed(4)}`, "orchestrator", "finding");
   const learnedMarkdown = globalMemoryCortex.compileBriefing().generatedBriefingMarkdown;
   for (const seat2 of req.team.seats) {
     briefingsByHarness.push({
-      path: ".vh-brief/LEARNED_INVARIANTS.md",
+      path: ".si-brief/LEARNED_INVARIANTS.md",
       contents: learnedMarkdown,
       forHarness: seat2.harness
     });
@@ -4511,7 +4511,7 @@ ${lessonLines.map((l) => `- ${l}`).join("\n")}
 `;
     for (const seat2 of req.team.seats) {
       briefingsByHarness.push({
-        path: ".vh-brief/ORG_LESSONS.md",
+        path: ".si-brief/ORG_LESSONS.md",
         contents: lessonsMd,
         forHarness: seat2.harness
       });
@@ -5053,7 +5053,7 @@ async function runSeat(req, deps, a, sessions, wt, binaryExists, resolvedBin, se
   let commitDetail = readOnly ? "Read-only seat; nothing to commit." : "No git runner, so the work could not be committed.";
   if (deps.git && !readOnly) {
     await git(deps, ["add", "-A"], cwd);
-    const commit = await git(deps, ["-c", "user.email=vh@vouch.harbor", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
+    const commit = await git(deps, ["-c", "user.email=vh@selfimpulse.selfimpulse", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
     commitDetail = commit.ok ? `Committed on ${branch}.` : commit.exitCode === null ? "Could not run git commit." : /nothing to commit|no changes added/i.test(commit.stderr + commit.stdout) ? "Nothing to commit \u2014 this seat changed no files." : `git commit exited ${commit.exitCode}: ${(commit.stderr || commit.stdout).trim().slice(0, 200)}`;
   }
   const finalRecord = {
@@ -5203,10 +5203,10 @@ function buildSummary(o) {
 }
 
 // src/mission/licensing.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT = {
-  "vh-proof-receipt/2": VERIFY_SECRET,
+  "si-proof-receipt/2": VERIFY_SECRET,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET
 };
@@ -5297,7 +5297,7 @@ async function buildProofReceipt(args) {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -5306,7 +5306,7 @@ async function buildProofReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -5316,7 +5316,7 @@ async function buildProofReceipt(args) {
   };
 }
 async function verifyProofReceipt(rc) {
-  if (rc.format !== "vh-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
+  if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
   let prev = "0".repeat(64);
   for (const e of rc.events) {
     if (e.prev !== prev) return { ok: false, reason: `chain broken at seq ${e.seq}` };
@@ -5328,7 +5328,7 @@ async function verifyProofReceipt(rc) {
   const sealSecret = SEAL_SECRET_BY_FORMAT[rc.format] ?? VERIFY_SECRET;
   const seal2 = await hmacHex(prev, sealSecret);
   if (seal2 !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "vh-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok2 = await verifyIssuerSignature(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok2) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
@@ -5418,7 +5418,7 @@ async function runInboundDelegation(teammate, task, fromUser, cfg = {}) {
     } : refuse("no repoRoot bound \u2014 a real seat run needs a repository to work in");
   }
   if (typeof cfg.deps.nativeInvoke !== "function") {
-    const reason = `this host has no in-process seat runner (no provider key) \u2014 refusing the delegation in words rather than answering with a fabricated completion. Set 11H_A2A_PROVIDER_KEY to run seats here.`;
+    const reason = `this host has no in-process seat runner (no provider key) \u2014 refusing the delegation in words rather than answering with a fabricated completion. Set SI_A2A_PROVIDER_KEY to run seats here.`;
     return cfg.allowUnexecuted ? { ok: false, outcome: "not-executed", artifact: `${teammate.name}: ${reason}`, execution: null, receipt: null, reason } : refuse(reason);
   }
   const statedChain = cfg.principalChain;
@@ -5534,7 +5534,7 @@ async function runInboundDelegation(teammate, task, fromUser, cfg = {}) {
 }
 
 // src/mission/a2aIdentityBridge.ts
-var A2A_PEERS_KEY = "vh19.collab.a2a.v1";
+var A2A_PEERS_KEY = "engine.collab.a2a.v1";
 function storage() {
   try {
     return globalThis.localStorage ?? null;
@@ -5680,7 +5680,7 @@ function validateAgentCardV10(raw) {
 var ECDSA = { name: "ECDSA", namedCurve: "P-256" };
 var ECDSA_SIGN = { name: "ECDSA", hash: "SHA-256" };
 async function signAgentCardV10(card, identity) {
-  const header = { alg: "ES256", typ: "vh-a2a-card", kid: identity.fp, a2a: "1.0" };
+  const header = { alg: "ES256", typ: "si-a2a-card", kid: identity.fp, a2a: "1.0" };
   const protectedB64 = b64u(enc3.encode(JSON.stringify(header)));
   const payload = enc3.encode(cardPayload(card));
   const sig = new Uint8Array(await crypto.subtle.sign(ECDSA_SIGN, identity.privateKey, payload));
@@ -5739,7 +5739,7 @@ async function post(root, body, authorization) {
 }
 var nextRpcId = 1;
 async function rpc(root, method, params, authorization) {
-  const env = await post(root, { jsonrpc: "2.0", id: `vh-${nextRpcId++}`, method, params }, authorization);
+  const env = await post(root, { jsonrpc: "2.0", id: `si-${nextRpcId++}`, method, params }, authorization);
   if (env.error !== void 0) {
     const e = env.error;
     throw new A2AClientError(e.code ?? -32e3, e.message ?? "json-rpc error");
@@ -5774,7 +5774,7 @@ async function sendMessage(root, message, configuration, authorization) {
   return await rpc(root, "message/send", configuration ? { message, configuration } : { message }, authorization);
 }
 
-// src/mission/harborTeams.ts
+// src/mission/selfimpulseTeams.ts
 function createTeam(user) {
   return { user: sanitizeText(user, 60) || "USER", teammates: [], createdAt: (/* @__PURE__ */ new Date()).toISOString() };
 }
@@ -5865,15 +5865,15 @@ async function sha256Hex2(text) {
 function packetExpired(ts, nowMs = Date.now()) {
   return nowMs - new Date(ts).getTime() > PACKET_TTL_MS;
 }
-function harborCardForTeamV10(team, interfaceUrl) {
+function selfimpulseCardForTeamV10(team, interfaceUrl) {
   return {
     name: team.user,
     description: `${team.user}'s governed agent team: ${team.teammates.map((t) => `${t.name} (${t.title})`).join("; ") || "no teammates yet"}`,
     supportedInterfaces: [{ url: interfaceUrl, protocolBinding: "JSONRPC", protocolVersion: "1.0" }],
-    provider: { url: "https://github.com/wizardwoodx-afk/11Handle", organization: "11Handle" },
+    provider: { url: "https://github.com/wizardwoodx-afk/SelfImpulse", organization: "SelfImpulse" },
     version: ENGINE_VERSION,
     capabilities: { streaming: true, pushNotifications: true },
-    securitySchemes: { harborIdentity: { httpAuthSecurityScheme: { scheme: "Bearer", description: "harbor-issued delegation token; ECDSA-signed agent card" } } },
+    securitySchemes: { selfimpulseIdentity: { httpAuthSecurityScheme: { scheme: "Bearer", description: "selfimpulse-issued delegation token; ECDSA-signed agent card" } } },
     defaultInputModes: ["text/plain", "application/json"],
     defaultOutputModes: ["text/plain", "application/json"],
     skills: team.teammates.map((t) => ({
@@ -5935,7 +5935,7 @@ async function handleInboundDelegation(remoteTeam, packet, inboundGate, bridge, 
       ts
     }
   });
-  if (packet.toUser !== remoteTeam.user) return refused(`packet is addressed to "${packet.toUser}" but this harbor is "${remoteTeam.user}"`);
+  if (packet.toUser !== remoteTeam.user) return refused(`packet is addressed to "${packet.toUser}" but this selfimpulse is "${remoteTeam.user}"`);
   if (packetExpired(packet.ts)) return refused("packet expired (TTL 10 min) \u2014 stale delegations are refused");
   const digest = await sha256Hex2(JSON.stringify({ ...packet, packetDigest: "" }));
   if (digest !== packet.packetDigest) return refused("packet digest mismatch \u2014 the packet was modified in transit");
@@ -5967,7 +5967,7 @@ async function handleInboundDelegation(remoteTeam, packet, inboundGate, bridge, 
         artifact: null,
         packetDigest: packet.packetDigest,
         receiverDigest: null,
-        note: riskVerdict.upgraded ? `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 the sender declared "${packet.tier}" but this harbor classified the task ${riskVerdict.risk} (${riskVerdict.why}). Nothing executed` : `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 nothing executed`,
+        note: riskVerdict.upgraded ? `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 the sender declared "${packet.tier}" but this selfimpulse classified the task ${riskVerdict.risk} (${riskVerdict.why}). Nothing executed` : `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 nothing executed`,
         ts,
         receiverPolicy: riskVerdict,
         execution: null,
@@ -6000,7 +6000,7 @@ async function handleInboundDelegation(remoteTeam, packet, inboundGate, bridge, 
         artifact: null,
         packetDigest: packet.packetDigest,
         receiverDigest: null,
-        note: `this harbor could not execute the delegation \u2014 ${run.reason}. Nothing ran, so nothing is claimed.`,
+        note: `this selfimpulse could not execute the delegation \u2014 ${run.reason}. Nothing ran, so nothing is claimed.`,
         ts,
         execution: null,
         receipt: null,
@@ -6090,7 +6090,7 @@ async function delegateViaA2A(opts) {
   try {
     disc = await discoverAgentCard(opts.remoteRoot, { publicJwk: opts.remotePublicJwk });
   } catch (e) {
-    return refused(`remote harbor discovery refused: ${e instanceof Error ? e.message : String(e)}`);
+    return refused(`remote selfimpulse discovery refused: ${e instanceof Error ? e.message : String(e)}`);
   }
   if (!disc.signatureVerified) return refused("remote agent-card did not verify against the issuer key \u2014 nothing crosses to an unproven identity");
   const toUser = disc.card.name;
@@ -6103,7 +6103,7 @@ async function delegateViaA2A(opts) {
     return refused(`task content refused by the GuardRail before transmission: ${findings.map((f) => f.code).join(", ")}`, { fromTeammate, toUser });
   }
   const senderGate = tier === "safe" ? { outcome: "auto", by: fromTeam.user } : {
-    outcome: await (opts.senderGate ?? (async () => false))("cross-harbor delegation (A2A)", `${fromTeam.user} \u2192 ${toUser}: "${cleanTask.slice(0, 120)}"`) ? "human-approved" : "human-denied",
+    outcome: await (opts.senderGate ?? (async () => false))("cross-selfimpulse delegation (A2A)", `${fromTeam.user} \u2192 ${toUser}: "${cleanTask.slice(0, 120)}"`) ? "human-approved" : "human-denied",
     by: fromTeam.user
   };
   if (senderGate.outcome === "human-denied") {
@@ -6150,7 +6150,7 @@ async function delegateViaA2A(opts) {
       role: "user",
       messageId: secureId("m"),
       parts: [{ kind: "data", data: packet }, { kind: "text", text: cleanTask }],
-      metadata: { "vh-delegation": id }
+      metadata: { "si-delegation": id }
     }, void 0, opts.authorization);
   } catch (e) {
     return refused(`A2A transport failed: ${e instanceof Error ? e.message : String(e)}`, { fromTeammate, toUser, packetDigest, senderGate });
@@ -6158,7 +6158,7 @@ async function delegateViaA2A(opts) {
   const resultPart = remote.status.message?.parts.find((p) => p.kind === "data");
   const record = resultPart?.data?.record;
   if (!record || record.id !== id) {
-    return refused("remote harbor returned no settlement for this delegation", { fromTeammate, toUser, packetDigest, senderGate });
+    return refused("remote selfimpulse returned no settlement for this delegation", { fromTeammate, toUser, packetDigest, senderGate });
   }
   if (record.status === "completed" && record.artifact && record.receiverDigest) {
     const expect = await sha256Hex2(`${record.packetDigest}|${record.artifact}`);
@@ -6178,9 +6178,12 @@ var MAX_BODY_BYTES = 1024 * 1024;
 var REPLAY_WINDOW_MS = 3e4;
 var AUDIT_CAP = 500;
 var TASK_CAP = 200;
-var STOP_HEADER = "x-vh-stop-nonce";
+var STOP_HEADER = "x-si-stop-nonce";
 var PAIR_PATH = "/vh/pair";
 var STOP_PATH = "/vh/stop";
+var ALTERSEND_PATH = "/vh/altersend";
+var ALTERSEND_PREFIX = "/vh/altersend/";
+var ALTERSEND_MAX_BODY = 48 * 1024 * 1024;
 function json(res, status, body) {
   const payload = JSON.stringify(body);
   res.writeHead(status, { "content-type": "application/json", "content-length": Buffer.byteLength(payload) });
@@ -6544,6 +6547,113 @@ function createA2AServer(opts) {
       });
       return;
     }
+    if (req.url === ALTERSEND_PATH || req.url?.startsWith(ALTERSEND_PREFIX)) {
+      if (!opts.altersend) {
+        json(res, 404, { error: "not-enabled", reason: "this host has file sharing turned off" });
+        return;
+      }
+      if (!opts.authorize || !opts.authorize(req)) {
+        json(res, 401, { error: "unauthorized", reason: "a paired credential is required to move files" });
+        note({ ts: (/* @__PURE__ */ new Date()).toISOString(), method: "altersend", ok: false, reason: "unauthorized" });
+        return;
+      }
+      const store = opts.altersend.store;
+      const id = req.url.startsWith(ALTERSEND_PREFIX) ? req.url.slice(ALTERSEND_PREFIX.length) : "";
+      if (req.method === "GET" && !id) {
+        json(res, 200, { ok: true, offers: store.list() });
+        return;
+      }
+      if (req.method === "GET" && id) {
+        const got = store.get(id);
+        if (!got.ok) {
+          json(res, 404, { error: got.reason });
+          return;
+        }
+        const pulled = store.fetch(id);
+        if (!pulled.ok) {
+          json(res, 409, { error: pulled.reason });
+          return;
+        }
+        json(res, 200, {
+          ok: true,
+          offer: pulled.value.offer,
+          bytes: pulled.value.bytes.toString("base64")
+        });
+        note({ ts: (/* @__PURE__ */ new Date()).toISOString(), method: "altersend-fetch", ok: true, reason: id });
+        return;
+      }
+      if (req.method === "POST" && id) {
+        let decision = "accept";
+        const chunks2 = [];
+        req.on("data", (c) => chunks2.push(c));
+        req.on("end", () => {
+          try {
+            const b = JSON.parse(Buffer.concat(chunks2).toString("utf8") || "{}");
+            decision = b.decision === "refuse" ? "refuse" : "accept";
+          } catch {
+            decision = "accept";
+          }
+          const out = decision === "refuse" ? store.refuse(id, "the receiver declined") : store.accept(id);
+          if (!out.ok) {
+            json(res, 409, { error: out.reason });
+            return;
+          }
+          json(res, 200, { ok: true, offer: out.value });
+          note({ ts: (/* @__PURE__ */ new Date()).toISOString(), method: "altersend-decide", ok: true, reason: `${decision}:${id}` });
+        });
+        return;
+      }
+      if (req.method === "POST" && !id) {
+        const chunks2 = [];
+        let size2 = 0;
+        req.on("data", (c) => {
+          size2 += c.byteLength;
+          if (size2 > ALTERSEND_MAX_BODY) {
+            req.destroy();
+            return;
+          }
+          chunks2.push(c);
+        });
+        req.on("end", () => {
+          if (size2 > ALTERSEND_MAX_BODY) {
+            json(res, 413, { error: "too-large" });
+            return;
+          }
+          let body;
+          try {
+            body = JSON.parse(Buffer.concat(chunks2).toString("utf8"));
+          } catch {
+            json(res, 400, { error: "bad-json" });
+            return;
+          }
+          let bytes;
+          try {
+            bytes = Buffer.from(String(body.data ?? ""), "base64");
+          } catch {
+            json(res, 400, { error: "bad-base64" });
+            return;
+          }
+          const offered = store.offer({ name: String(body.name ?? ""), bytes });
+          if (!offered.ok) {
+            json(res, 400, { error: offered.reason });
+            return;
+          }
+          const refusal = opts.altersend?.decide?.(offered.value);
+          if (refusal) {
+            store.refuse(offered.value.id, refusal);
+            json(res, 403, { error: "refused", reason: refusal, offer: offered.value });
+            note({ ts: (/* @__PURE__ */ new Date()).toISOString(), method: "altersend-offer", ok: false, reason: refusal });
+            return;
+          }
+          store.accept(offered.value.id);
+          json(res, 201, { ok: true, offer: offered.value });
+          note({ ts: (/* @__PURE__ */ new Date()).toISOString(), method: "altersend-offer", ok: true, reason: offered.value.id });
+        });
+        return;
+      }
+      json(res, 405, { error: "method-not-allowed" });
+      return;
+    }
     if (req.method !== "POST" || req.url !== "/" && req.url !== "") {
       json(res, 404, { error: "not-found" });
       return;
@@ -6680,7 +6790,7 @@ function constantTimeEqual(a, b) {
   return diff === 0;
 }
 var ECDSA2 = { name: "ECDSA", namedCurve: "P-256" };
-async function makeHarborIdentity() {
+async function makeSelfImpulseIdentity() {
   const kp = await crypto.subtle.generateKey(ECDSA2, true, ["sign", "verify"]);
   const publicJwk = await crypto.subtle.exportKey("jwk", kp.publicKey);
   const fp = createHash2("sha256").update(JSON.stringify(publicJwk)).digest("hex").slice(0, 16);
@@ -6758,7 +6868,7 @@ function nodeRunnerDeps(opts) {
         return {
           exitCode: 1,
           stdout: "",
-          stderr: "this A2A host has no provider key configured \u2014 pass --provider-key or set 11H_A2A_PROVIDER_KEY. No seat ran.",
+          stderr: "this A2A host has no provider key configured \u2014 pass --provider-key or set SI_A2A_PROVIDER_KEY. No seat ran.",
           durationMs: Date.now() - t0,
           timedOut: false
         };
@@ -6844,8 +6954,8 @@ function pickFreePort(host = "127.0.0.1") {
 async function startA2ARuntime(opts) {
   const host = opts.host ?? "127.0.0.1";
   const log = opts.onLog ?? (() => void 0);
-  const identity = opts.identity ?? await makeHarborIdentity();
-  let team = createTeam(opts.harborUser);
+  const identity = opts.identity ?? await makeSelfImpulseIdentity();
+  let team = createTeam(opts.selfimpulseUser);
   for (const spec of opts.teammates) {
     const added = addTeammate(team, {
       name: spec.name,
@@ -6856,10 +6966,10 @@ async function startA2ARuntime(opts) {
     if (!added.ok) throw new Error(`teammate "${spec.name}" refused: ${added.reason}`);
     team = added.value.team;
   }
-  if (team.teammates.length === 0) throw new Error("a mounted harbor needs at least one teammate \u2014 routing has nothing to route to");
+  if (team.teammates.length === 0) throw new Error("a mounted selfimpulse needs at least one teammate \u2014 routing has nothing to route to");
   const port = opts.port && opts.port > 0 ? opts.port : await pickFreePort(host);
   const interfaceUrl = `http://${host}:${port}/`;
-  const unsigned = harborCardForTeamV10(team, interfaceUrl);
+  const unsigned = selfimpulseCardForTeamV10(team, interfaceUrl);
   const card = await signAgentCardV10(unsigned, identity);
   const riskyGate = opts.riskyGate ?? "deny";
   const gate = typeof riskyGate === "function" ? riskyGate : async (action, detail) => {
@@ -6868,12 +6978,12 @@ async function startA2ARuntime(opts) {
   };
   const handler = makeDelegationHandler(team, gate, opts.bridge ?? {}, { mode: opts.receiverRiskMode ?? "high-and-critical" });
   const tokenMinted = opts.token === void 0;
-  const token = opts.token ?? `vh-${secureId("link")}`;
+  const token = opts.token ?? `si-${secureId("link")}`;
   let invitation = null;
   let pairingCode = null;
   const peers = /* @__PURE__ */ new Map();
   if (opts.pairing === true) {
-    const minted = await createInvitation({ hostFp: identity.fp, harbor: team.user });
+    const minted = await createInvitation({ hostFp: identity.fp, selfimpulse: team.user });
     invitation = minted.invitation;
     pairingCode = minted.code;
   }
@@ -6918,14 +7028,14 @@ async function startA2ARuntime(opts) {
         await server.stop();
       } catch {
       }
-      process.stdout.write("VH-A2A-STOPPED\n");
+      process.stdout.write("SI-A2A-STOPPED\n");
       process.exit(0);
     }
   };
   const boundPort = await server.start();
   if (boundPort !== port) throw new Error(`listener bound ${boundPort} but the signed card advertises ${port} \u2014 refusing to serve a card that lies about its own interface`);
   const baseUrl = server.baseUrl;
-  log(`a2a: mounted ${opts.harborUser} on ${baseUrl} (card ${cardUrlOf(baseUrl)}, identity ${identity.fp})`);
+  log(`a2a: mounted ${opts.selfimpulseUser} on ${baseUrl} (card ${cardUrlOf(baseUrl)}, identity ${identity.fp})`);
   if (tokenMinted) log(`a2a: no --token supplied, so this listener minted one \u2014 peers must present it (see describe().token)`);
   const bridge = opts.bridge ?? {};
   const canRunSeats = typeof bridge.deps?.nativeInvoke === "function";
@@ -6933,15 +7043,15 @@ async function startA2ARuntime(opts) {
   if (!bridge.deps) missing.push("no execution deps");
   if (!bridge.harness) missing.push("no harness configured");
   if (bridge.harness && !canRunSeats) {
-    missing.push("no in-process seat runner on this host (set 11H_A2A_PROVIDER_KEY to run seats)");
+    missing.push("no in-process seat runner on this host (set SI_A2A_PROVIDER_KEY to run seats)");
   }
   if (!bridge.repoRoot) missing.push("no repository bound");
   const describe = () => ({
     pairing: pairingCode && invitation ? { offered: true, code: pairingCode, expiresAt: new Date(invitation.expiresAt).toISOString(), state: invitation.state, peers: peers.size } : { offered: false, code: null, expiresAt: null, state: "closed", peers: peers.size },
     mounted: true,
-    product: "11Handle",
+    product: "SelfImpulse",
     version: ENGINE_VERSION,
-    harborUser: team.user,
+    selfimpulseUser: team.user,
     port: boundPort,
     interfaceUrl,
     cardUrl: cardUrlOf(baseUrl),
@@ -6967,7 +7077,7 @@ async function startA2ARuntime(opts) {
       writerBin: null,
       reviewerBin: null,
       allowUnexecuted: bridge.allowUnexecuted === true,
-      refusalReason: missing.length === 0 ? null : `this harbor cannot execute: ${missing.join("; ")} \u2014 delegations will be refused in words, never answered with a completion`
+      refusalReason: missing.length === 0 ? null : `this selfimpulse cannot execute: ${missing.join("; ")} \u2014 delegations will be refused in words, never answered with a completion`
     }
   });
   return {
@@ -7119,7 +7229,7 @@ function makeRepo() {
 var HARDEN = "Harden authorize() so it denies disabled admins, proven by the repository's own test.";
 var MATE = { name: "Lens", title: "Code hardener", description: "Hardens authorization code and proves every change with the repository's own tests.", skills: ["security", "testing"] };
 function launchHost(args) {
-  const child = spawn2(process.execPath, [path3.join(ROOT, "tools", "vh-host.mjs"), ...args], {
+  const child = spawn2(process.execPath, [path3.join(ROOT, "tools", "si-host.mjs"), ...args], {
     cwd: ROOT,
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env }
@@ -7187,17 +7297,17 @@ function verifyReceiptCli(receiptPath, issuerKey) {
   }
 }
 async function main() {
-  section("1. startA2ARuntime mounts a harbor (in-process, real HTTP)");
+  section("1. startA2ARuntime mounts a selfimpulse (in-process, real HTTP)");
   const { repo, baseBranch } = makeRepo();
   const runtime = await startA2ARuntime({
-    harborUser: "USER 2",
+    selfimpulseUser: "USER 2",
     teammates: [MATE],
     port: 0,
     token: "link-secret",
     bridge: drillBridgeConfig({ repoRoot: repo, baseBranch, testCommand: ["node", "test.js"] })
   });
   const desc = runtime.describe();
-  ok("the runtime reports itself mounted", desc.mounted === true && desc.harborUser === "USER 2");
+  ok("the runtime reports itself mounted", desc.mounted === true && desc.selfimpulseUser === "USER 2");
   ok(
     "the card is signed and served from the port that actually bound",
     desc.cardSigned === true && desc.interfaceUrl === `http://127.0.0.1:${runtime.port}/` && desc.cardUrl.startsWith(runtime.baseUrl)
@@ -7224,7 +7334,7 @@ async function main() {
     validateAgentCardV10(servedCard).join("; ")
   );
   const sig = await verifyAgentCardV10Signatures(servedCard, runtime.identity.publicJwk);
-  ok("the served card's JWS verifies against the harbor's own publisher key", sig.ok === true && sig.verified.includes(runtime.identity.fp));
+  ok("the served card's JWS verifies against the selfimpulse's own publisher key", sig.ok === true && sig.verified.includes(runtime.identity.fp));
   const unauth = await fetch(runtime.baseUrl, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer wrong-token" },
@@ -7234,12 +7344,12 @@ async function main() {
   ok("a request without the shared token never reaches a task", unauth.status === 401 || unauthBody.error !== void 0, `HTTP ${unauth.status} ${JSON.stringify(unauthBody)}`);
   await runtime.stop();
   section("2. the shipped launcher runs the pinned engine (not a stale one)");
-  const entry = fs2.readFileSync(path3.join(ROOT, "tools", "vh-host.entry.ts"), "utf8");
+  const entry = fs2.readFileSync(path3.join(ROOT, "tools", "si-host.entry.ts"), "utf8");
   ok("the host entry point calls the ONE bootstrap", entry.includes("startA2ARuntime(") && entry.includes('from "../src/mission/a2aRuntime"'));
   const pkg = JSON.parse(fs2.readFileSync(path3.join(ROOT, "package.json"), "utf8"));
-  ok("npm run host and npm run host:build exist", pkg.scripts.host === "node tools/vh-host.mjs" && pkg.scripts["host:build"] === "node tools/build-host.mjs");
-  const shipped = fs2.readFileSync(path3.join(ROOT, "tools", "vh-host-engine.mjs"));
-  const pin = fs2.readFileSync(path3.join(ROOT, "tools", "vh-host-engine.sha256"), "utf8").trim().split(/\s+/)[0];
+  ok("npm run host and npm run host:build exist", pkg.scripts.host === "node tools/si-host.mjs" && pkg.scripts["host:build"] === "node tools/build-host.mjs");
+  const shipped = fs2.readFileSync(path3.join(ROOT, "tools", "si-host-engine.mjs"));
+  const pin = fs2.readFileSync(path3.join(ROOT, "tools", "si-host-engine.sha256"), "utf8").trim().split(/\s+/)[0];
   ok(
     "the shipped engine matches its committed sha256 pin (offline-capable gate)",
     pin.length === 64 && pin === createHash3("sha256").update(shipped).digest("hex")
@@ -7248,9 +7358,9 @@ async function main() {
   if (!fs2.existsSync(esbuildBin)) {
     console.log("  (esbuild not available here \u2014 source-rebuild check skipped; the sha256 pin above is enforced)");
   } else {
-    const rebuilt = path3.join(scratch("vhhost-rebuild-"), "vh-host-engine.mjs");
+    const rebuilt = path3.join(scratch("vhhost-rebuild-"), "si-host-engine.mjs");
     execFileSync(esbuildBin, [
-      path3.join(ROOT, "tools", "vh-host.entry.ts"),
+      path3.join(ROOT, "tools", "si-host.entry.ts"),
       "--bundle",
       "--platform=node",
       "--format=esm",
@@ -7265,15 +7375,15 @@ async function main() {
     );
   }
   const tamperDir = scratch("vhhost-tamper-");
-  fs2.copyFileSync(path3.join(ROOT, "tools", "vh-host.mjs"), path3.join(tamperDir, "vh-host.mjs"));
+  fs2.copyFileSync(path3.join(ROOT, "tools", "si-host.mjs"), path3.join(tamperDir, "si-host.mjs"));
   const doctored = Buffer.from(shipped);
   doctored[Math.floor(doctored.length / 2)] = doctored[Math.floor(doctored.length / 2)] ^ 255;
-  fs2.writeFileSync(path3.join(tamperDir, "vh-host-engine.mjs"), doctored);
-  fs2.copyFileSync(path3.join(ROOT, "tools", "vh-host-engine.sha256"), path3.join(tamperDir, "vh-host-engine.sha256"));
+  fs2.writeFileSync(path3.join(tamperDir, "si-host-engine.mjs"), doctored);
+  fs2.copyFileSync(path3.join(ROOT, "tools", "si-host-engine.sha256"), path3.join(tamperDir, "si-host-engine.sha256"));
   let tamperCode = 0;
   let tamperOut = "";
   try {
-    tamperOut = execFileSync(process.execPath, [path3.join(tamperDir, "vh-host.mjs"), "--harbor", "X"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    tamperOut = execFileSync(process.execPath, [path3.join(tamperDir, "si-host.mjs"), "--selfimpulse", "X"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   } catch (e) {
     const err = e;
     tamperCode = err.status ?? null;
@@ -7283,7 +7393,7 @@ async function main() {
   section("3. two independently running VH instances: discover \u2192 authorize \u2192 execute \u2192 verify");
   const live = makeRepo();
   const recvArgs = [
-    "--harbor",
+    "--selfimpulse",
     "USER 2",
     "--teammate",
     `${MATE.name}|${MATE.title}|${MATE.description}|${MATE.skills.join(",")}`,
@@ -7302,8 +7412,8 @@ async function main() {
   ];
   const jwkPath = path3.join(scratch("vhjwk-"), "peer.jwk");
   const receiver = launchHost([...recvArgs, "--write-jwk", jwkPath]);
-  const readyRaw = await waitFor(receiver, "VH-A2A-READY");
-  const ready = parseLine(receiver, "VH-A2A-READY");
+  const readyRaw = await waitFor(receiver, "SI-A2A-READY");
+  const ready = parseLine(receiver, "SI-A2A-READY");
   ok("the receiver PROCESS mounted and announced itself", readyRaw !== null && ready?.mounted === true && typeof ready?.port === "number", receiver.stderr.slice(0, 200));
   const recvPort = Number(ready?.port ?? 0);
   const recvRoot = `http://127.0.0.1:${recvPort}`;
@@ -7317,7 +7427,7 @@ async function main() {
   ok("\u2026and its signature verifies against the JWK the process published", peerSig.ok === true);
   let grantOut = "";
   const sender = launchHost([
-    "--harbor",
+    "--selfimpulse",
     "USER 1",
     "--teammate",
     "Scout|Code hardener|Harden authorization code and prove it with the repository's own tests|security,testing",
@@ -7344,8 +7454,8 @@ async function main() {
       execFileSync(
         process.execPath,
         [
-          path3.join(ROOT, "tools", "vh-host.mjs"),
-          "--harbor",
+          path3.join(ROOT, "tools", "si-host.mjs"),
+          "--selfimpulse",
           "USER 9",
           "--port",
           "0",
@@ -7371,8 +7481,8 @@ async function main() {
   })();
   ok("the host CLI refuses to delegate with no stated grant", noGrantCode === 2 && /--grant is required/.test(grantOut), `exit=${noGrantCode} ${grantOut.slice(0, 120)}`);
   ok("it says what to do instead", /read,write,shell/.test(grantOut), grantOut.slice(0, 160));
-  const delegatedRaw = await waitFor(sender, "VH-A2A-DELEGATED", 6e4);
-  const delegated = parseLine(sender, "VH-A2A-DELEGATED");
+  const delegatedRaw = await waitFor(sender, "SI-A2A-DELEGATED", 6e4);
+  const delegated = parseLine(sender, "SI-A2A-DELEGATED");
   ok("the sender PROCESS completed a delegation against the receiver PROCESS", delegatedRaw !== null && delegated?.ok === true, `${delegated?.record.note ?? ""} ${sender.stderr.slice(0, 300)}`);
   const rec = delegated?.record;
   ok("the receiver routed it to its own teammate", rec?.toTeammate === MATE.name, String(rec?.toTeammate));
@@ -7382,7 +7492,7 @@ async function main() {
     JSON.stringify(rec?.execution ?? null)
   );
   ok("the gate PASS is cross-vendor, not self-verification", /cross-vendor/.test(String(rec?.artifact ?? "")), String(rec?.artifact ?? ""));
-  ok("the record carries a sealed vh-proof-receipt/2", rec?.receipt?.format === "vh-proof-receipt/2" && Array.isArray(rec?.receipt?.events));
+  ok("the record carries a sealed si-proof-receipt/2", rec?.receipt?.format === "si-proof-receipt/2" && Array.isArray(rec?.receipt?.events));
   const localCheck = rec?.receipt ? await verifyProofReceipt(rec.receipt) : { ok: false, reason: "no receipt" };
   ok("that receipt verifies in the sender's own process", localCheck.ok === true, String(localCheck.reason ?? ""));
   const receiptFile = path3.join(scratch("vhrcpt-"), "receipt.json");
@@ -7397,7 +7507,7 @@ async function main() {
   const cli = verifyReceiptCli(receiptFile, issuerKey);
   ok(
     "\u2026and with the issuer key pinned out of band it verifies as AUTHENTIC (exit 0)",
-    cli.code === 0 && /VALID: vh-proof-receipt\/2/.test(cli.out) && /Issuer AUTHENTICATED/.test(cli.out) && !/UNVERIFIED/.test(cli.out),
+    cli.code === 0 && /VALID: si-proof-receipt\/2/.test(cli.out) && /Issuer AUTHENTICATED/.test(cli.out) && !/UNVERIFIED/.test(cli.out),
     `exit=${cli.code} ${cli.out.slice(0, 220)}`
   );
   ok(
@@ -7415,16 +7525,16 @@ async function main() {
     headers: { "content-type": "application/json", authorization: "Bearer not-the-token" },
     body: JSON.stringify({ jsonrpc: "2.0", id: "z1", method: "message/send", params: { message: { role: "user", parts: [{ kind: "text", text: "do the work" }] } } })
   });
-  ok("an unauthorized caller is refused by the mounted harbor", badAuth.status === 401 || (await badAuth.json()).error !== void 0, `HTTP ${badAuth.status}`);
+  ok("an unauthorized caller is refused by the mounted selfimpulse", badAuth.status === 401 || (await badAuth.json()).error !== void 0, `HTTP ${badAuth.status}`);
   await receiver.stop();
   await sender.stop();
   section("4. mounted but unable to execute \u2192 refused in words, never a completion");
-  const barren = await startA2ARuntime({ harborUser: "USER 3", teammates: [MATE] });
-  ok("a harbor with no bridge still mounts (it has to, to refuse politely)", barren.describe().mounted === true && barren.describe().bridge.executable === false);
+  const barren = await startA2ARuntime({ selfimpulseUser: "USER 3", teammates: [MATE] });
+  ok("a selfimpulse with no bridge still mounts (it has to, to refuse politely)", barren.describe().mounted === true && barren.describe().bridge.executable === false);
   ok("\u2026and describe() says why, in words", /cannot execute/.test(String(barren.describe().bridge.refusalReason)), String(barren.describe().bridge.refusalReason));
-  const caller = await startA2ARuntime({ harborUser: "USER 1", teammates: [MATE] });
+  const caller = await startA2ARuntime({ selfimpulseUser: "USER 1", teammates: [MATE] });
   ok(
-    "a harbor with no operator token still enforces one \u2014 it mints its own",
+    "a selfimpulse with no operator token still enforces one \u2014 it mints its own",
     typeof barren.token === "string" && barren.token.length > 8 && barren.describe().tokenMinted === true
   );
   const barrenOutcome = await caller.delegateTo({
@@ -7449,7 +7559,7 @@ async function main() {
   section("5. a repository whose tests FAIL is never reported as completed");
   const broken = makeRepo();
   const dishonest = await startA2ARuntime({
-    harborUser: "USER 2",
+    selfimpulseUser: "USER 2",
     teammates: [MATE],
     bridge: drillBridgeConfig({ repoRoot: broken.repo, baseBranch: broken.baseBranch, testCommand: ["node", "test.js"], applyFix: false })
   });
@@ -7500,9 +7610,9 @@ async function main() {
   const trusted = receiverRiskVerdict("git push --force to production", "risky", { mode: "trust-sender" });
   ok("the receiver never DOWNGRADES a sender that declared risky", trusted.effectiveTier === "risky", JSON.stringify(trusted));
   const releaseMate = { name: "Rivet", title: "Release engineer", description: "Harden authorize() code, then git push --force the release to production", skills: ["security", "release"] };
-  const guarded = await startA2ARuntime({ harborUser: "USER 2", teammates: [releaseMate], bridge: drillBridgeConfig({ repoRoot: makeRepo().repo, baseBranch, testCommand: ["node", "test.js"] }) });
+  const guarded = await startA2ARuntime({ selfimpulseUser: "USER 2", teammates: [releaseMate], bridge: drillBridgeConfig({ repoRoot: makeRepo().repo, baseBranch, testCommand: ["node", "test.js"] }) });
   const watched = await startA2ARuntime({
-    harborUser: "USER 1",
+    selfimpulseUser: "USER 1",
     teammates: [{ name: "Scout", title: "Release engineer", description: "Harden authorize() code, then git push --force the release to production", skills: ["security", "release"] }]
   });
   const smuggled = await watched.delegateTo({
@@ -7514,7 +7624,7 @@ async function main() {
     authorization: `Bearer ${guarded.token}`
   });
   ok(
-    "a headless harbor DENIES the upgraded task \u2014 nothing executes",
+    "a headless selfimpulse DENIES the upgraded task \u2014 nothing executes",
     smuggled.ok === false && smuggled.record.status === "denied",
     `${smuggled.record.status} ${smuggled.record.note}`
   );
@@ -7526,16 +7636,16 @@ async function main() {
   ok("\u2026and carries no execution and no receipt", smuggled.record.execution === null && smuggled.record.receipt === null);
   await guarded.stop();
   await watched.stop();
-  const a = await makeHarborIdentity();
-  const b = await makeHarborIdentity();
-  ok("each mounted harbor mints its own publisher identity", a.fp !== b.fp && a.fp.length === 16);
-  ok("the team a harbor speaks for is built through the real teammate API", (() => {
+  const a = await makeSelfImpulseIdentity();
+  const b = await makeSelfImpulseIdentity();
+  ok("each mounted selfimpulse mints its own publisher identity", a.fp !== b.fp && a.fp.length === 16);
+  ok("the team a selfimpulse speaks for is built through the real teammate API", (() => {
     let t = createTeam("X");
     const added = addTeammate(t, MATE);
     if (added.ok) t = added.value.team;
     return t.teammates.length === 1 && t.teammates[0].name === MATE.name;
   })());
-  ok("node deps resolve honestly: a binary that is not installed is null", await nodeRunnerDeps().resolveBin("definitely-not-a-real-vh-binary") === null);
+  ok("node deps resolve honestly: a binary that is not installed is null", await nodeRunnerDeps().resolveBin("definitely-not-a-real-si-binary") === null);
   console.log(`
 a2aRuntime: ${pass} passed, ${fail} failed`);
   if (failures.length > 0) {

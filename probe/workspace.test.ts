@@ -24,18 +24,18 @@ class MemStore implements Storage {
 }
 (globalThis as { localStorage?: Storage }).localStorage = new MemStore();
 
-import { getSpecialist, listSpecialists } from "../src/vh19/registry";
-import { ESTABLISHED_SPECIALISTS } from "../src/vh19/federation/fleet";
-import { CREW_MAX } from "../src/vh19/moeV2";
+import { getSpecialist, listSpecialists } from "../src/engine/registry";
+import { ESTABLISHED_SPECIALISTS } from "../src/engine/federation/fleet";
+import { CREW_MAX } from "../src/engine/moeV2";
 import {
   DESKS, DOMAIN_SPECIALISTS, ORG_DESK_COUNT, ORG_SPECIALIST_COUNT,
   desksForWorker, homeDesk, orgStats, leadFor, hrFor,
-} from "../src/vh19/org";
+} from "../src/engine/org";
 import {
   musterWorkspace, floorAsCrew, officeSnapshot, officeViewFromMuster,
   isElevenWorkspace, WORKSPACE_NAME, FLOOR_CAP,
-} from "../src/vh19/workspace";
-import { askVH19, responseCanonical } from "../src/vh19/generalist";
+} from "../src/engine/workspace";
+import { askSelfImpulse19, responseCanonical } from "../src/engine/generalist";
 
 async function main(): Promise<void> {
   console.log("workspace — 11WORKSPACE and the three-tier org");
@@ -48,8 +48,8 @@ async function main(): Promise<void> {
     DESKS.every((d) => leadFor(d.id)?.role === "lead" && hrFor(d.id)?.role === "hr"));
   ok("Lead/HR ids never collide with the routed catalog",
     DOMAIN_SPECIALISTS.every((s) => getSpecialist(s.id) === null));
-  ok("the routed catalog is still the established 1,850",
-    ESTABLISHED_SPECIALISTS.length === 1850 && listSpecialists().length === 1850);
+  ok("the routed catalog is still the established 1,500",
+    ESTABLISHED_SPECIALISTS.length === 1500 && listSpecialists().length === 1500);
 
   const stats = orgStats();
   ok("every established worker maps to at least one desk", stats.unassigned === 0, `unassigned=${stats.unassigned}`);
@@ -99,8 +99,8 @@ async function main(): Promise<void> {
     single.name === WORKSPACE_NAME && single.floor.length <= 1);
 
   void (async () => {
-    const planned = await askVH19({ text: compound, userId: "workspace-probe" });
-    ok("askVH19 carries the office on the live path",
+    const planned = await askSelfImpulse19({ text: compound, userId: "workspace-probe" });
+    ok("askSelfImpulse19 carries the office on the live path",
       planned.office?.name === "11WORKSPACE", `office=${planned.office?.name ?? "absent"}`);
     ok("the live floor is the routed specialistIds (workers, not leads)",
       !!planned.office && planned.specialistIds.length === planned.office.floor.length

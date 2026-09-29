@@ -1,4 +1,4 @@
-# Install 11Handle on your laptop (Windows 11) — the only supported install
+# Install SelfImpulse on your laptop (Windows 11) — the only supported install
 
 This zip is **native desktop source**, not a website. VH is a **Tauri v2** app: the UI is React,
 the engine is Rust, and everything real (SQLite, the keyring, agent processes, sandboxes) happens
@@ -32,7 +32,7 @@ know the source you received is the source that was tested):
 
 ```bat
 for %f in (versionDrift acceptance harnessPolicy checkRunner engine replayEvals theme assist acp agentsMd otelExport controlPlane stubLedger sandbox a2a) do (
-  .\node_modules\.bin\esbuild probe\%f.test.ts --bundle --platform=node --format=esm --define:HANDLE_ROOT="%cd%" --outfile=probe\.run.mjs --log-level=error && node probe\.run.mjs || exit /b 1
+  .\node_modules\.bin\esbuild probe\%f.test.ts --bundle --platform=node --format=esm --define:SI_ROOT="%cd%" --outfile=probe\.run.mjs --log-level=error && node probe\.run.mjs || exit /b 1
 )
 ```
 
@@ -57,7 +57,7 @@ npm run tauri build
 When it finishes, the installer is at:
 
 ```
-src-tauri\target\release\bundle\nsis\11Handle_x64-setup.exe
+src-tauri\target\release\bundle\nsis\SelfImpulse_x64-setup.exe
 ```
 
 Run it — VH installs per-user, gets a Start-menu entry, and launches as a desktop
@@ -66,7 +66,7 @@ written outside that.
 
 ## 5. First run — sanity checklist
 
-1. The sidebar says **11Handle** and Settings → About names the engine (the product shows no version number by design).
+1. The sidebar says **SelfImpulse** and Settings → About names the engine (the product shows no version number by design).
 2. Settings → **Themes**: try `ink` (true-black flagship), `pitch`, `slag`, `fern`, `ivory`, `travertine`.
 3. Settings → MCP: the control server advertises **5 tools** and implements **5 tools** — the
    counts must match; that equality is the whole W2 story.

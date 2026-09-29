@@ -2,9 +2,9 @@
  * Patina (17.1) — governance-meridian probe.
  *
  * Replaces the legacy Inspector-on-selection probe (Canvas-era). In Patina,
- * the "meridian" invariant is that Harbor Master tabs govern the ship and
+ * the "meridian" invariant is that SelfImpulse Master tabs govern the ship and
  * the four unique differentiator surfaces (Sweep / Backtest / Lineage /
- * Hindsight) all mount real actions through the harbor bridge.
+ * Hindsight) all mount real actions through the selfimpulse bridge.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -15,16 +15,16 @@ function ok(label: string, cond: boolean, detail = ""): void {
   else { failed++; failures.push(`${label}${detail ? ` — ${detail}` : ""}`); console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`); }
 }
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
-/* 19.7.12 (UI): Harbor Master / Register were unmounted dead code since the
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
+/* 19.7.12 (UI): SelfImpulse Master / Register were unmounted dead code since the
    19.6.6 console and are now deleted. The meridian invariant survives at the
    engine seams the tabs wrapped: the drill (Backtest) engine and the
    delegation chain (Lineage) are real functions with reports, not UI props. */
-const drill = fs.readFileSync(path.join(ROOT, "src", "vouch", "engine", "drill.ts"), "utf8");
+const drill = fs.readFileSync(path.join(ROOT, "src", "selfimpulse", "engine", "drill.ts"), "utf8");
 const custody = fs.readFileSync(path.join(ROOT, "src", "mission", "custody.ts"), "utf8");
 
-ok("the retired Harbor Master / Register views are gone", !fs.existsSync(path.join(ROOT, "src", "views")), "views tree still present");
+ok("the retired SelfImpulse Master / Register views are gone", !fs.existsSync(path.join(ROOT, "src", "views")), "views tree still present");
 ok("Backtest — runDrill exists and writes a report", /export async function runDrill\(/.test(drill) && /export function drillReports\(/.test(drill), "drill seam missing");
 ok("Backtest — a tampered test file is a named canary, not silence", /export function testFileCanary\(/.test(drill) && /"tampered"/.test(drill), "canary missing");
 ok("Lineage — the delegation chain is signed custody, not a label", /delegationChain/.test(custody) && /export async function issueRootEnvelope\(/.test(custody), "delegation chain missing");

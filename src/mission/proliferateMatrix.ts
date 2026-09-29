@@ -54,7 +54,7 @@ export const PROLIFERATE_COMPARISON_MATRIX: CapabilityComparison[] = [
     category: "memory",
     proliferateApproach: "Flat context retrieval / workspace summaries (causal failure-to-repair invariant compilation not documented as a public core feature).",
     mjSuperpower: "Causal Failure-to-Repair Knowledge Cortex",
-    technicalAdvantage: "Distills verified causal repair chains from the Flight Recorder into active architectural invariants and auto-compiles pre-flight briefings (.vh-brief/).",
+    technicalAdvantage: "Distills verified causal repair chains from the Flight Recorder into active architectural invariants and auto-compiles pre-flight briefings (.si-brief/).",
   },
   {
     dimension: "Visual Reactive Workflow Canvas",

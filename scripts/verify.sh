@@ -1,5 +1,5 @@
 #!/bin/sh
-# 11Handle — zero-dependency verification (built on the MJ engine).
+# SelfImpulse — zero-dependency verification (built on the MJ engine).
 #
 # For the reviewer on a machine WITHOUT node_modules and WITHOUT network.
 # Exactly one gate needs nothing but Node >= 20: the offline verification

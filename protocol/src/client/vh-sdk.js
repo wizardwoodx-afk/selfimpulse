@@ -1,9 +1,9 @@
 import { io }               from "socket.io-client";
-import * as VH              from "../core/vh-crypto.js";
-import * as TRUST           from "../core/vh-trust.js";
-import { assertSignerBinding } from "../core/vh-binding.js";
-import { PolicyEngine }     from "../core/vh-policy.js";
-import { VHError, VHAuthError } from "../core/vh-errors.js";
+import * as VH              from "../core/si-crypto.js";
+import * as TRUST           from "../core/si-trust.js";
+import { assertSignerBinding } from "../core/si-binding.js";
+import { PolicyEngine }     from "../core/si-policy.js";
+import { VHError, VHAuthError } from "../core/si-errors.js";
 
 class EventBus {
   #listeners = new Map();
@@ -34,14 +34,14 @@ export class VHClient {
   #bus      = new EventBus();
   #guard    = VH.createReplayGuard();
 
-  constructor(harborUrl, { policy = {}, maxReconnectAttempts = 5 } = {}) {
-    if (typeof harborUrl !== "string" || !harborUrl.startsWith("http"))
-      throw new VHError("INVALID_URL", "harborUrl must be an http(s) URL");
-    this.url          = harborUrl;
+  constructor(selfimpulseUrl, { policy = {}, maxReconnectAttempts = 5 } = {}) {
+    if (typeof selfimpulseUrl !== "string" || !selfimpulseUrl.startsWith("http"))
+      throw new VHError("INVALID_URL", "selfimpulseUrl must be an http(s) URL");
+    this.url          = selfimpulseUrl;
     this.policy       = new PolicyEngine(policy);
     this.maxReconnect = maxReconnectAttempts;
     this.me           = null;
-    this.harborKey    = null;
+    this.selfimpulseKey    = null;
     this.peers        = new Map();
   }
 
@@ -91,7 +91,7 @@ export class VHClient {
     ]);
 
     if (typeof challenge !== "string" || challenge.length < 16)
-      throw new VHAuthError("Received invalid challenge from harbor");
+      throw new VHAuthError("Received invalid challenge from selfimpulse");
 
     const fp           = this.#identity.fp;
     const challengeSig = await VH.signChallenge(this.#identity.sign.privateKey, challenge, fp);
@@ -109,15 +109,15 @@ export class VHClient {
     }
 
     this.me        = res.you;
-    this.harborKey = res.harbor;
+    this.selfimpulseKey = res.selfimpulse;
     res.peers.forEach((p) => { if (_validBundle(p.bundle)) this.peers.set(p.id, p); });
 
     this.#socket.on("peer:joined",    (p)   => { if (!_validBundle(p.bundle)) return; this.peers.set(p.id, p); this.#bus.emit("peer:joined", p); });
     this.#socket.on("peer:left",      ({ id }) => { const p = this.peers.get(id); this.peers.delete(id); this.#bus.emit("peer:left", p ?? { id }); });
     this.#socket.on("peer:rotated",   ({ id, fp, bundle: nb }) => { if (!_validBundle(nb)) return; const p = this.peers.get(id); if (p) { p.fp = fp; p.bundle = nb; } this.#bus.emit("peer:rotated", { id, fp }); });
     this.#socket.on("rtc:signal",     (msg)  => this.#bus.emit("rtc:signal",     msg));
-    this.#socket.on("vouch:new",      (link) => this.#bus.emit("vouch:new",      link));
-    this.#socket.on("vouch:rejected", (r)    => this.#bus.emit("vouch:rejected", r));
+    this.#socket.on("selfimpulse:new",      (link) => this.#bus.emit("selfimpulse:new",      link));
+    this.#socket.on("selfimpulse:rejected", (r)    => this.#bus.emit("selfimpulse:rejected", r));
     this.#socket.on("rate:limited",   (r)    => this.#bus.emit("rate:limited",   r));
     this.#socket.on("checkpoint:new", async (cp) => {
       const verified = await this._verifyCheckpointObj(cp).catch(() => false);
@@ -152,7 +152,7 @@ export class VHClient {
   }
 
   /**
-   * Central submit path — all vouch kinds flow through here.
+   * Central submit path — all selfimpulse kinds flow through here.
    * Two checks before sealing:
    *   1. Policy engine validates the payload shape.
    *   2. assertSignerBinding() verifies signer ↔ actor (client-side half).
@@ -161,7 +161,7 @@ export class VHClient {
     if (!this.#identity) throw new VHAuthError("call join() first");
 
     /* (1) policy */
-    const verdict = this.policy.vouch(facts);
+    const verdict = this.policy.selfimpulse(facts);
     if (!verdict.ok) return { ok: false, reason: `local-policy:${verdict.reason}` };
 
     /* (2) Sentinel: centralized signer ↔ actor binding (client-side) */
@@ -169,12 +169,12 @@ export class VHClient {
     if (!binding.ok) return { ok: false, reason: binding.reason };
 
     const env = await VH.sealSecure(facts, this.#identity.sign.privateKey);
-    return this._emit("vouch:submit", env);
+    return this._emit("selfimpulse:submit", env);
   }
 
-  async vouchShare(facts) { return this._submit(facts); }
+  async selfimpulseShare(facts) { return this._submit(facts); }
 
-  async vouchAction({ action, tool = null, purpose = null, policy = null, evidence = null, result = "success" }) {
+  async selfimpulseAction({ action, tool = null, purpose = null, policy = null, evidence = null, result = "success" }) {
     return this._submit({ v: 2, kind: "agent_action", agent: { n: this.me.name, fp: this.me.fp }, action, tool, purpose, policy, evidence, result, ts: Date.now() });
   }
 
@@ -225,7 +225,7 @@ export class VHClient {
   }
 
   async _verifyCheckpointObj(cp) {
-    const jwk = this.harborKey?.jwk;
+    const jwk = this.selfimpulseKey?.jwk;
     if (!jwk) return false;
     return VH.verify(jwk, cp.statement, cp.sig);
   }

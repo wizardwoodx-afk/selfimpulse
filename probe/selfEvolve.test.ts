@@ -23,9 +23,9 @@ if (typeof globalThis.localStorage === "undefined") {
   } as Storage;
 }
 
-import { recordDecision } from "../src/vh19/memory";
-import { effectiveRiskTier, getSpecialist, SPECIALISTS } from "../src/vh19/registry";
-import { loadSelfOverrides, resetSelfOverrides } from "../src/vh19/selfOverrides";
+import { recordDecision } from "../src/engine/memory";
+import { effectiveRiskTier, getSpecialist, SPECIALISTS } from "../src/engine/registry";
+import { loadSelfOverrides, resetSelfOverrides } from "../src/engine/selfOverrides";
 import {
   applySelfChange,
   floorIntact,
@@ -34,8 +34,8 @@ import {
   revertAppliedChange,
   SELF_EVOLUTION_FLOOR,
   selfProposals,
-} from "../src/vh19/selfEvolve";
-import { routeDeterministic } from "../src/vh19/router";
+} from "../src/engine/selfEvolve";
+import { routeDeterministic } from "../src/engine/router";
 
 let pass = 0;
 let fail = 0;
@@ -53,7 +53,7 @@ const victimCat = victim.category;
 test("selfEvolve — bounded, human-gated, revert-exact", async () => {
   console.log("\n── 1. silence before evidence ──");
   resetSelfOverrides();
-  localStorage.removeItem("vh19.self.proposals.v1");
+  localStorage.removeItem("engine.self.proposals.v1");
   check("an empty ledger proposes nothing", (await proposeSelfChanges(USER)).proposals.length === 0);
   check("the floor is declared in words", SELF_EVOLUTION_FLOOR.length === 4 && SELF_EVOLUTION_FLOOR.join(" ").includes("receipt"));
 

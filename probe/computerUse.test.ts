@@ -10,8 +10,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { pcExec, newProfile, HeadlessBrowser, detectBrowserBinary } from "../src/vh19/computerUse";
-import type { BrowserTransport, PageSnapshot } from "../src/vh19/computerUse";
+import { pcExec, newProfile, HeadlessBrowser, detectBrowserBinary } from "../src/engine/computerUse";
+import type { BrowserTransport, PageSnapshot } from "../src/engine/computerUse";
 
 const policy = { allowlist: ["echo", "ls"], maxRuntimeMs: 5000, maxOutputBytes: 1024 };
 

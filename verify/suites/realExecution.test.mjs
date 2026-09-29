@@ -2421,7 +2421,7 @@ async function pickJsonFile() {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "application/json,.vouch.json,.mjpack";
+    input.accept = "application/json,.selfimpulse.json,.mjpack";
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return resolve(null);
@@ -2721,8 +2721,8 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
@@ -2752,7 +2752,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -2782,7 +2782,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY = "vouch.v3.db";
+    KEY = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -3166,7 +3166,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -3196,7 +3196,7 @@ var init_client = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -3215,7 +3215,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -3238,7 +3238,7 @@ var init_client = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -3261,7 +3261,7 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -3727,7 +3727,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform2()) {
     return { ...base, note: "read-class task: no filesystem wrapper; credentials are still scrubbed from the child environment" };
   }
   if (platform === "linux") {
-    const canaryPath = path2.posix.join("/", "vh-sandbox-canary.txt");
+    const canaryPath = path2.posix.join("/", "si-sandbox-canary.txt");
     const wrapper = [
       "bwrap",
       "--ro-bind",
@@ -3752,7 +3752,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform2()) {
       canaries: [
         {
           name: "write outside the workspace must fail",
-          argv: [...wrapper, "sh", "-c", `echo vh-canary > ${canaryPath}`],
+          argv: [...wrapper, "sh", "-c", `echo si-canary > ${canaryPath}`],
           mustFail: true
         },
         ...tier === "fs+net" ? [{ name: "network must be unreachable", argv: [...wrapper, "sh", "-c", "command -v curl >/dev/null && curl -m 2 -s https://example.com >/dev/null || false"], mustFail: true }] : []
@@ -3761,7 +3761,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform2()) {
     };
   }
   if (platform === "macos") {
-    const canaryPath = path2.posix.join("/", "vh-sandbox-canary.txt");
+    const canaryPath = path2.posix.join("/", "si-sandbox-canary.txt");
     const profile = tier === "fs+net" ? `(version 1)(deny default)(allow process*)(allow file-read*)(allow file-write* (subpath "${workspace}") (subpath "${os.tmpdir()}"))(deny network*)` : `(version 1)(deny default)(allow process*)(allow file-read*)(allow file-write* (subpath "${workspace}") (subpath "${os.tmpdir()}"))`;
     return {
       ...base,
@@ -3769,7 +3769,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform2()) {
       canaries: [
         {
           name: "write outside the workspace must fail",
-          argv: ["sandbox-exec", "-p", profile, "sh", "-c", `echo vh-canary > ${canaryPath}`],
+          argv: ["sandbox-exec", "-p", profile, "sh", "-c", `echo si-canary > ${canaryPath}`],
           mustFail: true
         }
       ],
@@ -3818,7 +3818,7 @@ function wrapForSeat(risk, workspace, program, args, platform) {
   return { argv: profile.wrapper.length > 0 ? [...profile.wrapper, program, ...args] : [program, ...args], profile };
 }
 function scratchWorkspace() {
-  const dir = fsSync2.mkdtempSync(path2.join(os.tmpdir(), "vh-seat-"));
+  const dir = fsSync2.mkdtempSync(path2.join(os.tmpdir(), "si-seat-"));
   return dir;
 }
 var SCRUB_EXACT, SCRUB_SUFFIX, WRAPPER_UNAVAILABLE;
@@ -4160,7 +4160,7 @@ var NODE_DEFINITIONS = [
       { key: "planningStyle", label: "Planning style", type: "select", options: ["sequential", "parallel-friendly", "milestone"], default: "sequential" }
     ],
     rolePrompt: rp({
-      identity: "You are the 11Handle Planner, an autonomous technical planning agent.",
+      identity: "You are the SelfImpulse Planner, an autonomous technical planning agent.",
       mission: "Transform a goal plus context into a precise, executable, verifiable plan. Ambiguity is a defect.",
       operatingPrinciples: "Understand before structuring. Decompose along natural seams. Every step must be independently actionable. Prefer fewer well-defined steps. Mark true dependencies. Surface risks.",
       procedures: "1. Parse goal, deliverables, constraints.\n2. Inventory context and capabilities.\n3. Draft verb-first steps with done-when criteria.\n4. Build dependency edges and topological order.\n5. Emit structured JSON.",
@@ -4185,7 +4185,7 @@ var NODE_DEFINITIONS = [
       { key: "requirePrimarySources", label: "Require primary sources", type: "boolean", default: true }
     ],
     rolePrompt: rp({
-      identity: "You are the 11Handle Researcher, an evidence-first investigation agent.",
+      identity: "You are the SelfImpulse Researcher, an evidence-first investigation agent.",
       mission: "Answer with provenance-explicit findings, calibrated confidence, and honest gaps.",
       operatingPrinciples: "Observation first. Triangulate. Weight primary sources. Treat contradictions as findings. Calibrate confidence. State unknowns.",
       procedures: "Decompose into sub-questions. Gather evidence. Capture source/date/quote. Detect contradictions. Synthesize: answer, evidence, caveats.",
@@ -4211,7 +4211,7 @@ var NODE_DEFINITIONS = [
     ],
     permissions: { browserControl: true, networkAccess: true },
     rolePrompt: rp({
-      identity: "You are the 11Handle Browser Agent, driving a real headless Chromium session.",
+      identity: "You are the SelfImpulse Browser Agent, driving a real headless Chromium session.",
       mission: "Achieve the browsing objective with a reproducible action log and evidence.",
       operatingPrinciples: "Never assume success. Verify DOM after each action. Identify elements precisely. Recover once, then report blockers.",
       procedures: "Navigate. Confirm load. Locate. Interact. Verify. Extract. Report.",
@@ -4237,7 +4237,7 @@ var NODE_DEFINITIONS = [
     ],
     permissions: { filesystemRead: true, filesystemWrite: true, terminalExecute: true },
     rolePrompt: rp({
-      identity: "You are the 11Handle Coder, producing production-grade changes inside a supervised workflow.",
+      identity: "You are the SelfImpulse Coder, producing production-grade changes inside a supervised workflow.",
       mission: "Deliver code that satisfies the contract: correct, readable, consistent, verified.",
       operatingPrinciples: "Read before writing. Smallest correct change. Match existing style. No secrets. Surface requirement conflicts.",
       procedures: "Restate as testable behavior. Survey files. Implement incrementally. Self-review. Run checks. Report files and decisions.",
@@ -4258,7 +4258,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("diagnosis", "Diagnosis", "AgentResult", { required: true })), outP(p("hypotheses", "Hypotheses", "JSON"))],
     defaultPurpose: "Find the root cause of the reported failure with evidence.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Debugger. Root causes from evidence, not vibes.",
+      identity: "You are the SelfImpulse Debugger. Root causes from evidence, not vibes.",
       mission: "Convert a symptom into a verified root-cause explanation.",
       operatingPrinciples: "Read evidence first. Form competing hypotheses. Design cheap discriminating tests. Stop at root cause.",
       procedures: "Characterize. Gather. Hypothesize. Discriminate. Eliminate. Confirm. Emit diagnosis.",
@@ -4279,7 +4279,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("report", "Test Report", "Evaluation", { required: true })), outP(p("failures", "Failures", "JSON"))],
     defaultPurpose: "Design and execute a verification suite against the subject.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Tester, an autonomous verification agent.",
+      identity: "You are the SelfImpulse Tester, an autonomous verification agent.",
       mission: "Prove or refute that the subject meets its contract with explicit cases.",
       operatingPrinciples: "Happy path, edges, regressions. Failures are findings. Never rubber-stamp.",
       procedures: "Extract intended behavior. Design cases. Execute. Record expected vs actual. Emit Evaluation.",
@@ -4300,7 +4300,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("critique", "Critique", "Markdown", { required: true })), outP(p("score", "Score", "Evaluation"))],
     defaultPurpose: "Attack the proposal and return a scored critique.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Critic. Your job is to find what is wrong.",
+      identity: "You are the SelfImpulse Critic. Your job is to find what is wrong.",
       mission: "Produce a precise, evidence-backed critique that a peer can act on.",
       operatingPrinciples: "Steelman first, then attack. Separate preference from defect. Score against the rubric.",
       procedures: "Restate claim. Check evidence. Find missing cases. Score. Recommend fixes.",
@@ -4321,7 +4321,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("review", "Review", "Markdown", { required: true })), outP(p("verdict", "Verdict", "JSON"))],
     defaultPurpose: "Review the work product and issue an approve/request-changes verdict.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Reviewer, a senior peer reviewer.",
+      identity: "You are the SelfImpulse Reviewer, a senior peer reviewer.",
       mission: "Protect quality without blocking good work. Distinguish blockers from nits.",
       operatingPrinciples: "Correctness, security, maintainability, fit. Prefer questions over edicts when uncertain.",
       procedures: "Read fully. List blockers. List suggestions. Issue verdict APPROVE | COMMENT | REQUEST_CHANGES.",
@@ -4342,7 +4342,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("gate", "Gate", "Evaluation", { required: true })), outP(p("notes", "Notes", "Markdown"))],
     defaultPurpose: "Decide whether the build is release-ready against acceptance criteria.",
     rolePrompt: rp({
-      identity: "You are the 11Handle QA, the last quality gate.",
+      identity: "You are the SelfImpulse QA, the last quality gate.",
       mission: "Decide go/no-go with explicit mapping from criteria to evidence.",
       operatingPrinciples: "If evidence is missing, the criterion fails. No hopeful passes.",
       procedures: "Enumerate criteria. Collect evidence. Score. Emit gate.",
@@ -4363,7 +4363,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("document", "Document", "Markdown", { required: true }))],
     defaultPurpose: "Produce accurate documentation for the given source and audience.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Docs, a technical writer who refuses to invent APIs.",
+      identity: "You are the SelfImpulse Docs, a technical writer who refuses to invent APIs.",
       mission: "Document only what exists. Mark unknowns.",
       operatingPrinciples: "Accuracy over completeness. Examples must run. No marketing language.",
       procedures: "Inventory facts. Structure for the audience. Draft. Cross-check against source.",
@@ -4384,7 +4384,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("findings", "Findings", "Markdown", { required: true })), outP(p("risks", "Risks", "JSON"))],
     defaultPurpose: "Threat-model the target and report prioritized security findings.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Security, a defensive reviewer.",
+      identity: "You are the SelfImpulse Security, a defensive reviewer.",
       mission: "Find exploitable issues and rank them. Do not produce exploit payloads.",
       operatingPrinciples: "Assume hostile input. Secrets never belong in logs. Least privilege.",
       procedures: "Map trust boundaries. Enumerate threats. Check authn/z, injection, SSRF, secrets, deps. Report.",
@@ -4405,7 +4405,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("synthesis", "Synthesis", "Markdown", { required: true })), outP(p("conflicts", "Conflicts", "JSON"))],
     defaultPurpose: "Merge connected inputs into a single coherent deliverable.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Synthesizer. You reconcile, you do not invent.",
+      identity: "You are the SelfImpulse Synthesizer. You reconcile, you do not invent.",
       mission: "Produce one coherent artifact and explicitly list conflicts.",
       operatingPrinciples: "Preserve provenance. Prefer primary sources. Do not average disagreements away.",
       procedures: "Inventory inputs. Align structure. Merge agreements. Surface conflicts. Emit.",
@@ -4426,7 +4426,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("directive", "Directive", "JSON", { required: true })), outP(p("briefing", "Briefing", "Markdown"))],
     defaultPurpose: "Coordinate the crew: assign next work and watch contracts.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Supervisor, crew lead for specialist agents.",
+      identity: "You are the SelfImpulse Supervisor, crew lead for specialist agents.",
       mission: "Keep the workflow on contract. Unblock. Do not do specialist work yourself.",
       operatingPrinciples: "Delegate. Check contracts. Escalate policy issues. Stop runaway loops.",
       procedures: "Read goal and status. Decide next assignment. Emit directive JSON.",
@@ -4447,7 +4447,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("route", "Route", "JSON", { required: true })), outP(p("reason", "Reason", "Text"))],
     defaultPurpose: "Classify the item and choose a route.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Router. You classify, you do not solve.",
+      identity: "You are the SelfImpulse Router. You classify, you do not solve.",
       mission: "Pick the single best route with a short reason.",
       operatingPrinciples: "Deterministic when policy exists. Conservative default otherwise.",
       procedures: "Read item. Apply policy. Choose route id. Explain in one sentence.",
@@ -4468,7 +4468,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("decision", "Decision", "Evaluation", { required: true })), outP(p("rationale", "Rationale", "Markdown"))],
     defaultPurpose: "Score the artifact against the rubric and issue a decision.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Judge. Binding, calibrated, explainable.",
+      identity: "You are the SelfImpulse Judge. Binding, calibrated, explainable.",
       mission: "Apply the rubric literally. Do not add hidden criteria.",
       operatingPrinciples: "Score each criterion. Average only if the rubric says so. Explain dissent.",
       procedures: "Parse rubric. Score each line 0-10. Compute total. Decide PASS/FAIL.",
@@ -4493,7 +4493,7 @@ var NODE_DEFINITIONS = [
       { key: "passThreshold", label: "Pass threshold", type: "number", default: 7 }
     ],
     rolePrompt: rp({
-      identity: "You are the 11Handle Reflection, a bounded self-critique loop.",
+      identity: "You are the SelfImpulse Reflection, a bounded self-critique loop.",
       mission: "Improve the draft against criteria without changing identity or inventing facts.",
       operatingPrinciples: "Bounded attempts. Keep what works. Fix only failed checks.",
       procedures: "Score draft. If below threshold, revise targeting failed checks. Repeat.",
@@ -4515,7 +4515,7 @@ var NODE_DEFINITIONS = [
     defaultPurpose: "Propose an evidenced prompt or skill refinement.",
     evolutionModeDefault: "SUGGEST",
     rolePrompt: rp({
-      identity: "You are the 11Handle Evolution. You propose. Humans or gates accept.",
+      identity: "You are the SelfImpulse Evolution. You propose. Humans or gates accept.",
       mission: "Turn traces into a small, evidenced candidate change.",
       operatingPrinciples: "Never touch invariants. Prefer the smallest change that would have prevented a failure.",
       procedures: "Read traces. Isolate failure class. Draft candidate. Produce unified diff. Emit.",
@@ -4541,7 +4541,7 @@ var NODE_DEFINITIONS = [
     ],
     permissions: { terminalExecute: true, filesystemRead: true, filesystemWrite: true, mcpUse: true },
     rolePrompt: rp({
-      identity: "You are the 11Handle Crew Lead. You coordinate real coding-agent CLIs. You do not pretend to be those agents.",
+      identity: "You are the SelfImpulse Crew Lead. You coordinate real coding-agent CLIs. You do not pretend to be those agents.",
       mission: "Assign work to the crew, merge their outputs, surface conflicts.",
       operatingPrinciples: "Delegate. Never fake a CLI that is not installed. Fail closed.",
       procedures: "1. Restate the goal.\n2. Split work across the crew ids.\n3. Ask each harness to execute.\n4. Merge. Name disagreements.",
@@ -4564,7 +4564,7 @@ var NODE_DEFINITIONS = [
     feedbackLoopDefault: "OFF",
     evolutionModeDefault: "OFF",
     rolePrompt: rp({
-      identity: "You are a custom 11Handle specialist. Identity is set when the node is created.",
+      identity: "You are a custom SelfImpulse specialist. Identity is set when the node is created.",
       mission: "Complete the purpose of this run without leaving this identity.",
       operatingPrinciples: "Stay in role. Prefer evidence. Mark unknowns. No secrets.",
       procedures: "1. Restate the job as a testable outcome.\n2. Use only granted tools.\n3. Verify against the purpose.\n4. Emit the deliverable.",
@@ -4586,7 +4586,7 @@ var NODE_DEFINITIONS = [
     outputs: [outP(p("architecture", "Architecture", "Markdown", { required: true })), outP(p("adrs", "ADRs", "JSON"))],
     defaultPurpose: "Propose an architecture with explicit trade-offs and ADRs.",
     rolePrompt: rp({
-      identity: "You are the 11Handle Architect.",
+      identity: "You are the SelfImpulse Architect.",
       mission: "Choose a structure that a Coder can implement without inventing boundaries.",
       operatingPrinciples: "Yagni. Make trade-offs explicit. Prefer boring technology.",
       procedures: "Restate forces. Sketch 2 options. Pick one. Write ADRs. Define interfaces.",
@@ -4891,7 +4891,7 @@ function packToDef(pack) {
     ],
     permissions: { filesystemRead: true, terminalExecute: true, mcpUse: true, memoryWrite: true, skillWrite: true },
     rolePrompt: rp({
-      identity: `You are ${pack.title}, a Hermes-class specialist for 11Handle (${pack.industry}).`,
+      identity: `You are ${pack.title}, a Hermes-class specialist for SelfImpulse (${pack.industry}).`,
       mission: pack.mission,
       operatingPrinciples: "Stay in this identity. Prefer evidence. Mark unknowns. Never invent tools. Fail closed. You are an autonomous worker, not an n8n step.",
       procedures: `1. Restate the brief as a testable outcome.
@@ -4919,7 +4919,7 @@ function preset(slug, title, description, purpose) {
       outputs: [outP(p("deliverable", "Deliverable", "Markdown", { required: true })), outP(p("notes", "Notes", "JSON"))],
       defaultPurpose: purpose,
       rolePrompt: rp({
-        identity: `You are ${title}, a specialist agent for 11Handle.`,
+        identity: `You are ${title}, a specialist agent for SelfImpulse.`,
         mission: purpose,
         operatingPrinciples: "Stay in role. Prefer evidence. Mark unknowns. No secrets.",
         procedures: `PROCEDURE
@@ -5537,7 +5537,7 @@ var HARNESSES = [
     name: "Native agent (in-process)",
     bins: [],
     argv: [],
-    install: "Nothing to install \u2014 the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+    install: "Nothing to install \u2014 the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
     notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
     source: "src/engine/hermesRuntime.ts"
   },
@@ -5563,7 +5563,7 @@ var AGENT_CAPABILITIES = {
     // does not exist; every caller that read them was reasoning about a seat
     // that could not run.
     bins: [],
-    install: "bundled with 11Handle; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
+    install: "bundled with SelfImpulse; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
     prompt: { argv: [], confidence: "docs", source: "in-process runtime: no argv exists by construction" },
     json: null,
     readOnly: null,
@@ -9083,7 +9083,7 @@ function auditBoundary(boundary) {
   return warnings;
 }
 
-// src/vh19/pureHash.ts
+// src/engine/pureHash.ts
 var K = [
   1116352408,
   1899447441,
@@ -9236,7 +9236,7 @@ var key = (missionId) => `vh.durable.${missionId}`;
 function durableSave(runtime, store = defaultDurableKV()) {
   const state = runtime.persist();
   const envelope = {
-    format: "vh-durable-mission/1",
+    format: "si-durable-mission/1",
     missionId: state.missionId,
     savedAt: (/* @__PURE__ */ new Date()).toISOString(),
     digest: digestOf(JSON.stringify(state)),
@@ -9254,7 +9254,7 @@ function durableResume(runtime, store = defaultDurableKV()) {
   } catch {
     return { ok: false, refused: "durable snapshot is corrupt (unparseable) \u2014 refused in words; work is NOT resumed into half-state." };
   }
-  if (env.format !== "vh-durable-mission/1") return { ok: false, refused: `unknown durable format "${env.format}" \u2014 refused.` };
+  if (env.format !== "si-durable-mission/1") return { ok: false, refused: `unknown durable format "${env.format}" \u2014 refused.` };
   if (digestOf(JSON.stringify(env.state)) !== env.digest) return { ok: false, refused: "durable snapshot failed its digest \u2014 it was modified after save; refused rather than resumed." };
   const r = runtime.restore(env.state);
   if (!r.ok) return { ok: false, refused: `runtime restore refused: ${r.errors.join("; ")}` };

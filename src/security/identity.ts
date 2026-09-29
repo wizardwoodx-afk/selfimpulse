@@ -1,9 +1,9 @@
 /**
- * 11Handle — the identity seam.
+ * SelfImpulse — the identity seam.
  *
  * WHY THIS IS AN INTERFACE AND NOT A CONSTANT
  * -------------------------------------------
- * Until 19.8 the UI store carried `export const USER = "vh-owner"` and passed it
+ * Until 19.8 the UI store carried `export const USER = "si-owner"` and passed it
  * to every engine call as `userId`. That is fine for one person on one machine
  * and wrong the moment a second person appears, and the cost of changing it later
  * is not the constant — it is every call site that reads it.
@@ -137,7 +137,7 @@ function mintSubject(): string {
   if (c && typeof c.getRandomValues === "function") c.getRandomValues(entropy);
   else for (let i = 0; i < entropy.length; i++) entropy[i] = Math.floor(Math.random() * 256);
   const hex = [...entropy].map((b) => b.toString(16).padStart(2, "0")).join("");
-  const subject = `vh-owner-${hex.slice(0, 16)}`;
+  const subject = `si-owner-${hex.slice(0, 16)}`;
   writeLs(SUBJECT_KEY, subject);
   return subject;
 }

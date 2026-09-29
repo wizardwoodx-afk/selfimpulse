@@ -1,7 +1,7 @@
 /**
  * MESH RUNTIME PROBE — 19.5.4 release-quality close-out.
  *
- * Review round 6 demanded one thing above all: VouchMesh must not be a
+ * Review round 6 demanded one thing above all: SelfImpulseMesh must not be a
  * probe-only island — it must sit on the production collaboration path.
  * This suite pins that wiring mechanically:
  *
@@ -9,7 +9,7 @@
  *      node:crypto on fixed vectors and randomized cases — the WebView and
  *      Node sides of the seam cannot diverge.
  *   2. recordHandoff (the live A2A seam consumed by the door and RSI) mints
- *      a fully co-signed VouchMesh joint receipt on every delegated handoff,
+ *      a fully co-signed SelfImpulseMesh joint receipt on every delegated handoff,
  *      and honestly mints nothing on a refused one.
  *   3. Pair trust compounds on clean joint receipts, decays on refusals, and
  *      persists per pair.
@@ -21,7 +21,7 @@
  *   7. The wiring is structural: production files import the mesh, and the
  *      mesh imports no Node-only builtin.
  *   8. The canonical scope line — mesh = LOCAL trust fabric, ECDSA = portable
- *      authority — is stated in every file that pitches VouchMesh.
+ *      authority — is stated in every file that pitches SelfImpulseMesh.
  */
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert";
@@ -29,8 +29,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { createHash, createHmac } from "node:crypto";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 /* localStorage shim — same shape as probe/agentTeam */
 if (typeof globalThis.localStorage === "undefined") {
@@ -45,17 +45,17 @@ if (typeof globalThis.localStorage === "undefined") {
   } as Storage;
 }
 
-import { pureSha256, pureHmacSha256 } from "../src/vh19/pureHash";
+import { pureSha256, pureHmacSha256 } from "../src/engine/pureHash";
 import {
   registerPeer, attest, openChannel, buildJointReceipt, coSign,
   jointCanonical,
-} from "../src/vh19/vouchMesh";
+} from "../src/engine/selfimpulseMesh";
 import {
-  meshForHandoff, pairTrustFor, standingFor, clearMeshTrust, recomputeCoVouch,
-} from "../src/vh19/meshRuntime";
-import { recordHandoff, clearHandoffs } from "../src/vh19/handoffs";
+  meshForHandoff, pairTrustFor, standingFor, clearMeshTrust, recomputeCoSelfImpulse,
+} from "../src/engine/meshRuntime";
+import { recordHandoff, clearHandoffs } from "../src/engine/handoffs";
 import { uid } from "../src/app/id";
-import { REACH_MCP_VERSION, REACH_MCP_NAME } from "../src/vh19/reachMcp";
+import { REACH_MCP_VERSION, REACH_MCP_NAME } from "../src/engine/reachMcp";
 
 beforeEach(() => {
   globalThis.localStorage.clear();
@@ -118,11 +118,11 @@ describe("the production handoff seam is meshed", () => {
 
   it("a refused handoff mints NO joint receipt but still moves pair trust", () => {
     recordHandoff({ peer: "peer-atlas", task: "summarize the ledger", outcome: "delegated", detail: "clean", receiptDigest: "rd-1" });
-    const before = pairTrustFor("vh.harbor", "peer-atlas");
+    const before = pairTrustFor("vh.selfimpulse", "peer-atlas");
     const rec = recordHandoff({ peer: "peer-atlas", task: "another task", outcome: "refused", detail: "peer offline" });
     assert.equal(rec.meshJointDigest, null);
     assert.ok(rec.meshDetail.includes("refused"));
-    const after = pairTrustFor("vh.harbor", "peer-atlas");
+    const after = pairTrustFor("vh.selfimpulse", "peer-atlas");
     assert.ok(before && after && after.trust < before.trust, `trust ${before?.trust} -> ${after?.trust}`);
   });
 
@@ -130,33 +130,33 @@ describe("the production handoff seam is meshed", () => {
     recordHandoff({ peer: "peer-borealis", task: "t1", outcome: "delegated", detail: "ok" });
     recordHandoff({ peer: "peer-borealis", task: "t2", outcome: "delegated", detail: "ok" });
     recordHandoff({ peer: "peer-borealis", task: "t3", outcome: "delegated", detail: "ok" });
-    const t = pairTrustFor("vh.harbor", "peer-borealis");
+    const t = pairTrustFor("vh.selfimpulse", "peer-borealis");
     assert.ok(t && t.trust === 3 && t.jointReceipts === 3, JSON.stringify(t));
-    assert.equal(standingFor("vh.harbor", "peer-borealis"), "vouched");
+    assert.equal(standingFor("vh.selfimpulse", "peer-borealis"), "selfimpulseed");
     // persisted, not just in memory: a fresh read sees the same ledger
-    const again = JSON.parse(globalThis.localStorage.getItem("vh19.mesh.trust.v1") ?? "[]") as { trust: number }[];
+    const again = JSON.parse(globalThis.localStorage.getItem("engine.mesh.trust.v1") ?? "[]") as { trust: number }[];
     assert.ok(again.some((r) => r.trust === 3));
   });
 
   it("the joint receipt verifies offline by recomputation (verifier path)", () => {
     // Rebuild the exact mesh computation meshForHandoff performs, then verify
-    // each co-vouch with only the canonical body + the participant's secret.
-    const pa = registerPeer({ peerId: "peer-a", instanceOf: "handle-node", capabilities: ["routing"], endpoint: "https://peer-a.11handle.test" });
-    const pb = registerPeer({ peerId: "peer-verity", instanceOf: "peer-verity", capabilities: ["a2a", "handoff"], endpoint: "https://peer-verity.vh-mesh.local" });
+    // each co-selfimpulse with only the canonical body + the participant's secret.
+    const pa = registerPeer({ peerId: "peer-a", instanceOf: "selfimpulse-node", capabilities: ["routing"], endpoint: "https://peer-a.selfimpulse.test" });
+    const pb = registerPeer({ peerId: "peer-verity", instanceOf: "peer-verity", capabilities: ["a2a", "handoff"], endpoint: "https://peer-verity.si-mesh.local" });
     assert.ok(!("refused" in pa) && !("refused" in pb));
-    const ch = openChannel(attest("sec-harbor", "peer-a", pb, 1), attest("sec-verity", "peer-verity", pa, 1));
+    const ch = openChannel(attest("sec-selfimpulse", "peer-a", pb, 1), attest("sec-verity", "peer-verity", pa, 1));
     assert.ok(!("refused" in ch));
     const actions = [
       { actor: "peer-a", action: "delegate", outcome: "executed" as const, at: 7 },
       { actor: "peer-verity", action: "accept", outcome: "executed" as const, at: 7 },
     ];
     let rec = buildJointReceipt("handoff:ho-verify", ch, actions);
-    rec = coSign(rec, "peer-a", "sec-harbor");
+    rec = coSign(rec, "peer-a", "sec-selfimpulse");
     rec = coSign(rec, "peer-verity", "sec-verity");
     const body = jointCanonical(rec.missionId, rec.channelDigest, rec.actions);
-    assert.equal(recomputeCoVouch("sec-harbor", body), rec.coSignatures["peer-a"]);
-    assert.equal(recomputeCoVouch("sec-verity", body), rec.coSignatures["peer-verity"]);
-    assert.notEqual(recomputeCoVouch("wrong-secret", body), rec.coSignatures["peer-a"]);
+    assert.equal(recomputeCoSelfImpulse("sec-selfimpulse", body), rec.coSignatures["peer-a"]);
+    assert.equal(recomputeCoSelfImpulse("sec-verity", body), rec.coSignatures["peer-verity"]);
+    assert.notEqual(recomputeCoSelfImpulse("wrong-secret", body), rec.coSignatures["peer-a"]);
   });
 });
 
@@ -178,7 +178,7 @@ describe("uid is CSPRNG-born and Reach MCP is current", () => {
   it("Reach MCP reports the current release and documents exactly its six exposed tools", () => {
     assert.ok(/^\d+\.\d+\.\d+(?:\.\d+)?$/.test(REACH_MCP_VERSION));
     assert.equal(REACH_MCP_NAME, "Agent Reach MCP");
-    const src = fs.readFileSync(path.join(ROOT, "src", "vh19", "reachMcp.ts"), "utf8");
+    const src = fs.readFileSync(path.join(ROOT, "src", "engine", "reachMcp.ts"), "utf8");
     assert.ok(!src.includes("authority.bind"), "no ghost tool in Reach MCP docs");
     for (const tool of ["pc.exec", "pc.browser.open", "pc.browser.screenshot", "authority.issue", "authority.verify", "authority.lookup"]) {
       assert.ok(src.includes(tool), `documented tool ${tool}`);
@@ -187,12 +187,12 @@ describe("uid is CSPRNG-born and Reach MCP is current", () => {
     assert.ok(headerList.includes("authority.lookup"), "the header documents authority.lookup too");
   });
 
-  it("the canonical scope line is stated everywhere VouchMesh is pitched", () => {
+  it("the canonical scope line is stated everywhere SelfImpulseMesh is pitched", () => {
     const flat = (p: string) =>
       fs.readFileSync(path.join(ROOT, p), "utf8").replace(/^\s*\*+\s?/gm, "").replace(/\s+/g, " ");
     const needle1 = "LOCAL collaboration trust fabric";
     const needle2 = "ECDSA provides portable authority across instances";
-    for (const p of ["src/vh19/vouchMesh.ts", "src/vh19/meshRuntime.ts", "docs/history/releases/RELEASE-VERIFICATION.md"]) {
+    for (const p of ["src/engine/selfimpulseMesh.ts", "src/engine/meshRuntime.ts", "docs/VERIFICATION.md"]) {
       const src = flat(p);
       assert.ok(src.includes(needle1), `${p} names the mesh a local trust fabric`);
       assert.ok(src.includes(needle2), `${p} keeps portable authority on ECDSA`);
@@ -202,21 +202,21 @@ describe("uid is CSPRNG-born and Reach MCP is current", () => {
 
 describe("the wiring is structural, not incidental", () => {
   it("handoffs.ts (the live seam) imports the mesh runtime", () => {
-    const src = fs.readFileSync(path.join(ROOT, "src", "vh19", "handoffs.ts"), "utf8");
+    const src = fs.readFileSync(path.join(ROOT, "src", "engine", "handoffs.ts"), "utf8");
     assert.ok(src.includes('from "./meshRuntime"'));
     assert.ok(src.includes("meshForHandoff"));
   });
 
-  it("the mesh is reachable from the production door (store → handoffs → meshRuntime → vouchMesh)", () => {
+  it("the mesh is reachable from the production door (store → handoffs → meshRuntime → selfimpulseMesh)", () => {
     const door = fs.readFileSync(path.join(ROOT, "src", "ui", "store.ts"), "utf8");
-    assert.ok(door.includes("../vh19/handoffs") && door.includes("recordHandoff(h)"), "the store consumes the handoff seam on every run");
-    const mesh = fs.readFileSync(path.join(ROOT, "src", "vh19", "meshRuntime.ts"), "utf8");
-    assert.ok(mesh.includes('from "./vouchMesh"'));
+    assert.ok(door.includes("../engine/handoffs") && door.includes("recordHandoff(h)"), "the store consumes the handoff seam on every run");
+    const mesh = fs.readFileSync(path.join(ROOT, "src", "engine", "meshRuntime.ts"), "utf8");
+    assert.ok(mesh.includes('from "./selfimpulseMesh"'));
   });
 
-  it("vouchMesh is isomorphic — no Node-only builtin import", () => {
-    const src = fs.readFileSync(path.join(ROOT, "src", "vh19", "vouchMesh.ts"), "utf8");
-    assert.ok(!src.includes('from "node:crypto"'), "vouchMesh must run in the WebView");
+  it("selfimpulseMesh is isomorphic — no Node-only builtin import", () => {
+    const src = fs.readFileSync(path.join(ROOT, "src", "engine", "selfimpulseMesh.ts"), "utf8");
+    assert.ok(!src.includes('from "node:crypto"'), "selfimpulseMesh must run in the WebView");
     assert.ok(src.includes('from "./pureHash"'));
   });
 });

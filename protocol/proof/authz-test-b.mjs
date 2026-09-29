@@ -2,7 +2,7 @@
  * Machine B side of the deciding experiment: grant authority TO machine A,
  * and observe whether that is what unlocks A's ability to act.
  */
-import { VHClient } from "../src/client/vh-sdk.js";
+import { VHClient } from "../src/client/si-sdk.js";
 
 const URL = "http://localhost:3100";
 const log = (...a) => console.log(...a);
@@ -12,7 +12,7 @@ const me = await b.join("Friend-Laptop", "authz-test");
 log(`[B] joined fp=${me.fp}`);
 
 const seen = [];
-b.on("vouch:new", (link) => {
+b.on("selfimpulse:new", (link) => {
   let f = {}; try { f = JSON.parse(link.payloadStr ?? "{}"); } catch {}
   const kind = link.kind ?? f.kind;
   seen.push(f);

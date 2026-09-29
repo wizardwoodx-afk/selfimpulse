@@ -3,11 +3,11 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 // probe/wings.test.ts
 import assert from "node:assert/strict";
 
-// src/vh19/wings.ts
+// src/engine/wings.ts
 var DESKS = [
   {
     name: "FINANCE",
-    keywords: ["ledger", "invoice", "gst", "tax", "payment", "salary", "excel", "sheet", "voucher", "reconcile", "budget", "cost", "finance", "payroll", "tally", "bank", "receipt"],
+    keywords: ["ledger", "invoice", "gst", "tax", "payment", "salary", "excel", "sheet", "selfimpulseer", "reconcile", "budget", "cost", "finance", "payroll", "tally", "bank", "receipt"],
     crew: ["bookkeeper", "reconciler", "classifier", "filers-checker", "cash-flow"]
   },
   {
@@ -85,7 +85,7 @@ function scanInbound(text) {
   if (/\{\{\s*vault[:\s]/i.test(text)) reasons.push("vault reference in untrusted inbound text");
   return { safe: reasons.length === 0, reasons };
 }
-var BASE = "https://api.local.connectors.11handle/v1";
+var BASE = "https://api.local.connectors.selfimpulse/v1";
 var auth = (token) => ({
   authorization: `Bearer ${token}`,
   "content-type": "application/json"
@@ -205,7 +205,7 @@ var ok = (cond, msg) => {
   assert.ok(cond, msg);
   checks += 1;
 };
-var fin = routeCaptainTask("classify the huge finance excel ledger and reconcile gst vouchers");
+var fin = routeCaptainTask("classify the huge finance excel ledger and reconcile gst selfimpulseers");
 ok(!("refused" in fin) && fin.desk === "FINANCE", "finance task routes to FINANCE desk");
 ok(!("refused" in fin) && fin.leads.length === 2 && fin.crew.length >= 3, "desk has Lead+HR and a crew");
 var refused = routeCaptainTask("paint the wall blue");

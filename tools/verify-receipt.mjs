@@ -27,7 +27,7 @@ import crypto from "node:crypto";
 /* Each wire format is sealed with the constant published when that wire shipped (see licensing.ts).
    mj-proof-receipt/1|2 = pre-16.1 legacy wire — never renamed, old receipts stay verifiable. */
 const SEAL_SECRETS = {
-  "vh-proof-receipt/2": "vh-commercial-v1-offline",
+  "si-proof-receipt/2": "si-commercial-v1-offline",
   "mj-proof-receipt/2": "mj-commercial-v1-offline",
   "mj-proof-receipt/1": "mj-commercial-v1-offline",
 };
@@ -80,7 +80,7 @@ function parseReceipt(text) {
 }
 
 function verify(rc) {
-  if (rc.format !== "vh-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") {
+  if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") {
     return { ok: false, reason: `unknown format ${rc.format}` };
   }
   let prev = "0".repeat(64);
@@ -91,7 +91,7 @@ function verify(rc) {
     prev = hash;
   }
   if (hmacHex(prev, rc.format) !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "vh-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const spki = Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(rc.issuer.publicKeyHex, "hex")]);
     const ok = crypto.verify(

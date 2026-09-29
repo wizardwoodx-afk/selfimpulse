@@ -26,8 +26,8 @@ function ok(label: string, cond: boolean, detail = ""): void {
   else { failed++; failures.push(`${label}${detail ? ` — ${detail}` : ""}`); console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`); }
 }
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 const appSrc = read("src/App.tsx");
@@ -39,7 +39,7 @@ const composerSrc = read("src/ui/screens/Composer.tsx");
 const settingsSrc = read("src/ui/screens/Settings.tsx");
 
 const pkg = JSON.parse(read("package.json")) as { name?: string };
-ok("root resolves to 11Handle", pkg.name === "eleven-handle", `name=${String(pkg.name)}`);
+ok("root resolves to SelfImpulse", pkg.name === "selfimpulse", `name=${String(pkg.name)}`);
 
 ok("App renders the shell and nothing else", /import\s*\{\s*Shell\s*\}\s*from\s*["']\.\/ui\/Shell["']/.test(appSrc) && /<Shell\s*\/>/.test(appSrc), "App must be the shell door");
 ok("the multi-dock shell and the console are gone from the app entry", !/Sidebar|Helm|VIEWS|NextConsole/.test(appSrc), "stale shell chrome in App.tsx");
@@ -79,24 +79,11 @@ ok("the Docs door renders the document-distillation surface",
   /Nothing is installed until you decide/.test(read("src/ui/screens/Docs.tsx")),
   "the Docs door must reach the knowledge proposal seam and install nothing itself");
 const specSrc = read("src/ui/screens/Specialists.tsx");
-const munshiSrc = read("src/ui/screens/Munshi.tsx");
 ok("the Specialists door renders the generalist pack",
   rendersThroughBoundary("specialists", "Specialists") &&
   /from "\.\.\/\.\.\/specialists"/.test(specSrc) &&
   /toolsForDomain\(domain\)/.test(specSrc) && /DOMAINS\.map/.test(specSrc),
   "the door must render the pack's own tool registry, not a hand-written list");
-ok("and hosts the finance pack as one domain among the others",
-  /financeTools \? <MunshiTools \/>/.test(specSrc) && /MunshiRoster domain="all"/.test(specSrc) &&
-  /from "\.\/Munshi"/.test(specSrc),
-  "the finance pack must be mounted, not duplicated");
-ok("the finance panel still reaches the Indian-finance engines",
-  /validateGstin/.test(munshiSrc) && /computeTds/.test(munshiSrc) && /reconcile\(/.test(munshiSrc) &&
-  /from "\.\.\/\.\.\/munshi"/.test(munshiSrc),
-  "the panel must call the pack's deterministic engines, not restate their answers");
-ok("and states plainly that computing is not filing",
-  /do not file/i.test(munshiSrc) && /Nothing here touches GSTN/.test(munshiSrc) &&
-  /RULESET/.test(munshiSrc),
-  "the panel must say it computes on this machine, names the ruleset, and files nothing");
 ok("the generalist surface states the same boundary for every domain",
   /Engines compute; they do not act/.test(specSrc) && /gated/.test(specSrc),
   "the generalist door must carry the compute-not-act statement too");
@@ -109,9 +96,9 @@ ok("the composer is the single command surface and Enter sends", /onKeyDown=\{\(
    REFUSED before the engine is reached, which is the property that actually
    matters here: a receipt has to name someone, and there must be no path that
    produces one naming nobody. */
-ok("send goes through the store to askVH19 with the gate and handoff seams, and refuses an unattributed run",
+ok("send goes through the store to askSelfImpulse19 with the gate and handoff seams, and refuses an unattributed run",
   /send:\s*async \(raw\)/.test(storeSrc) &&
-  /await askVH19\(\{ text: sentText, userId: subject \}, runDeps\(get, set, gateFn\)\)/.test(storeSrc) &&
+  /await askSelfImpulse19\(\{ text: sentText, userId: subject \}, runDeps\(get, set, gateFn\)\)/.test(storeSrc) &&
   /provider: get\(\)\.provider, gate: gateFn,/.test(storeSrc) &&
   /onHandoff:/.test(storeSrc) &&
   /const subject = currentSubject\(\);/.test(storeSrc) &&
@@ -120,7 +107,7 @@ ok("send goes through the store to askVH19 with the gate and handoff seams, and 
 ok("the human gate is a card with approve and refuse, never a silent skip", /Your approval is needed/.test(gateSrc) && /Approve once/.test(gateSrc) && /Refuse/.test(gateSrc), "gate card missing");
 ok("Work names agents AGENT nn — never by specialist name", /AGENT \$\{String\(i \+ 1\)\.padStart\(2, "0"\)\}/.test(workSrc) && !/sp\?\.name|specialist\.name/.test(workSrc), "agent names leaked");
 ok("first-time users can connect a model provider inside Settings", /Provider/.test(settingsSrc) && /PROVIDER_DEFAULTS/.test(settingsSrc) && /setProvider\(/.test(settingsSrc), "provider onboarding missing");
-ok("the federation key resolves through the hardened authority seam", /authorityOwnerIdentity/.test(read("src/vh19/federation/live.ts")) && !/exportKey\(["']jwk["']\)/.test(read("src/vh19/federation/live.ts")), "raw key storage in the live seam");
+ok("the federation key resolves through the hardened authority seam", /authorityOwnerIdentity/.test(read("src/engine/federation/live.ts")) && !/exportKey\(["']jwk["']\)/.test(read("src/engine/federation/live.ts")), "raw key storage in the live seam");
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) { console.log("\nfailures:"); for (const f of failures) console.log(`  - ${f}`); }

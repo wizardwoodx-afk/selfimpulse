@@ -1,7 +1,7 @@
 /**
  * VH 16.10.0 — FEATURE 6: RECEIPTED BROWSER USE.
  *
- * The 2026 method, with 11Handle's twist — every action mints a receipt:
+ * The 2026 method, with SelfImpulse's twist — every action mints a receipt:
  *
  *   - accessibility-tree-first: goto/extract run for REAL over HTTP(S)
  *     (fetch + HTML parse — no browser binary needed, works in the web
@@ -120,6 +120,6 @@ export const fetchModeDeps = (fetchImpl: typeof fetch = fetch): BrowserDeps => (
       }
       return { ok: true, detail: `${finalUrl} → HTTP ${res.status}, ${html.length} bytes, ${ms}ms, title: ${title}`, title };
     }
-    return { ok: false, detail: `${a.kind} is an INTERACTIVE action — it needs the native computer-use boundary; this host refuses in words instead of pretending (see docs/history/VH-16.10-UPGRADE.md).`, title: a.kind };
+    return { ok: false, detail: `${a.kind} is an INTERACTIVE action — it needs the native computer-use boundary; this host refuses in words instead of pretending (see docs/history/SI-16.10-UPGRADE.md).`, title: a.kind };
   },
 });

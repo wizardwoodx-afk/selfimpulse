@@ -1,12 +1,12 @@
 /**
- * VH 16.9.5 — the SECURITY-REVIEW ARTIFACT (`vh-security-review/1`).
+ * VH 16.9.5 — the SECURITY-REVIEW ARTIFACT (`si-security-review/1`).
  *
  * The 16.6.0 hardening release named "the signed audit report" as a PLANNED
  * deliverable and honestly said so. This module ships it — as a SIGNED
  * SELF-ASSESSMENT: an inventory of the product's security surfaces, the
  * posture of each, the machine-checkable EVIDENCE pointer for each claim
  * (probe suites, gates, the zero-install verifier), and — the part that
- * makes it a 11Handle artifact — an explicit list of what it does NOT
+ * makes it a SelfImpulse artifact — an explicit list of what it does NOT
  * claim (no external penetration test, single-host threat model, drill
  * seats are machinery not model intelligence).
  *
@@ -17,7 +17,7 @@
  * Verification: recompute the digest, verify the signature — zero product
  * state beyond the artifact and the issuer public key.
  */
-import { signHexDigest, verifyIssuerSignature, type IssuerSignature } from "../vouch/engine/signing";
+import { signHexDigest, verifyIssuerSignature, type IssuerSignature } from "../selfimpulse/engine/signing";
 import { ENGINE_VERSION } from "../version";
 
 export interface SecuritySurface {
@@ -30,7 +30,7 @@ export interface SecuritySurface {
 }
 
 export interface SecurityReview {
-  format: "vh-security-review/1";
+  format: "si-security-review/1";
   issuedAt: string;
   product: string;
   /** Surfaces inventoried with posture + evidence. */
@@ -99,28 +99,28 @@ export function securityScope(): SecuritySurface[] {
       evidence: "probe/firstrun · src-tauri keyring usage · README honesty contract",
     },
     {
-      surface: "Cross-harbor trust — receipt anchoring (17.6)",
+      surface: "Cross-selfimpulse trust — receipt anchoring (17.6)",
       posture: "Only receipts that pass the ONE rulebook can anchor; the anchor is signer-bound (evidence binds the verified chain head + issuer fingerprint); envelopes replay under ECDSA P-256 with a bounded nonce ledger — a second presentation is refused as replayed; storage refusals come back in words.",
-      evidence: "probe/crossHarbor (9 tests incl. replay) · probe/interop (two process-isolated machines) · protocol/bridge/bridge-selftest (zero-install 17/17)",
+      evidence: "probe/crossSelfImpulse (9 tests incl. replay) · probe/interop (two process-isolated machines) · protocol/bridge/bridge-selftest (zero-install 17/17)",
     },
     {
       surface: "Grant authority — bounded delegation, designated unbounded authority, authority provenance (protocol v0.10.7)",
-      posture: "An authorization is accepted only from an ATTESTED granter (unrevoked capability declaration or live vouch) — and that granter may only hand out authority it HOLDS: the exact action, a scope token (delegate:<scope> / admin:<scope>), or `*` where it itself carries `*`-class authority. Sub-delegation may narrow, never widen; delegated grants name an attested root and a live parent grant, depth ≤ maxDelegationDepth (default 2); coverage is re-checked at consumption, so a narrowed or revoked issuer stops working; replayed grants are refused. RULE 4: unbounded (`*`-class) authority is never a SELF-CLAIM — a `*`, `delegate:*` or `admin:*` token counts only when the harbour root key or an operator-designated fingerprint (HANDLE_WILDCARD_AUTHORITIES) holds it, and it is never transitive. RULE 5: a capability CLAIM is not a licence — delegable authority comes only from a live grant naming the fingerprint as subject, or a declaration by an operator-authorized identity (HANDLE_AUTHORITIES; the harbour root key always qualifies; the v0.10.5 name HANDLE_WILDCARD_AUTHORITIES is still read), refused otherwise as capability-claim-is-not-authority. RULE 6: a key rotation must prove POSSESSION of the incoming key (a second signature over VH-ROTATE-POP-v1 | oldFp | newFp | ts, bound to the caller fingerprint) so a member cannot squat an offline identity's fingerprint; and a revocation against a DESIGNATED identity is honoured only from an authorised writer (refused as policy:revocation-requires-authority, ignored at consumption), so no member can switch off the principal that hands authority out. Designation follows the identity across a harbour-verified key rotation; grants and revocations stay keyed to the exact fingerprint, so a revoked key cannot rotate out of its own revocation. Posture selector HANDLE_GRANT_POLICY = strict (default) / compat (migration only — reopens the defects) / off (fixtures).",
+      posture: "An authorization is accepted only from an ATTESTED granter (unrevoked capability declaration or live selfimpulse) — and that granter may only hand out authority it HOLDS: the exact action, a scope token (delegate:<scope> / admin:<scope>), or `*` where it itself carries `*`-class authority. Sub-delegation may narrow, never widen; delegated grants name an attested root and a live parent grant, depth ≤ maxDelegationDepth (default 2); coverage is re-checked at consumption, so a narrowed or revoked issuer stops working; replayed grants are refused. RULE 4: unbounded (`*`-class) authority is never a SELF-CLAIM — a `*`, `delegate:*` or `admin:*` token counts only when the harbour root key or an operator-designated fingerprint (HANDLE_WILDCARD_AUTHORITIES) holds it, and it is never transitive. RULE 5: a capability CLAIM is not a licence — delegable authority comes only from a live grant naming the fingerprint as subject, or a declaration by an operator-authorized identity (HANDLE_AUTHORITIES; the harbour root key always qualifies; the v0.10.5 name HANDLE_WILDCARD_AUTHORITIES is still read), refused otherwise as capability-claim-is-not-authority. RULE 6: a key rotation must prove POSSESSION of the incoming key (a second signature over SI-ROTATE-POP-v1 | oldFp | newFp | ts, bound to the caller fingerprint) so a member cannot squat an offline identity's fingerprint; and a revocation against a DESIGNATED identity is honoured only from an authorised writer (refused as policy:revocation-requires-authority, ignored at consumption), so no member can switch off the principal that hands authority out. Designation follows the identity across a harbour-verified key rotation; grants and revocations stay keyed to the exact fingerprint, so a revoked key cannot rotate out of its own revocation. Posture selector HANDLE_GRANT_POLICY = strict (default) / compat (migration only — reopens the defects) / off (fixtures).",
       evidence: "protocol/wcarena/adversarial-campaign.mjs (14/14 attack classes refused, legitimate control intact; self-contained — it starts its own harbour with an operator-designated identity) · protocol/wcarena/v104-authority-matrix.mjs (10/10 — re-based on given authority: the operator's grants accepted end-to-end, six amplification routes refused) · protocol/wcarena/governance-attacks.mjs (legitimate control permitted; poisoned consent, attacker-supplied mandate, stale replay and forged approval all refused) · protocol/wcarena/warrant-compromise-campaign.mjs (22/22 refused, control intact — RULE 6: rotation possession + revocation authority) · protocol selftest — grant-authority section, 171 checks (run steps: protocol/README-TEST.md) · protocol/THREAT-MODEL.md Decision 3 · benchmark/run.mjs B3",
     },
     {
       surface: "External-agent boundary — the interop CLI (17.10.3)",
-      posture: "Non-Patina agents enter through tools/vh-interop.mjs: same rulebook as the live product, zero npm dependencies, exit code 1 + refusal in words on any failed proof; transport packs carry proof and identity only — never content.",
+      posture: "Non-Patina agents enter through tools/si-interop.mjs: same rulebook as the live product, zero npm dependencies, exit code 1 + refusal in words on any failed proof; transport packs carry proof and identity only — never content.",
       evidence: "probe/interop (tamper + replay refusals across the process boundary) · benchmark/run.mjs B1 (same rulebook)",
     },
     {
       surface: "Content gate — the GuardRail (Warrant-Teams)",
-      posture: "One decision seam (src/security/guardrail.ts) in front of every content-bearing surface: tool calls, stored memory, teammate descriptions and cross-harbor payloads are injection-scanned and sanitized; durable memory is capped and injection-poisoned facts are refused outright; the expression sandbox refuses ALL computed member access and ships frozen global facades; SSRF-shaped egress URLs (cloud metadata, link-local, non-http(s)) are refused; approval ids are cryptographically random, single-use and TTL-expiring. Deny by default; findings are refusals, never warnings.",
-      evidence: "probe/guardrail.test.ts (pinned PoCs for both sandbox escapes, injection battery, egress refusals) · probe/harborTeams.test.ts (poisoned description / poisoned task refusals) · probe/a2aV10.test.ts §D (injection refused at the A2A transport before any task state)",
+      posture: "One decision seam (src/security/guardrail.ts) in front of every content-bearing surface: tool calls, stored memory, teammate descriptions and cross-selfimpulse payloads are injection-scanned and sanitized; durable memory is capped and injection-poisoned facts are refused outright; the expression sandbox refuses ALL computed member access and ships frozen global facades; SSRF-shaped egress URLs (cloud metadata, link-local, non-http(s)) are refused; approval ids are cryptographically random, single-use and TTL-expiring. Deny by default; findings are refusals, never warnings.",
+      evidence: "probe/guardrail.test.ts (pinned PoCs for both sandbox escapes, injection battery, egress refusals) · probe/selfimpulseTeams.test.ts (poisoned description / poisoned task refusals) · probe/a2aV10.test.ts §D (injection refused at the A2A transport before any task state)",
     },
     {
       surface: "A2A v1.0 transport — the remote-agent boundary (Warrant-Teams)",
-      posture: "Real Linux-Foundation A2A 1.0.0 wire, not a v1-style shape: agent cards carry NO top-level url/protocolVersion (supportedInterfaces carries them), securitySchemes is a map of discriminated unions, cards are JWS-signed over canonical bytes (any mutation breaks verification) and discovery REFUSES legacy-shape cards. The server binds loopback by default, enforces declared securitySchemes through an authorize hook, content-gates inbound text through the GuardRail before touching task state, refuses replayed request fingerprints within a 30s window, caps bodies at 1 MiB and audits every decision. Cross-harbor delegation over the wire keeps the full ladder: unverified cards carry nothing, injection hard-refuses on BOTH sides, dual SHA-256 digests make the artifact tamper-evident, TTL 10 min, each side's replay registry settles a delegation exactly once.",
+      posture: "Real Linux-Foundation A2A 1.0.0 wire, not a v1-style shape: agent cards carry NO top-level url/protocolVersion (supportedInterfaces carries them), securitySchemes is a map of discriminated unions, cards are JWS-signed over canonical bytes (any mutation breaks verification) and discovery REFUSES legacy-shape cards. The server binds loopback by default, enforces declared securitySchemes through an authorize hook, content-gates inbound text through the GuardRail before touching task state, refuses replayed request fingerprints within a 30s window, caps bodies at 1 MiB and audits every decision. Cross-selfimpulse delegation over the wire keeps the full ladder: unverified cards carry nothing, injection hard-refuses on BOTH sides, dual SHA-256 digests make the artifact tamper-evident, TTL 10 min, each side's replay registry settles a delegation exactly once.",
       evidence: "probe/a2aV10.test.ts — 53 checks: strict schema, JWS sign/verify + tamper, well-known discovery, message/send + task lifecycle, SSE streaming, push webhooks with Authorization, auth enforcement, replay + injection + egress refusals, and USER 1 ⇄ USER 2 dual-gate delegation over the wire",
     },
   ];
@@ -131,8 +131,8 @@ export function securityFindings(): { findings: string[]; refusals: string[] } {
     findings: [
       "No external penetration test or third-party security audit has been performed; this artifact is a self-assessment whose every claim links to machine-checkable evidence in the tree.",
       "The agent OS threat model is single-host, local-first: no multi-tenant server and no network-listening surface. The multi-machine story rides the protocol subtree (device-to-device, transport proven by process-isolated interop probes, not yet by an external network deployment).",
-      "The cross-harbor identity persists as a JWK in the injected KV store (localStorage on web, a file for the interop CLI): possession of that store impersonates the agent. This is stated in the stored record itself and is the operator's protection responsibility on a personal device.",
-      "Envelope replay protection is per-harbor (a bounded nonce ledger, last 4096 nonces) inside a 5-minute acceptance window — cross-harbor global deduplication is not claimed.",
+      "The cross-selfimpulse identity persists as a JWK in the injected KV store (localStorage on web, a file for the interop CLI): possession of that store impersonates the agent. This is stated in the stored record itself and is the operator's protection responsibility on a personal device.",
+      "Envelope replay protection is per-selfimpulse (a bounded nonce ledger, last 4096 nonces) inside a 5-minute acceptance window — cross-selfimpulse global deduplication is not claimed.",
       "The drill's deterministic seats validate the machinery (loop, gates, receipts) — not frontier-model intelligence; real-model runs are labeled as such where present.",
       "Dependency risk is bounded by the release `npm audit` gate at release time, not continuously monitored after issuance.",
     ],
@@ -147,9 +147,9 @@ export function securityFindings(): { findings: string[]; refusals: string[] } {
 /** Build the signed artifact (async: the issuer signature is async). */
 export async function buildSecurityReview(): Promise<SecurityReview> {
   const base = {
-    format: "vh-security-review/1" as const,
+    format: "si-security-review/1" as const,
     issuedAt: new Date().toISOString(),
-    product: `11Handle ${ENGINE_VERSION}`,
+    product: `SelfImpulse ${ENGINE_VERSION}`,
     scope: securityScope(),
     ...securityFindings(),
   };
@@ -168,7 +168,7 @@ export async function verifySecurityReview(
   r: SecurityReview,
 ): Promise<{ ok: boolean; reasons: string[] }> {
   const reasons: string[] = [];
-  if (r.format !== "vh-security-review/1") reasons.push(`unknown format: ${r.format}`);
+  if (r.format !== "si-security-review/1") reasons.push(`unknown format: ${r.format}`);
   const body = canonicalBody({ format: r.format, issuedAt: r.issuedAt, product: r.product, scope: r.scope, findings: r.findings, refusals: r.refusals });
   const digest = await digestOf(body);
   if (digest !== r.digest) reasons.push("digest mismatch — the artifact was modified after issuance");

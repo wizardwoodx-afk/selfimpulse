@@ -16,12 +16,12 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
-// src/vouch/ipc/client.ts
+// src/selfimpulse/ipc/client.ts
 var client_exports = {};
 __export(client_exports, {
   ipc: () => ipc,
@@ -32,7 +32,7 @@ function isNativeHost() {
 }
 var invoke, ipc;
 var init_client = __esm({
-  "src/vouch/ipc/client.ts"() {
+  "src/selfimpulse/ipc/client.ts"() {
     "use strict";
     invoke = (cmd, args) => {
       const internals = window.__TAURI_INTERNALS__;
@@ -531,7 +531,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -561,7 +561,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY2 = "vouch.v3.db";
+    KEY2 = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -1100,7 +1100,7 @@ var init_client2 = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1130,7 +1130,7 @@ var init_client2 = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -1149,7 +1149,7 @@ var init_client2 = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1172,7 +1172,7 @@ var init_client2 = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -1195,7 +1195,7 @@ var init_client2 = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -1623,12 +1623,12 @@ import assert2 from "node:assert";
 import { spawn } from "node:child_process";
 import { after, before, describe as describe3, it } from "node:test";
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 init_version();
 
-// src/vouch/engine/signing.ts
-var STORAGE_KEY = "vouch.issuerkey.v1";
-var KEYCHAIN_REF = "vouch.issuerkey.v1";
+// src/selfimpulse/engine/signing.ts
+var STORAGE_KEY = "selfimpulse.issuerkey.v1";
+var KEYCHAIN_REF = "selfimpulse.issuerkey.v1";
 async function keychainBridge() {
   if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return null;
   try {
@@ -1682,7 +1682,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vouch-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `selfimpulse-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -1697,7 +1697,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vouch-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `selfimpulse-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -1740,11 +1740,11 @@ async function verifyIssuerSignature(chainHashHex, sigHex, publicKeyHex) {
   }
 }
 
-// src/vouch/engine/proof.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+// src/selfimpulse/engine/proof.ts
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT = {
-  "vh-proof-receipt/2": VERIFY_SECRET,
+  "si-proof-receipt/2": VERIFY_SECRET,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET
 };
@@ -1793,7 +1793,7 @@ async function buildChainedReceipt(args) {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -1802,7 +1802,7 @@ async function buildChainedReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -1834,7 +1834,7 @@ async function verifyProofReceipt(rc) {
   return { ok: true, events: rc.events.length };
 }
 
-// src/vouch/engine/webSearch.ts
+// src/selfimpulse/engine/webSearch.ts
 init_guardrail();
 var WEB_PROVIDERS = [
   {
@@ -2046,7 +2046,7 @@ var HARNESSES = [
     name: "Native agent (in-process)",
     bins: [],
     argv: [],
-    install: "Nothing to install \u2014 the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+    install: "Nothing to install \u2014 the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
     notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
     source: "src/engine/hermesRuntime.ts"
   },
@@ -2078,7 +2078,7 @@ var AGENT_CAPABILITIES = {
     // does not exist; every caller that read them was reasoning about a seat
     // that could not run.
     bins: [],
-    install: "bundled with 11Handle; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
+    install: "bundled with SelfImpulse; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
     prompt: { argv: [], confidence: "docs", source: "in-process runtime: no argv exists by construction" },
     json: null,
     readOnly: null,
@@ -2335,7 +2335,7 @@ function sessionArgv(harness, opts) {
 function sessionIdKind(harness) {
   const rc = resolveCaps(harness);
   if (rc.custom) return "cli-chosen";
-  return rc.caps.sessionStart?.argv ? "vh-chosen" : "cli-chosen";
+  return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 function parseSessionId(harness, raw) {
   if (!raw.trim()) return null;
@@ -2521,8 +2521,8 @@ function composeSeatArgv(teamSeat, ctx) {
     $CWD: ctx.cwd,
     $SECS: String(teamSeat.timeoutSecs),
     $SESSION: ctx.sessionId ?? "",
-    $REVIEWER: "vh-readonly",
-    $NAME: `vh-${teamSeat.id}`
+    $REVIEWER: "si-readonly",
+    $NAME: `si-${teamSeat.id}`
   };
   const argv = [];
   const flags = [];
@@ -3114,10 +3114,10 @@ function saveAutonomy(next) {
 init_id();
 
 // src/mission/licensing.ts
-var VERIFY_SECRET2 = "vh-commercial-v1-offline";
+var VERIFY_SECRET2 = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET2 = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT2 = {
-  "vh-proof-receipt/2": VERIFY_SECRET2,
+  "si-proof-receipt/2": VERIFY_SECRET2,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET2,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET2
 };
@@ -3497,7 +3497,7 @@ async function ensureIssuerIdentity2() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vh-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `si-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -3512,7 +3512,7 @@ async function ensureIssuerIdentity2() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex2(rawPub);
     const identity = {
-      keyId: `vh-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `si-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -3596,7 +3596,7 @@ async function issueRootEnvelope(args) {
   }
   seq += 1;
   return seal({
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: args.principal,
     delegationChain: [args.principal],
@@ -3629,7 +3629,7 @@ async function attenuate(parent, agentId, subScope, opts) {
   seq += 1;
   const envelope = await seal({
     budgetUsd: budget,
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: parent.principal,
     delegationChain: [...parent.delegationChain, agentId],
@@ -3931,7 +3931,7 @@ function evaluateVerifyGate(input2) {
     if (snap && countingVerifiers.length < ranVerifiers.length) {
       const off = ranVerifiers.filter((v) => !(snap.built && snap.sha !== null && (v.reviewedSha ?? null) === snap.sha));
       for (const o of off) {
-        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot vouch for the writers' work.`);
+        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot selfimpulse for the writers' work.`);
       }
     }
     const selfVerified = writerHarnesses.filter(
@@ -4731,7 +4731,7 @@ function planWorktrees(team, opts) {
   for (const seat2 of team.seats) {
     if (!seat2.mayWrite) {
       if (opts.deferReview && hasWriter) {
-        const path3 = `${root}-vh-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+        const path3 = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
         plans.push({
           seatId: seat2.id,
           branch: "",
@@ -4757,7 +4757,7 @@ function planWorktrees(team, opts) {
       continue;
     }
     const branch = `vh/${opts.missionSlug}/${branchSafe(seat2.id)}`;
-    const path2 = `${root}-vh-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+    const path2 = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
     plans.push({
       seatId: seat2.id,
       branch,
@@ -5335,7 +5335,7 @@ var INITIAL_REPUTATIONS = Object.fromEntries(
 
 // src/mission/teamExecutor.ts
 var OUTPUT_TAIL_CHARS = 4e3;
-var BRIEF_DIR = ".vh-brief";
+var BRIEF_DIR = ".si-brief";
 async function git(deps, args, cwd) {
   if (!deps.git) return { ok: false, stdout: "", stderr: "", exitCode: null };
   const r = await deps.git(args, cwd);
@@ -5539,7 +5539,7 @@ Spent: $${(spentUsd2 || 0).toFixed(4)}`, "orchestrator", "finding");
   const learnedMarkdown = globalMemoryCortex.compileBriefing().generatedBriefingMarkdown;
   for (const seat2 of req.team.seats) {
     briefingsByHarness.push({
-      path: ".vh-brief/LEARNED_INVARIANTS.md",
+      path: ".si-brief/LEARNED_INVARIANTS.md",
       contents: learnedMarkdown,
       forHarness: seat2.harness
     });
@@ -5552,7 +5552,7 @@ ${lessonLines.map((l) => `- ${l}`).join("\n")}
 `;
     for (const seat2 of req.team.seats) {
       briefingsByHarness.push({
-        path: ".vh-brief/ORG_LESSONS.md",
+        path: ".si-brief/ORG_LESSONS.md",
         contents: lessonsMd,
         forHarness: seat2.harness
       });
@@ -6094,7 +6094,7 @@ async function runSeat(req, deps, a, sessions, wt, binaryExists, resolvedBin, se
   let commitDetail = readOnly ? "Read-only seat; nothing to commit." : "No git runner, so the work could not be committed.";
   if (deps.git && !readOnly) {
     await git(deps, ["add", "-A"], cwd);
-    const commit2 = await git(deps, ["-c", "user.email=vh@vouch.harbor", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
+    const commit2 = await git(deps, ["-c", "user.email=vh@selfimpulse.selfimpulse", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
     commitDetail = commit2.ok ? `Committed on ${branch}.` : commit2.exitCode === null ? "Could not run git commit." : /nothing to commit|no changes added/i.test(commit2.stderr + commit2.stdout) ? "Nothing to commit \u2014 this seat changed no files." : `git commit exited ${commit2.exitCode}: ${(commit2.stderr || commit2.stdout).trim().slice(0, 200)}`;
   }
   const finalRecord = {
@@ -6437,7 +6437,7 @@ async function buildProofReceipt(args) {
   const sig = await signChainHash2(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -6446,7 +6446,7 @@ async function buildProofReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -6456,7 +6456,7 @@ async function buildProofReceipt(args) {
   };
 }
 async function verifyProofReceipt2(rc) {
-  if (rc.format !== "vh-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
+  if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
   let prev = "0".repeat(64);
   for (const e of rc.events) {
     if (e.prev !== prev) return { ok: false, reason: `chain broken at seq ${e.seq}` };
@@ -6468,7 +6468,7 @@ async function verifyProofReceipt2(rc) {
   const sealSecret = SEAL_SECRET_BY_FORMAT2[rc.format] ?? VERIFY_SECRET2;
   const seal2 = await hmacHex2(prev, sealSecret);
   if (seal2 !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "vh-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok = await verifyIssuerSignature2(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
@@ -6827,18 +6827,18 @@ function loopHostDeps(opts) {
   return hostRunnerDeps(opts);
 }
 
-// src/vouch/engine/bridge.ts
+// src/selfimpulse/engine/bridge.ts
 init_version();
 var MissionNotConfiguredError = class extends Error {
 };
 function mintMissionId() {
   return `mission_${Math.random().toString(36).slice(2, 6)}`;
 }
-function harborCrews() {
+function selfimpulseCrews() {
   return loadCrews().map((t) => ({ id: t.id, name: t.name }));
 }
 var bridgeDeps = null;
-async function runHarborMission(objective, missionId, opts = {}) {
+async function runSelfImpulseMission(objective, missionId, opts = {}) {
   const crews = loadCrews();
   const team = opts.team ?? crews[crews.length - 1];
   if (!team) {
@@ -6880,7 +6880,7 @@ async function runHarborMission(objective, missionId, opts = {}) {
     gateStatus: res.record.gate?.status ?? null,
     receiptOk: res.record.receipt?.ok ?? false,
     engine: `MJ execution core ${ENGINE_VERSION}`,
-    controlPlane: `11Handle control plane ${ENGINE_VERSION}`,
+    controlPlane: `SelfImpulse control plane ${ENGINE_VERSION}`,
     teamId: team.id,
     teamName: team.name,
     notes,
@@ -6889,7 +6889,7 @@ async function runHarborMission(objective, missionId, opts = {}) {
   };
 }
 
-// src/vouch/engine/brainSeam.ts
+// src/selfimpulse/engine/brainSeam.ts
 import fs from "node:fs";
 var PREF_KEY = "vh.brain.pref";
 function brainPref() {
@@ -6959,7 +6959,7 @@ function planFromModelText(text, max = 6) {
 }
 function plannerPrompt(objective) {
   return [
-    "You are the planner inside 11Handle's governed brain. Produce 3 to 6 concrete steps for the objective below.",
+    "You are the planner inside SelfImpulse's governed brain. Produce 3 to 6 concrete steps for the objective below.",
     "One step per line. No preamble, no markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.",
     `Objective: ${objective}`
   ].join("\n");
@@ -7011,7 +7011,7 @@ function wrapRealModelBrain(base, deps = realBrainDeps, prefOverride) {
   };
 }
 
-// src/vouch/engine/providers.ts
+// src/selfimpulse/engine/providers.ts
 init_client2();
 init_localDb();
 var REGISTRY_KEY = "vh.providers";
@@ -7055,7 +7055,7 @@ function modelPrefs(store2 = defaultStore()) {
 }
 var tierFor = (mode) => mode === "deep" ? "big" : "cheap";
 var ipcCaller = (req) => ipc2.llmChat(req);
-var PLANNER_SYSTEM = "You are the planner inside 11Handle's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
+var PLANNER_SYSTEM = "You are the planner inside SelfImpulse's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
 async function chatStep(prompt, tier, opts) {
   const prefs = opts?.prefs ?? modelPrefs(opts?.store);
   if (!prefs.enabled) {
@@ -7164,7 +7164,7 @@ function wrapModelBrain(base, opts) {
   };
 }
 
-// src/vouch/engine/policyGateway.ts
+// src/selfimpulse/engine/policyGateway.ts
 var riskyTools = /* @__PURE__ */ new Set(["workspace_write", "dispatch_mission", "shell_exec"]);
 var riskyToolRule = (input2) => {
   if (!riskyTools.has(input2.tool)) return null;
@@ -26867,7 +26867,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// src/vouch/engine/toolSchema.ts
+// src/selfimpulse/engine/toolSchema.ts
 var WorkspaceWriteSchema = external_exports.object({
   name: external_exports.string().min(1).max(255).regex(/^[^/\\<>:"|?*\x00-\x1F]+$/, "filename must be a plain local name, no path separators or control chars"),
   content: external_exports.string().max(1e6, "content exceeds 1 MB workspace-file limit")
@@ -26991,10 +26991,10 @@ async function validateWithRetry(tool, raw, opts) {
   };
 }
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 init_guardrail();
 
-// src/vouch/engine/agui.ts
+// src/selfimpulse/engine/agui.ts
 var AguiBus = class extends EventTarget {
   emit(ev) {
     this.dispatchEvent(new CustomEvent(ev.type, { detail: ev }));
@@ -27030,7 +27030,7 @@ function emitInterrupt(runId, threadId, approvalId, tool, reason) {
   agui.emit({ type: "INTERRUPT", runId, threadId, ts: (/* @__PURE__ */ new Date()).toISOString(), approvalId, tool, reason });
 }
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 var hasLS2 = typeof globalThis.localStorage !== "undefined";
 var mem2 = /* @__PURE__ */ new Map();
 var store = {
@@ -27056,9 +27056,9 @@ var store = {
     }
   }
 };
-var SESSION_KEY = "vouch.session.v1";
-var WORKSPACE_KEY = "vouch.workspace.v1";
-var BOT_NAME = "Vouch";
+var SESSION_KEY = "selfimpulse.session.v1";
+var WORKSPACE_KEY = "selfimpulse.workspace.v1";
+var BOT_NAME = "SelfImpulse";
 function mainThread(messages) {
   const now = (/* @__PURE__ */ new Date()).toISOString();
   return { id: "t-main", title: "Main thread", createdAt: now, lastActivityAt: now, status: "open", messages };
@@ -27083,7 +27083,7 @@ function freshSession() {
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-function loadVouchSession() {
+function loadSelfImpulseSession() {
   const raw = store.get(SESSION_KEY);
   if (!raw) return freshSession();
   try {
@@ -27117,16 +27117,16 @@ function loadVouchSession() {
   }
   return freshSession();
 }
-var session = loadVouchSession();
+var session = loadSelfImpulseSession();
 var listeners = /* @__PURE__ */ new Set();
 function commit() {
   store.set(SESSION_KEY, JSON.stringify(session));
   for (const cb of listeners) cb();
 }
-function vouchSession() {
+function selfimpulseSession() {
   return session;
 }
-function addVouchFact(text) {
+function addSelfImpulseFact(text) {
   const t = sanitizeText(text, 300);
   if (!t) return;
   if (detectInjection(t).length > 0) return;
@@ -27134,7 +27134,7 @@ function addVouchFact(text) {
   session = { ...session, facts: [...session.facts, { id: secureId("f"), text: t, ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
 }
-function addVouchPreference(text) {
+function addSelfImpulsePreference(text) {
   const t = sanitizeText(text, 300);
   if (!t) return;
   if (detectInjection(t).length > 0) return;
@@ -27142,11 +27142,11 @@ function addVouchPreference(text) {
   session = { ...session, preferences: [...session.preferences, { id: secureId("p"), text: t, ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
 }
-function removeVouchPreference(id) {
+function removeSelfImpulsePreference(id) {
   session = { ...session, preferences: session.preferences.filter((p) => p.id !== id) };
   commit();
 }
-var MISSIONS_KEY = "vouch.missions.v1";
+var MISSIONS_KEY = "selfimpulse.missions.v1";
 function loadMissions() {
   const raw = store.get(MISSIONS_KEY);
   if (!raw) return [];
@@ -27191,7 +27191,7 @@ function loadWorkspace() {
 function saveWorkspace(ws) {
   store.set(WORKSPACE_KEY, JSON.stringify(ws));
 }
-function vouchWorkspaceFiles() {
+function selfimpulseWorkspaceFiles() {
   return Object.values(loadWorkspace()).map((f) => ({ name: f.name, chars: f.content.length, updated: f.updated })).sort((a, b) => a.name.localeCompare(b.name));
 }
 function workspaceWrite(name, content) {
@@ -27206,15 +27206,15 @@ function workspaceWrite(name, content) {
   return { name: safeName, chars: safeContent.length };
 }
 var KB = [
-  { title: "Grok Bot (xAI, Aug 11 2026)", snippet: "Always-on AI vouchs on a vendor cloud computer that sign into your apps; multi-bot group chats; watch-and-learn routines; gated behind SuperGrok/Cursor top tiers. The critique: your credentials live on their VM.", source: "local knowledge base" },
+  { title: "Grok Bot (xAI, Aug 11 2026)", snippet: "Always-on AI selfimpulses on a vendor cloud computer that sign into your apps; multi-bot group chats; watch-and-learn routines; gated behind SuperGrok/Cursor top tiers. The critique: your credentials live on their VM.", source: "local knowledge base" },
   { title: "Grok 4.6 (xAI, Aug 2026)", snippet: "Flagship model for long-running agents; 500k context; reasoning effort tiers; $2/$0.50/$6 per 1M tokens under 200k prompt.", source: "local knowledge base" },
   { title: "EU AI Act enforcement (Aug 2 2026)", snippet: "High-risk obligations enforced: tamper-evident logging (Art. 12), human oversight (Art. 14); penalties to 7% of global revenue. Agents need receipts, not logs.", source: "local knowledge base" },
-  { title: "The execution core (mission loop)", snippet: "One loop \u2014 COMPOSE \u2192 DISPATCH \u2192 COMMUNICATE \u2192 EXECUTE \u2192 GATE \u2192 ADAPT \u2014 with an allowlisted set of agent CLIs, adversarial arena, budget ledger, Ed25519-signed hash-chained receipts, Assurance Score, FinOps chargeback. The Vouch door dispatches real missions to it.", source: "local knowledge base" },
+  { title: "The execution core (mission loop)", snippet: "One loop \u2014 COMPOSE \u2192 DISPATCH \u2192 COMMUNICATE \u2192 EXECUTE \u2192 GATE \u2192 ADAPT \u2014 with an allowlisted set of agent CLIs, adversarial arena, budget ledger, Ed25519-signed hash-chained receipts, Assurance Score, FinOps chargeback. The SelfImpulse door dispatches real missions to it.", source: "local knowledge base" },
   { title: "The receipt protocol", snippet: "mj-proof-receipt/2: SHA-256 hash-chained events, HMAC seal over the chain head, Ed25519 issuer signature when the runtime can sign. Verifiable with zero VH state (tools/verify-receipt.mjs).", source: "local knowledge base" },
   { title: "Tauri 2 (desktop shell)", snippet: "Rust core + system webview; small binaries, real OS keychain and stdio child processes; the same frontend runs as a browser edition.", source: "local knowledge base" },
   { title: "Agent funding, H1 2026", snippet: "The 'agent governance' theme is the clearest funded theme of H1 2026: JetStream $34M seed, Guild.ai $30M A, Geordie $30M A, WitnessAI $85M+. The verifiable, local-first quadrant is the empty one.", source: "local knowledge base" },
   { title: "Chennai, Tamil Nadu", snippet: "India's fourth-largest city; the IT and aerospace hub of the south (Omi Vedu, Navi Kempegowda's southern twin in reputation). IST = UTC+5:30.", source: "local knowledge base" },
-  { title: "11Handle (this product)", snippet: "One product: the Vouch door (the accountable colleague) + the execution core (the mission loop) + one proof standard. Every job vouched \u2014 signed receipts on every run, on your machine.", source: "local knowledge base" },
+  { title: "SelfImpulse (this product)", snippet: "One product: the SelfImpulse door (the accountable colleague) + the execution core (the mission loop) + one proof standard. Every job selfimpulseed \u2014 signed receipts on every run, on your machine.", source: "local knowledge base" },
   { title: "DeepSearch (Grok feature)", snippet: "Iterative retrieval loop: split query into sub-queries, parallel web + X search, summarize batches in a scratchpad, repeat to a step limit, cross-check before drafting.", source: "local knowledge base" }
 ];
 function searchKnowledge(query) {
@@ -27320,12 +27320,12 @@ function systemInfo() {
   const ua = typeof globalThis.navigator !== "undefined" ? globalThis.navigator.userAgent : "node-runtime";
   return `runtime: ${inTauri ? "Tauri (native desktop)" : "browser/webview"}
 os/arch: ${typeof globalThis.navigator !== "undefined" ? `${globalThis.navigator.platform ?? "n/a"} \xB7 ${globalThis.navigator.language ?? "n/a"}` : "node " + (globalThis.process?.versions?.node ?? "?")} \xB7 ${ua.slice(0, 80)}
-version: ${ENGINE_VERSION} \xB7 brain: ${vouchBrain().id}`;
+version: ${ENGINE_VERSION} \xB7 brain: ${selfimpulseBrain().id}`;
 }
 function toolRunOutput(r) {
   return typeof r === "string" ? { output: r, ok: true } : { output: r.output, ok: r.ok ?? true };
 }
-var VOUCH_TOOLS = {
+var SELFIMPULSE_TOOLS = {
   calculator: {
     name: "calculator",
     risky: false,
@@ -27393,7 +27393,7 @@ No network reachable from here \u2014 nothing is faked. The local knowledge base
     run: async (a) => {
       const t = String(a.fact ?? "").trim();
       if (!t) return "nothing to save";
-      addVouchFact(t);
+      addSelfImpulseFact(t);
       return `saved: ${t.slice(0, 120)}`;
     }
   },
@@ -27417,7 +27417,7 @@ ${p}`;
     run: async (a) => {
       const t = String(a.text ?? "").trim();
       if (!t) return "nothing to save";
-      addVouchPreference(t);
+      addSelfImpulsePreference(t);
       return `preference learned: ${t.slice(0, 120)}`;
     }
   },
@@ -27435,7 +27435,7 @@ ${p}`;
     risky: false,
     description: "List files in the local workspace.",
     run: async () => {
-      const fs2 = vouchWorkspaceFiles();
+      const fs2 = selfimpulseWorkspaceFiles();
       return fs2.length === 0 ? "workspace is empty" : fs2.map((f) => `\u2022 ${f.name} (${f.chars} chars, ${f.updated.slice(0, 16).replace("T", " ")})`).join("\n");
     }
   },
@@ -27453,9 +27453,9 @@ async function validateWithRetry2(tool, raw) {
   });
 }
 var RISKY_TOOLS = riskyTools;
-function simulateVouchAction(action) {
+function simulateSelfImpulseAction(action) {
   if (action.kind === "dispatch") {
-    const crews = harborCrews();
+    const crews = selfimpulseCrews();
     const active = crews.length > 0 ? crews[crews.length - 1] : null;
     return {
       tool: "dispatch_mission",
@@ -27482,18 +27482,18 @@ function simulateVouchAction(action) {
 var approvalWaiters = /* @__PURE__ */ new Map();
 var APPROVAL_TTL_MS = 10 * 60 * 1e3;
 var badApprovalProbeGate = new RateGate(10, 6e4);
-function requestVouchApproval(action, detail) {
+function requestSelfImpulseApproval(action, detail) {
   const id = secureId("a");
   session = { ...session, approvals: [...session.approvals, { id, action, detail, status: "pending", ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
   void Promise.resolve().then(() => (init_client(), client_exports)).then(({ isNativeHost: isNativeHost2, ipc: ipc3 }) => {
-    if (isNativeHost2()) void ipc3.notifyApproval("Vouch \u2014 human gate", `${action}: ${detail.slice(0, 140).replace(/\n/g, " ")}`);
+    if (isNativeHost2()) void ipc3.notifyApproval("SelfImpulse \u2014 human gate", `${action}: ${detail.slice(0, 140).replace(/\n/g, " ")}`);
   }).catch(() => void 0);
   return new Promise((resolve2) => {
     approvalWaiters.set(id, resolve2);
   });
 }
-function resolveVouchApproval(id, ok) {
+function resolveSelfImpulseApproval(id, ok) {
   const approval = session.approvals.find((a) => a.id === id);
   if (!approval) {
     badApprovalProbeGate.check("unknown-approval-id");
@@ -27510,7 +27510,7 @@ function resolveVouchApproval(id, ok) {
   }
 }
 var brain;
-function vouchBrain() {
+function selfimpulseBrain() {
   return brain;
 }
 var JOKES = [
@@ -27653,14 +27653,14 @@ Start one and I'll hold it: \u201Ccontinue <thread name>\u201D picks it back up.
       if (!args) continue;
       const isDispatch = sk.tool === "dispatch_mission";
       return {
-        thoughts: [`Slow\u2192fast: executing my vouched skill "${sk.name}" v${sk.version} \u2014 test-gated, ${sk.wins} proven win(s), distilled from a vouched run. The procedure is proven, so no re-planning.`],
-        plan: [`${sk.name} v${sk.version} \u2014 single vouched step`],
+        thoughts: [`Slow\u2192fast: executing my selfimpulseed skill "${sk.name}" v${sk.version} \u2014 test-gated, ${sk.wins} proven win(s), distilled from a selfimpulseed run. The procedure is proven, so no re-planning.`],
+        plan: [`${sk.name} v${sk.version} \u2014 single selfimpulseed step`],
         actions: isDispatch ? [{ kind: "dispatch", objective: String(args.objective ?? "") }] : [{ kind: "tool", tool: sk.tool, args }],
         confidence: "high",
         skillId: sk.id,
         skillVersion: sk.version,
         final: (r) => tone(
-          r[0]?.ok ? `Done \u2014 via my vouched skill **${sk.name}** v${sk.version} (slow\u2192fast; test-gated, ${sk.wins} proven win${sk.wins === 1 ? "" : "s"}). The receipt binds the skill and verifies offline like every other job.` : `My vouched skill **${sk.name}** FAILED on live replay \u2014 I've flagged it, filed the failure to memory, and here is the honest record: ${r[0]?.output ?? ""}`,
+          r[0]?.ok ? `Done \u2014 via my selfimpulseed skill **${sk.name}** v${sk.version} (slow\u2192fast; test-gated, ${sk.wins} proven win${sk.wins === 1 ? "" : "s"}). The receipt binds the skill and verifies offline like every other job.` : `My selfimpulseed skill **${sk.name}** FAILED on live replay \u2014 I've flagged it, filed the failure to memory, and here is the honest record: ${r[0]?.output ?? ""}`,
           ctx.persona
         )
       };
@@ -27673,7 +27673,7 @@ Start one and I'll hold it: \u201Ccontinue <thread name>\u201D picks it back up.
         final: () => tone(
           `Hey. I'm **${BOT_NAME}** \u2014 the accountable colleague on this machine. ${ctx.mode === "deep" ? `Deep mode on:${factLine}` : factLine}
 
-I run a cycle on everything: **recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 vouch \u2192 learn**. Fast tasks take the fast path; risky ones are simulated and paused at your gate \u2014 and every finished run mints a signed receipt.
+I run a cycle on everything: **recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 selfimpulse \u2192 learn**. Fast tasks take the fast path; risky ones are simulated and paused at your gate \u2014 and every finished run mints a signed receipt.
 
 Three ways to use me:
 - **Ask** \u2014 math, time, local knowledge, live web evidence
@@ -27686,16 +27686,16 @@ Brain: **${brain.label}**. The real-model planning seam ships in this runtime \u
       };
       return plan;
     }
-    if (/who are you|what are you|your name|what can you do|about (you|vouch)|\bhelp\b/i.test(lower)) {
+    if (/who are you|what are you|your name|what can you do|about (you|selfimpulse)|\bhelp\b/i.test(lower)) {
       return {
         thoughts: ["Identity question. Answer with the full card \u2014 what, how, and the honest brain status."],
         plan: ctx.mode === "deep" ? ["State the role", "List the tools", "State the brain honestly"] : [],
         actions: [],
         final: () => tone(
-          `I'm **${BOT_NAME}** \u2014 a standalone, persistent, named colleague on this machine, running the **Vouch Cycle**: recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 vouch \u2192 learn.
+          `I'm **${BOT_NAME}** \u2014 a standalone, persistent, named colleague on this machine, running the **SelfImpulse Cycle**: recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 selfimpulse \u2192 learn.
 
 - **Tools:** calculator (real parser), clock, local knowledge base, live web evidence (keyless providers), memory + preferences (yours to inspect/delete), a local workspace (writes are simulated + approval-gated), system info
-- **Dispatch:** \u201Cdispatch a mission: \u2026\u201D \u2014 hands the objective to the real execution core (the mission loop) under one mission ID; the whole trail lands in one vouched chain
+- **Dispatch:** \u201Cdispatch a mission: \u2026\u201D \u2014 hands the objective to the real execution core (the mission loop) under one mission ID; the whole trail lands in one selfimpulseed chain
 - **Learning:** successful runs become test-gated skills you can inspect; your feedback binds to receipts
 - **Proof:** every completed run mints a ${`mj-proof-receipt/2`} \u2014 SHA-256 chain, HMAC seal, Ed25519 issuer signature when this runtime can sign \u2014 verifiable offline, zero runtime state
 
@@ -27910,27 +27910,27 @@ brain = wrapModelBrain(wrapRealModelBrain(simulatedBrain));
 function nowIso2() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
-function verifyVouchReceipt(id) {
+function verifySelfImpulseReceipt(id) {
   const ref = session.receipts.find((r) => r.id === id);
   if (!ref) return Promise.resolve({ ok: false, reason: "receipt not found" });
   return verifyProofReceipt(ref.receipt);
 }
 var toolCallTracks = /* @__PURE__ */ new Map();
-async function runVouchToolCall(tool, args, opts = {}) {
+async function runSelfImpulseToolCall(tool, args, opts = {}) {
   const origin = opts.origin ?? "mcp";
   const t0 = Date.now();
   const callId = `c${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const startedAt = nowIso2();
   const events = [];
-  events.push({ kind: "vouch.session", seatId: "vouch-core", data: { origin, brain: "simulated", tool, args: JSON.parse(JSON.stringify(args)) } });
+  events.push({ kind: "selfimpulse.session", seatId: "selfimpulse-core", data: { origin, brain: "simulated", tool, args: JSON.parse(JSON.stringify(args)) } });
   const isDispatch = tool === "dispatch_mission";
   let action = isDispatch ? { kind: "dispatch", objective: String(args.objective ?? "").trim() } : { kind: "tool", tool, args };
   const objective = action.kind === "dispatch" ? action.objective : "";
   let approvalIdRef = null;
   const finalize2 = async (r) => {
     events.push({
-      kind: isDispatch ? "vouch.dispatch" : "vouch.action",
-      seatId: "vouch-core",
+      kind: isDispatch ? "selfimpulse.dispatch" : "selfimpulse.action",
+      seatId: "selfimpulse-core",
       data: {
         tool,
         args: action.kind === "dispatch" ? { objective: action.objective.slice(0, 200) } : args,
@@ -27943,14 +27943,14 @@ async function runVouchToolCall(tool, args, opts = {}) {
       }
     });
     events.push({
-      kind: "vouch.verdict",
-      seatId: "vouch-core",
+      kind: "selfimpulse.verdict",
+      seatId: "selfimpulse-core",
       data: { status: !r.approved ? "denied" : r.ok ? "done" : "failed", actions: 1, approved: r.approved ? 1 : 0, origin }
     });
     const finishedAt = nowIso2();
     const receipt = await buildChainedReceipt({
-      mission: `vouch:${origin}:${tool}`,
-      teamId: "vouch",
+      mission: `selfimpulse:${origin}:${tool}`,
+      teamId: "selfimpulse",
       startedAt,
       finishedAt,
       version: ENGINE_VERSION,
@@ -27984,7 +27984,7 @@ async function runVouchToolCall(tool, args, opts = {}) {
   emitToolStart(agRunId2, `toolcall:${callId}`, agTcId2, tool);
   emitToolArgs(agRunId2, `toolcall:${callId}`, agTcId2, args);
   const policy = propose({ tool, args, detail: `${tool}(${JSON.stringify(args).slice(0, 140)})` });
-  events.push({ kind: "policy.decision", seatId: "vouch-policy", data: { tool, decision: policy.decision, rule: policy.rule, reason: policy.reason } });
+  events.push({ kind: "policy.decision", seatId: "selfimpulse-policy", data: { tool, decision: policy.decision, rule: policy.rule, reason: policy.reason } });
   if (policy.decision === "deny") {
     emitInterrupt(agRunId2, `toolcall:${callId}`, agTcId2, tool, `${policy.reason} (rule: ${policy.rule})`);
     return finalize2({ ok: false, output: `Policy denied: ${policy.reason} (rule: ${policy.rule})`, approved: false, simulated: false, mission: null });
@@ -27992,26 +27992,26 @@ async function runVouchToolCall(tool, args, opts = {}) {
   const risky = policy.decision === "steer";
   const gr = scanToolCall(tool, args);
   if (!gr.ok) {
-    events.push({ kind: "tool.guardrail_refused", seatId: "vouch-guardrail", data: { tool, code: gr.code, reason: gr.reason } });
+    events.push({ kind: "tool.guardrail_refused", seatId: "selfimpulse-guardrail", data: { tool, code: gr.code, reason: gr.reason } });
     emitInterrupt(agRunId2, `toolcall:${callId}`, agTcId2, tool, `guardrail: ${gr.reason}`);
     return finalize2({ ok: false, output: `GuardRail refused ${tool}: ${gr.reason} (code: ${gr.code}) \u2014 nothing executed.`, approved: false, simulated: false, mission: null });
   }
   if (gr.warnings.length > 0) {
-    events.push({ kind: "tool.guardrail_warnings", seatId: "vouch-guardrail", data: { tool, warnings: gr.warnings.slice(0, 8) } });
+    events.push({ kind: "tool.guardrail_warnings", seatId: "selfimpulse-guardrail", data: { tool, warnings: gr.warnings.slice(0, 8) } });
   }
   const v = await validateWithRetry2(tool, args);
   args = v.args;
   if (v.audit.retried) {
-    events.push({ kind: "tool.schema_retry", seatId: "vouch-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason, attempt: 1 } });
+    events.push({ kind: "tool.schema_retry", seatId: "selfimpulse-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason, attempt: 1 } });
   }
   if (!v.ok) {
     const msg = `Schema validation failed for ${tool} after one retry: ${v.audit.errors} \u2014 refusing, nothing executed.`;
-    events.push({ kind: "tool.schema_refused", seatId: "vouch-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, attempts: v.audit.attempts - 1, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason } });
+    events.push({ kind: "tool.schema_refused", seatId: "selfimpulse-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, attempts: v.audit.attempts - 1, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason } });
     return finalize2({ ok: false, output: msg, approved: true, simulated: false, mission: null });
   }
   if (isDispatch) action = { kind: "dispatch", objective: String(args.objective ?? "") };
-  if (!isDispatch && VOUCH_TOOLS[tool] === void 0) {
-    return finalize2({ ok: false, output: `unknown tool "${tool}" \u2014 refused. Known tools: ${[...Object.keys(VOUCH_TOOLS), "dispatch_mission"].join(", ")}`, approved: true, simulated: false, mission: null });
+  if (!isDispatch && SELFIMPULSE_TOOLS[tool] === void 0) {
+    return finalize2({ ok: false, output: `unknown tool "${tool}" \u2014 refused. Known tools: ${[...Object.keys(SELFIMPULSE_TOOLS), "dispatch_mission"].join(", ")}`, approved: true, simulated: false, mission: null });
   }
   if (isDispatch && String(args.objective ?? "").length === 0) {
     return finalize2({ ok: false, output: "dispatch_mission needs an objective \u2014 refused, nothing dispatched.", approved: true, simulated: false, mission: null });
@@ -28021,7 +28021,7 @@ async function runVouchToolCall(tool, args, opts = {}) {
       const missionId = mintMissionId();
       toolCallTracks.get(callId).missionId = missionId;
       try {
-        const outcome = await runHarborMission(objective, missionId);
+        const outcome = await runSelfImpulseMission(objective, missionId);
         recordMission(outcome);
         return {
           ok: outcome.status !== "failed" && outcome.status !== "aborted",
@@ -28033,7 +28033,7 @@ async function runVouchToolCall(tool, args, opts = {}) {
         return { ok: false, output: `Dispatch blocked \u2014 the mission engine reported an error: ${e instanceof Error ? e.message : String(e)}. Nothing was faked.`, mission: null };
       }
     }
-    const t = VOUCH_TOOLS[tool];
+    const t = SELFIMPULSE_TOOLS[tool];
     try {
       const runResult = toolRunOutput(await t.run(args));
       return { ok: runResult.ok, output: runResult.output, mission: null };
@@ -28045,14 +28045,14 @@ async function runVouchToolCall(tool, args, opts = {}) {
     const a = await runAction();
     return finalize2({ ok: a.ok, output: a.output, approved: true, simulated: false, mission: a.mission });
   }
-  const sim = simulateVouchAction(action);
-  events.push({ kind: "vouch.simulation", seatId: "vouch-core", data: { tool, prediction: sim.prediction, sideEffects: sim.sideEffects, warnings: sim.warnings, confidence: sim.confidence } });
+  const sim = simulateSelfImpulseAction(action);
+  events.push({ kind: "selfimpulse.simulation", seatId: "selfimpulse-core", data: { tool, prediction: sim.prediction, sideEffects: sim.sideEffects, warnings: sim.warnings, confidence: sim.confidence } });
   const detail = isDispatch ? `Dispatch mission to a composed crew via the Mission Loop: "${objective.slice(0, 140)}"
 SIMULATION: ${sim.prediction}` : `Write file "${String(args.name ?? "untitled.txt")}" to the local workspace
 SIMULATION: ${sim.prediction}${sim.warnings.length > 0 ? `
 WARNINGS: ${sim.warnings.join("; ")}` : ""}`;
-  const approvalPromise = requestVouchApproval(tool, detail);
-  approvalIdRef = vouchSession().approvals[vouchSession().approvals.length - 1]?.id ?? null;
+  const approvalPromise = requestSelfImpulseApproval(tool, detail);
+  approvalIdRef = selfimpulseSession().approvals[selfimpulseSession().approvals.length - 1]?.id ?? null;
   const settle3 = async (granted) => {
     if (!granted) {
       return finalize2({ ok: false, output: "Denied by the human gate \u2014 nothing was executed.", approved: false, simulated: true, mission: null });
@@ -28092,15 +28092,15 @@ WARNINGS: ${sim.warnings.join("; ")}` : ""}`;
     ms: Date.now() - t0
   };
 }
-function appendVouchReceiptRef(ref) {
+function appendSelfImpulseReceiptRef(ref) {
   session = { ...session, receipts: [...session.receipts.slice(-19), ref] };
   commit();
 }
 
-// src/vouch/engine/meta.ts
+// src/selfimpulse/engine/meta.ts
 init_version();
 var HAS_LS = typeof localStorage !== "undefined" && localStorage !== null;
-var META_KEY = "vouch.meta.changes.v1";
+var META_KEY = "selfimpulse.meta.changes.v1";
 var CAP = 50;
 function loadChanges() {
   if (!HAS_LS) return [];
@@ -28149,14 +28149,14 @@ async function mintMetaReceipt(ev) {
     const startedAt = ev.detail.createdAt;
     const finishedAt = nowIso3();
     const events = [
-      { kind: "vouch.session", seatId: "vouch-core", data: { origin: "meta", tool: `meta.${ev.changeId}`, args: { ...ev.detail } } },
-      { kind: "vouch.simulation", seatId: "vouch-core", data: { prediction: ev.simulation.prediction, sideEffects: ev.simulation.sideEffects, warnings: ev.simulation.warnings, confidence: 1 } },
-      { kind: "vouch.meta", seatId: "vouch-core", data: { changeId: ev.changeId, ...ev.detail, decision: ev.verdict } },
-      { kind: "vouch.verdict", seatId: "vouch-core", data: { status: ev.verdict, actions: 1, origin: "meta", changeId: ev.changeId } }
+      { kind: "selfimpulse.session", seatId: "selfimpulse-core", data: { origin: "meta", tool: `meta.${ev.changeId}`, args: { ...ev.detail } } },
+      { kind: "selfimpulse.simulation", seatId: "selfimpulse-core", data: { prediction: ev.simulation.prediction, sideEffects: ev.simulation.sideEffects, warnings: ev.simulation.warnings, confidence: 1 } },
+      { kind: "selfimpulse.meta", seatId: "selfimpulse-core", data: { changeId: ev.changeId, ...ev.detail, decision: ev.verdict } },
+      { kind: "selfimpulse.verdict", seatId: "selfimpulse-core", data: { status: ev.verdict, actions: 1, origin: "meta", changeId: ev.changeId } }
     ];
     const receipt = await buildChainedReceipt({
-      mission: `vouch:meta:${ev.changeId}`,
-      teamId: "vouch",
+      mission: `selfimpulse:meta:${ev.changeId}`,
+      teamId: "selfimpulse",
       startedAt,
       finishedAt,
       version: ENGINE_VERSION,
@@ -28178,7 +28178,7 @@ async function mintMetaReceipt(ev) {
       feedback: [],
       receipt
     };
-    appendVouchReceiptRef(ref);
+    appendSelfImpulseReceiptRef(ref);
     return ref;
   } catch {
     return null;
@@ -28196,7 +28196,7 @@ function validateProposal(kindRaw, targetRaw, reasonRaw, isRevert) {
     return { ...base, refusal: "a meta proposal needs a reason \u2014 the human gate decides on words. Refused, nothing proposed." };
   }
   if (kind === "risk.tier") {
-    if (VOUCH_TOOLS[target] === void 0) {
+    if (SELFIMPULSE_TOOLS[target] === void 0) {
       return { ...base, refusal: `unknown tool "${target}" \u2014 the meta-loop may only re-tier real capabilities. Refused, nothing proposed.` };
     }
     const isRisky = RISKY_TOOLS.has(target);
@@ -28221,7 +28221,7 @@ function validateProposal(kindRaw, targetRaw, reasonRaw, isRevert) {
       simulation: {
         prediction: prediction2,
         sideEffects: [isRevert ? `risk.tier(${target}) restored to safe` : `risk.tier(${target}) moved to risky`],
-        warnings: isRevert ? ["this LOOSENS the gate \u2014 it is itself human-gated and vouched"] : ["future calls to this tool will pause for approval"]
+        warnings: isRevert ? ["this LOOSENS the gate \u2014 it is itself human-gated and selfimpulseed"] : ["future calls to this tool will pause for approval"]
       }
     };
   }
@@ -28229,7 +28229,7 @@ function validateProposal(kindRaw, targetRaw, reasonRaw, isRevert) {
     return { ...base, refusal: "preference.set needs the preference text. Refused, nothing proposed." };
   }
   if (isRevert) {
-    const exists = vouchSession().preferences.some((x) => x.text === target);
+    const exists = selfimpulseSession().preferences.some((x) => x.text === target);
     if (!exists) {
       return { ...base, refusal: `no standing preference "${target}" to remove \u2014 nothing to revert. Refused, nothing proposed.` };
     }
@@ -28266,10 +28266,10 @@ function applyChange(c) {
     else RISKY_TOOLS.add(c.target);
   } else if (c.kind === "preference.set") {
     if (c.revertOf !== null) {
-      const pref = vouchSession().preferences.find((x) => x.text === c.target);
-      if (pref) removeVouchPreference(pref.id);
+      const pref = selfimpulseSession().preferences.find((x) => x.text === c.target);
+      if (pref) removeSelfImpulsePreference(pref.id);
     } else {
-      addVouchPreference(c.target);
+      addSelfImpulsePreference(c.target);
     }
   }
 }
@@ -28359,8 +28359,8 @@ AFTER: ${c.to}
 REASON: ${reason.slice(0, 200)}
 SIMULATION: ${v.simulation.prediction}${v.simulation.warnings.length > 0 ? `
 WARNINGS: ${v.simulation.warnings.join("; ")}` : ""}`;
-  const approvalPromise = requestVouchApproval(label, detail);
-  const approvalId = vouchSession().approvals[vouchSession().approvals.length - 1]?.id ?? null;
+  const approvalPromise = requestSelfImpulseApproval(label, detail);
+  const approvalId = selfimpulseSession().approvals[selfimpulseSession().approvals.length - 1]?.id ?? null;
   void approvalPromise.then((approved) => settle2(c, approved, v.simulation)).catch((e) => {
     c.status = "denied";
     c.decidedAt = nowIso3();
@@ -28380,7 +28380,7 @@ WARNINGS: ${v.simulation.warnings.join("; ")}` : ""}`;
   return {
     ok: false,
     pending: true,
-    output: `Meta change ${c.id} (${c.kind} on "${c.target}") is PAUSED at the human gate (approval ${approvalId}). ${isRevert ? "This revert" : "This proposal"} changes how the product governs itself \u2014 approve or deny it (Vouch face, or approve_action / deny_action over MCP), then poll meta_status "${c.id}".`,
+    output: `Meta change ${c.id} (${c.kind} on "${c.target}") is PAUSED at the human gate (approval ${approvalId}). ${isRevert ? "This revert" : "This proposal"} changes how the product governs itself \u2014 approve or deny it (SelfImpulse face, or approve_action / deny_action over MCP), then poll meta_status "${c.id}".`,
     changeId: c.id,
     approvalId,
     receiptId: null
@@ -28438,35 +28438,35 @@ async function pollMeta(changeId, timeoutMs = 15e3) {
     await sleep(50);
   }
 }
-describe3("M6 engine \u2014 propose \u2192 simulate \u2192 gate \u2192 apply \u2192 vouch \u2192 revert", () => {
-  it("a tightening is gated, applies the REAL control change, and is vouched", async () => {
+describe3("M6 engine \u2014 propose \u2192 simulate \u2192 gate \u2192 apply \u2192 selfimpulse \u2192 revert", () => {
+  it("a tightening is gated, applies the REAL control change, and is selfimpulseed", async () => {
     assert2.equal(RISKY_TOOLS.has("search"), false, "precondition: search starts safe");
     const p = await proposeMetaChange("risk.tier", "search", "probe: tighten search to prove the loop");
     assert2.equal(p.pending, true, "meta changes are non-blocking at the gate");
     assert2.ok(p.changeId && p.approvalId, "handles returned");
     assert2.equal(metaChange(p.changeId).status, "proposed");
-    resolveVouchApproval(p.approvalId, true);
+    resolveSelfImpulseApproval(p.approvalId, true);
     const c = await pollMeta(p.changeId);
     assert2.equal(c.status, "applied");
     assert2.equal(c.decision, "approved");
     assert2.ok(c.receiptId, "the application mints a receipt");
     assert2.equal(RISKY_TOOLS.has("search"), true, "the control plane changed: search is now risky");
     assert2.ok(currentGatedTools().includes("search"), "the gated surface reports it");
-    const v = await verifyVouchReceipt(c.receiptId);
+    const v = await verifySelfImpulseReceipt(c.receiptId);
     assert2.equal(v.ok, true, "the meta receipt verifies offline \u2014 " + JSON.stringify(v));
   });
   it("BEHAVIOR PROOF: a re-tiered tool now pauses at the human gate", async () => {
-    const r = await runVouchToolCall("search", { query: "does the loop work" }, { origin: "probe" });
+    const r = await runSelfImpulseToolCall("search", { query: "does the loop work" }, { origin: "probe" });
     assert2.equal(r.pending, true, "search now GATES \u2014 the control change is real, not cosmetic");
-    resolveVouchApproval(r.approvalId, true);
+    resolveSelfImpulseApproval(r.approvalId, true);
     await sleep(400);
   });
-  it("the revert is itself gated, restores the exact state, and vouches itself", async () => {
+  it("the revert is itself gated, restores the exact state, and selfimpulsees itself", async () => {
     const origId = metaChanges().find((c) => c.status === "applied").id;
     const rv = await revertMetaChange(origId);
     assert2.equal(rv.pending, true, "a revert is gated \u2014 it changes governance too");
     assert2.ok(rv.changeId && rv.changeId !== origId, "the revert is its own audited entry");
-    resolveVouchApproval(rv.approvalId, true);
+    resolveSelfImpulseApproval(rv.approvalId, true);
     const rc = await pollMeta(rv.changeId);
     assert2.equal(rc.status, "applied", "the revert applied");
     assert2.equal(rc.revertOf, origId, "the revert entry names what it reverts");
@@ -28475,20 +28475,20 @@ describe3("M6 engine \u2014 propose \u2192 simulate \u2192 gate \u2192 apply \u2
     assert2.equal(orig.status, "reverted", "the original change is marked reverted");
     assert2.ok(orig.revertedAt && orig.revertReceiptId, "with the revert's receipt bound to it");
     assert2.equal(RISKY_TOOLS.has("search"), false, "the control plane is RESTORED");
-    const r2 = await runVouchToolCall("search", { query: "and is it reversible" }, { origin: "probe" });
+    const r2 = await runSelfImpulseToolCall("search", { query: "and is it reversible" }, { origin: "probe" });
     assert2.equal(r2.pending, false, "search runs freely again \u2014 reversibility proven behaviorally");
-    const v = await verifyVouchReceipt(rc.receiptId);
+    const v = await verifySelfImpulseReceipt(rc.receiptId);
     assert2.equal(v.ok, true, "the revert receipt verifies offline");
   });
-  it("the tightening-only rule: no demotions, no double reverts, no unknowns \u2014 all refused in words and vouched", async () => {
+  it("the tightening-only rule: no demotions, no double reverts, no unknowns \u2014 all refused in words and selfimpulseed", async () => {
     const d1 = await proposeMetaChange("risk.tier", "workspace_write", "try to loosen the gate");
     assert2.equal(d1.ok, false);
     assert2.ok(/already at the maximum gate/i.test(d1.output), d1.output);
-    assert2.ok(d1.receiptId, "the refusal is vouched");
+    assert2.ok(d1.receiptId, "the refusal is selfimpulseed");
     const d2 = await revertMetaChange("mc-does-not-exist");
     assert2.equal(d2.ok, false);
     assert2.ok(/unknown meta change/.test(d2.output));
-    assert2.ok(d2.receiptId, "the refusal is vouched");
+    assert2.ok(d2.receiptId, "the refusal is selfimpulseed");
     const appliedId = metaChanges().find((c) => c.status === "reverted").id;
     const d3 = await revertMetaChange(appliedId);
     assert2.equal(d3.ok, false);
@@ -28497,7 +28497,7 @@ describe3("M6 engine \u2014 propose \u2192 simulate \u2192 gate \u2192 apply \u2
     const d4 = await revertMetaChange(revertEntry.id);
     assert2.equal(d4.ok, false);
     assert2.ok(/IS a revert/.test(d4.output), "reverts are terminal");
-    const d5 = await proposeMetaChange("self_upgrade", "vouch.ts", "nope");
+    const d5 = await proposeMetaChange("self_upgrade", "selfimpulse.ts", "nope");
     assert2.equal(d5.ok, false);
     assert2.ok(/unknown meta kind/.test(d5.output));
     const d6 = await proposeMetaChange("risk.tier", "search", "");
@@ -28506,29 +28506,29 @@ describe3("M6 engine \u2014 propose \u2192 simulate \u2192 gate \u2192 apply \u2
     assert2.equal(RISKY_TOOLS.has("workspace_write"), true, "the demotion never applied");
     assert2.equal(RISKY_TOOLS.has("search"), false);
   });
-  it("preference.set: applied to the real session, reverted from it, both vouched", async () => {
+  it("preference.set: applied to the real session, reverted from it, both selfimpulseed", async () => {
     const p = await proposeMetaChange("preference.set", "always prefer concise answers in probes", "probe: standing preference");
     assert2.equal(p.pending, true);
-    resolveVouchApproval(p.approvalId, true);
+    resolveSelfImpulseApproval(p.approvalId, true);
     const c = await pollMeta(p.changeId);
     assert2.equal(c.status, "applied");
-    assert2.ok(vouchSession().preferences.some((x) => x.text === "always prefer concise answers in probes"), "RECALL now carries the preference");
+    assert2.ok(selfimpulseSession().preferences.some((x) => x.text === "always prefer concise answers in probes"), "RECALL now carries the preference");
     const rv = await revertMetaChange(c.id);
     assert2.equal(rv.pending, true);
-    resolveVouchApproval(rv.approvalId, true);
+    resolveSelfImpulseApproval(rv.approvalId, true);
     const rc = await pollMeta(rv.changeId);
     assert2.equal(rc.status, "applied");
-    assert2.ok(!vouchSession().preferences.some((x) => x.text === "always prefer concise answers in probes"), "the revert removed it from the session");
+    assert2.ok(!selfimpulseSession().preferences.some((x) => x.text === "always prefer concise answers in probes"), "the revert removed it from the session");
   });
-  it("a DENIED meta change changes nothing and is still vouched", async () => {
+  it("a DENIED meta change changes nothing and is still selfimpulseed", async () => {
     const p = await proposeMetaChange("preference.set", "a preference the human will refuse", "probe: denial path");
-    resolveVouchApproval(p.approvalId, false);
+    resolveSelfImpulseApproval(p.approvalId, false);
     const c = await pollMeta(p.changeId);
     assert2.equal(c.status, "denied");
     assert2.equal(c.decision, "denied");
-    assert2.ok(c.receiptId, "the denial is vouched");
-    assert2.ok(!vouchSession().preferences.some((x) => x.text === "a preference the human will refuse"), "nothing was applied");
-    const v = await verifyVouchReceipt(c.receiptId);
+    assert2.ok(c.receiptId, "the denial is selfimpulseed");
+    assert2.ok(!selfimpulseSession().preferences.some((x) => x.text === "a preference the human will refuse"), "nothing was applied");
+    const v = await verifySelfImpulseReceipt(c.receiptId);
     assert2.equal(v.ok, true);
   });
   it("every meta receipt in the ledger verifies offline", async () => {
@@ -28537,12 +28537,12 @@ describe3("M6 engine \u2014 propose \u2192 simulate \u2192 gate \u2192 apply \u2
     let verified = 0;
     for (const c of all) {
       if (c.receiptId) {
-        const v = await verifyVouchReceipt(c.receiptId);
+        const v = await verifySelfImpulseReceipt(c.receiptId);
         assert2.equal(v.ok, true, `receipt for ${c.id} (${c.status}) verifies \u2014 ${JSON.stringify(v)}`);
         verified++;
       }
     }
-    assert2.ok(verified >= 8, `at least the decisions vouched: ${verified}`);
+    assert2.ok(verified >= 8, `at least the decisions selfimpulseed: ${verified}`);
   });
 });
 describe3("M6 protocol \u2014 meta_propose / meta_status / meta_revert over the wire", () => {

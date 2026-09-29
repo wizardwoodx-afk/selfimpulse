@@ -1,5 +1,5 @@
 /**
- * 11Handle §13 — the format readers. Each one turns a binary document into
+ * SelfImpulse §13 — the format readers. Each one turns a binary document into
  * MARKDOWN WITH REAL HEADINGS, and that shape is the whole design.
  *
  * WHY MARKDOWN AND NOT PLAIN TEXT: the Docs door already owns the judgement
@@ -55,11 +55,11 @@ const MAX_LINE_CHARS = 400;
  * asset, so the path can never drift from the shipped pdf.js); a Node probe has
  * no `document`, so it resolves the vendored copy from the tree root instead.
  *
- * HANDLE_ROOT is the house convention: it is defined at bundle time by both
+ * SI_ROOT is the house convention: it is defined at bundle time by both
  * probe runners. Deriving this from import.meta.url instead breaks inside the
  * offline pack, where the bundle's own location says nothing about the tree.
  */
-declare const HANDLE_ROOT: string | undefined;
+declare const SI_ROOT: string | undefined;
 export { configurePdfWorker } from "./pdfWorker";
 import { pdfWorkerSrc } from "./pdfWorker";
 
@@ -67,7 +67,7 @@ async function resolvePdfWorker(): Promise<string | null> {
   const configured = pdfWorkerSrc();
   if (configured) return configured;
   if (typeof document !== "undefined") return null;
-  const root = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+  const root = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
   const fs = await import("node:fs");
   const path = await import("node:path");
   const url = await import("node:url");
@@ -118,7 +118,7 @@ export async function parsePdf(bytes: Uint8Array, maxChars: number, deadlineAt =
     const err = e as { name?: string; message?: string };
     const msg = String(err?.message ?? err ?? "");
     if (/password/i.test(msg) || err?.name === "PasswordException") {
-      return refuse("encrypted", "this PDF is password-protected. 11Handle does not try an empty password and pass it off as a read, and it does not crack one: it refuses, in words. Open it, save the plaintext, and drop that.");
+      return refuse("encrypted", "this PDF is password-protected. SelfImpulse does not try an empty password and pass it off as a read, and it does not crack one: it refuses, in words. Open it, save the plaintext, and drop that.");
     }
     if (/Invalid PDF/i.test(msg)) return refuse("unrecognised-binary", `this is not a PDF this reader can parse: ${msg.slice(0, 120)}`);
     return refuse("unrecognised-binary", `the PDF reader stopped: ${msg.slice(0, 140)}`);

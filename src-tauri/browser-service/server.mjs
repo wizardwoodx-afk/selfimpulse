@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 11Handle — browser service (bundled inside the product; nothing outside required).
+ * SelfImpulse — browser service (bundled inside the product; nothing outside required).
  *
  * Owns the optional Chromium-family browser process over the DevTools protocol and
  * serves the loopback JSON API the desktop app forwards to. Fail-closed contract
@@ -277,9 +277,9 @@ async function sessionByKey(key) {
  */
 async function installNetworkGuard(sessionId, allowedDomains) {
   const body = await loadGuardBody();
-  const source = `globalThis.__11handleGuardReport = globalThis.__11handleGuardReport || [];
+  const source = `globalThis.__selfimpulseGuardReport = globalThis.__selfimpulseGuardReport || [];
 ${body}
-__install11HandleNetworkGuard(${JSON.stringify(allowedDomains)});`;
+__installSelfImpulseNetworkGuard(${JSON.stringify(allowedDomains)});`;
 
   await state.cdp.send("Page.addScriptToEvaluateOnNewDocument", { source }, sessionId);
   const r = await state.cdp.send(
@@ -310,7 +310,7 @@ async function loadGuardBody() {
 /**
  * Read the blocked-request report the guard maintains in the page.
  *
- * This is how a refusal becomes an 11Handle fact: the page records the reason,
+ * This is how a refusal becomes an SelfImpulse fact: the page records the reason,
  * and the host lifts it out so it can be receipted rather than staying invisible
  * inside the browser.
  */
@@ -318,7 +318,7 @@ async function readGuardReport(sessionId) {
   try {
     const r = await state.cdp.send(
       "Runtime.evaluate",
-      { expression: "JSON.stringify(globalThis.__11handleGuardReport || [])", returnByValue: true },
+      { expression: "JSON.stringify(globalThis.__selfimpulseGuardReport || [])", returnByValue: true },
       sessionId
     );
     const raw = r.result?.value;
@@ -332,7 +332,7 @@ async function readGuardReport(sessionId) {
         // Clear so the same refusal is not counted twice on the next read.
         await state.cdp.send(
           "Runtime.evaluate",
-          { expression: "globalThis.__11handleGuardReport.length = 0" },
+          { expression: "globalThis.__selfimpulseGuardReport.length = 0" },
           sessionId
         );
       }
@@ -346,7 +346,7 @@ async function readGuardReport(sessionId) {
 
 async function createSession(key) {
   const err = await ensureAttached();
-  if (err) return { ok: false, notAttached: true, engine: null, sessionId: null, reason: `the 11Handle browser service is up, but ${err}` };
+  if (err) return { ok: false, notAttached: true, engine: null, sessionId: null, reason: `the SelfImpulse browser service is up, but ${err}` };
   const existing = await sessionByKey(key);
   if (existing) return { ok: true, engine: state.engine, sessionId: existing, reused: true };
   const { targetId } = await state.cdp.send("Target.createTarget", { url: "about:blank" });
@@ -493,7 +493,7 @@ async function act(body) {
 const routes = {
   "GET /health": () => ({
     ok: true,
-    service: "11handle-browser",
+    service: "selfimpulse-browser",
     attached: state.attached,
     engine: state.attached ? state.engine : null,
     browserPath: state.browserPath,
@@ -569,10 +569,10 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`11handle-browser listening on http://${HOST}:${server.address().port}`);
+  console.log(`selfimpulse-browser listening on http://${HOST}:${server.address().port}`);
 });
 server.on("error", (e) => {
-  console.error(`11handle-browser failed to listen: ${e.message}`);
+  console.error(`selfimpulse-browser failed to listen: ${e.message}`);
   process.exit(1);
 });
 

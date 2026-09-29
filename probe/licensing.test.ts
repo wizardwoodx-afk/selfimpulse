@@ -31,11 +31,11 @@ const ok = (label: string, cond: boolean, detail = "") => {
 };
 const section = (s: string) => console.log(`\n== ${s}`);
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 function declareRootCheck(): void {
   if (!fs.existsSync(path.join(ROOT, "package.json"))) {
-    console.error("licensing: project root not found; rebuild with --define:HANDLE_ROOT");
+    console.error("licensing: project root not found; rebuild with --define:SI_ROOT");
     process.exit(2);
   }
 }
@@ -62,7 +62,7 @@ void (async () => {
   const wrongSecret = await issueLicenseKey(payload, "some-other-secret");
   const wv = await verifyLicenseKey(wrongSecret, NOW);
   ok("a key from another secret does not verify", wv.ok === false, JSON.stringify(wv));
-  ok("the embedded verification secret is the published one", VERIFY_SECRET === "vh-commercial-v1-offline", VERIFY_SECRET);
+  ok("the embedded verification secret is the published one", VERIFY_SECRET === "si-commercial-v1-offline", VERIFY_SECRET);
   ok("the legacy wire secret is preserved for pre-16.1 receipts", LEGACY_SEAL_SECRET === "mj-commercial-v1-offline", LEGACY_SEAL_SECRET);
 
   section("3. the edition clock is pure and honest");

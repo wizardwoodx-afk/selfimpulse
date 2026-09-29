@@ -1,5 +1,5 @@
 /**
- * §32.1 OpenTelemetry GenAI export (V11, VH-11.0-PROPOSAL W4).
+ * §32.1 OpenTelemetry GenAI export (V11, SI-11.0-PROPOSAL W4).
  *
  * The flight recorder is VH's authoritative "why" trail; OTLP export makes that trail
  * readable in every OTel backend (Datadog, Jaeger, …) without inventing a vendor

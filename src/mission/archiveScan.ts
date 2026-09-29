@@ -1,5 +1,5 @@
 /**
- * 11Handle §13 — the archive gate. Nothing inflates until this file says so.
+ * SelfImpulse §13 — the archive gate. Nothing inflates until this file says so.
  *
  * WHY THIS EXISTS AS A SEPARATE MODULE: a .zip (and every OOXML document, which
  * IS a zip) is untrusted input from the internet's favourite attack. The parsers
@@ -209,7 +209,7 @@ export function scanContainer(bytes: Uint8Array, limits: ArchiveLimits = ARCHIVE
   if (cd.zip64) {
     return { ok: false, report: { ...empty, entries: cd.entries }, refusal: {
       code: "zip64",
-      words: "a ZIP64 archive keeps its real sizes outside the record this gate reads, so the caps cannot be verified before inflating — 11Handle refuses it rather than trusting what it cannot see.",
+      words: "a ZIP64 archive keeps its real sizes outside the record this gate reads, so the caps cannot be verified before inflating — SelfImpulse refuses it rather than trusting what it cannot see.",
     } };
   }
   const files = cd.entries.filter((e) => !e.directory);
@@ -225,7 +225,7 @@ export function scanContainer(bytes: Uint8Array, limits: ArchiveLimits = ARCHIVE
   }
   const encrypted = files.find((e) => e.encrypted);
   if (encrypted) {
-    return fail("encrypted", `the entry "${encrypted.name}" is encrypted. 11Handle does not crack, guess or silently skip a protected file — it refuses, in words. Unlock it and drop the plaintext.`);
+    return fail("encrypted", `the entry "${encrypted.name}" is encrypted. SelfImpulse does not crack, guess or silently skip a protected file — it refuses, in words. Unlock it and drop the plaintext.`);
   }
   if (report.expandedBytes > limits.maxExpandedBytes) {
     return fail("expanded-too-large", `this container declares ${(report.expandedBytes / 1e6).toFixed(1)} MB unpacked, above the ${(limits.maxExpandedBytes / 1e6).toFixed(0)} MB cap. Declared before a single byte was inflated — nothing was read.`);
@@ -235,12 +235,12 @@ export function scanContainer(bytes: Uint8Array, limits: ArchiveLimits = ARCHIVE
       return fail("entry-expanded-too-large", `"${e.name}" declares ${(e.expandedSize / 1e6).toFixed(1)} MB on its own, above the ${(limits.maxEntryExpandedBytes / 1e6).toFixed(0)} MB per-entry cap.`);
     }
     const bad = unsafeEntryName(e.name);
-    if (bad) return fail("unsafe-entry-name", `refused by name, before any inflation: the archive carries ${bad}. 11Handle does not normalise a name it could not approve.`);
+    if (bad) return fail("unsafe-entry-name", `refused by name, before any inflation: the archive carries ${bad}. SelfImpulse does not normalise a name it could not approve.`);
     if (limits.maxDepth < 2 && looksLikeArchiveName(e.name)) {
       return fail("nested-archive", `"${e.name}" is itself an archive inside an archive. This door opens ONE container per dropped file (depth cap ${limits.maxDepth}) — a nested one is a DoS amplifier, not a document.`);
     }
     if (e.method === METHOD_AES || e.method === METHOD_ZSTD) {
-      return fail("unsupported-method", `"${e.name}" uses compression method ${e.method}, which 11Handle does not understand. Refusing beats guessing at bytes.`);
+      return fail("unsupported-method", `"${e.name}" uses compression method ${e.method}, which SelfImpulse does not understand. Refusing beats guessing at bytes.`);
     }
     if (e.method !== METHOD_STORE && e.method !== METHOD_DEFLATE && e.method !== METHOD_BZIP2) {
       return fail("unsupported-method", `"${e.name}" uses an unknown compression method (${e.method}).`);

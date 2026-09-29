@@ -7,7 +7,7 @@
  * `src/version.ts`, and any leftover literal release number in the UI layer is a failure.
  *
  * Run: ./node_modules/.bin/esbuild probe/versionDrift.test.ts --bundle --platform=node --format=esm \
- *        --define:HANDLE_ROOT='"'$(pwd)'"' --outfile=/tmp/vd.mjs --log-level=error && node /tmp/vd.mjs
+ *        --define:SI_ROOT='"'$(pwd)'"' --outfile=/tmp/vd.mjs --log-level=error && node /tmp/vd.mjs
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -38,18 +38,18 @@ function section(name: string): void {
  * This cannot be derived from `import.meta.dirname`: esbuild does not define it in the bundle, so it
  * is `undefined` and `path.resolve(undefined ?? ".", "..")` silently resolves to `/` — the probe then
  * crashes trying to read `/package.json`, which looks like a missing file rather than a broken probe.
- * esbuild injects `HANDLE_ROOT` at build time instead (see the command at the top of this file), with a
+ * esbuild injects `SI_ROOT` at build time instead (see the command at the top of this file), with a
  * cwd-based fallback for anyone running it unbundled, and the result is verified below rather than
  * trusted.
  */
-declare const HANDLE_ROOT: string | undefined;
-const root = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0
-  ? HANDLE_ROOT
+declare const SI_ROOT: string | undefined;
+const root = typeof SI_ROOT === "string" && SI_ROOT.length > 0
+  ? SI_ROOT
   : path.resolve(process.cwd(), "package.json").startsWith("/home/user/mj") || fs.existsSync(path.join(process.cwd(), "package.json"))
     ? process.cwd()
     : path.resolve(__dirname ?? process.cwd(), "..");
 if (!fs.existsSync(path.join(root, "package.json"))) {
-  console.error(`versionDrift: cannot find the project root (looked in ${root}). Rebuild with --define:HANDLE_ROOT='"'$(pwd)'"'.`);
+  console.error(`versionDrift: cannot find the project root (looked in ${root}). Rebuild with --define:SI_ROOT='"'$(pwd)'"'.`);
   process.exit(2);
 }
 console.log(`project root: ${root}`);
@@ -67,7 +67,7 @@ ok("docs/VERSIONING.md is the policy of record for the pair", read("docs/VERSION
 // exists to catch, aimed at itself.
 // Clean-name policy: the product name has no number; the engine identity rides in parentheses for manifests/receipts.
 ok("PRODUCT_TITLE is the product name with the engine identity beside it",
-   PRODUCT_TITLE === `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`, PRODUCT_TITLE);
+   PRODUCT_TITLE === `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`, PRODUCT_TITLE);
 
 section("1. product manifests state PRODUCT_VERSION; engine sites name ENGINE_VERSION");
 const pkg = json<{ name: string; version: string }>("package.json");
@@ -85,13 +85,13 @@ const pkgTyped = pkg as { engine?: { name?: string; version?: string } };
 ok("package.json carries the engine release in its engine field", pkgTyped.engine?.version === ENGINE_VERSION && pkgTyped.engine?.name === "MJ", JSON.stringify(pkgTyped.engine));
 const versionTxt = read("VERSION.txt");
 ok(`VERSION.txt states both numbers (product ${PRODUCT_VERSION} / engine ${ENGINE_VERSION})`, versionTxt.includes(`Product release: ${PRODUCT_VERSION}`) && versionTxt.includes("Engine release:") && versionTxt.includes(ENGINE_VERSION), versionTxt.split("\n").slice(0, 3).join(" | "));
-ok("Cargo.toml package name is the clean product name", /^name\s*=\s*"eleven-handle"/m.test(cargo) && /name = "elevenhandle_lib"/.test(cargo), "Cargo identity");
+ok("Cargo.toml package name is the clean product name", /^name\s*=\s*"selfimpulse"/m.test(cargo) && /name = "elevenhandle_lib"/.test(cargo), "Cargo identity");
 
 // 16.9.1 — closes the audit finding: the offline pack's provenance file carried a STALE
 // release identity (16.8.0) that no gate rejected. Now the identity itself is pinned.
 const buildInfoIdentity = read("verify/BUILD-INFO.txt");
-ok(`BUILD-INFO.txt opens as 11Handle ${PRODUCT_VERSION} naming the engine ${ENGINE_VERSION} (no stale release identity)`,
-  buildInfoIdentity.startsWith(`11Handle ${PRODUCT_VERSION}`) && buildInfoIdentity.includes(ENGINE_VERSION),
+ok(`BUILD-INFO.txt opens as SelfImpulse ${PRODUCT_VERSION} naming the engine ${ENGINE_VERSION} (no stale release identity)`,
+  buildInfoIdentity.startsWith(`SelfImpulse ${PRODUCT_VERSION}`) && buildInfoIdentity.includes(ENGINE_VERSION),
   (buildInfoIdentity.split("\n")[0] ?? "missing").slice(0, 80));
 // 19.5.6 — closes the reviewer finding: the opening identity was pinned but the
 // `built:` line underneath it could still carry a stale release (19.5.4). Now both are pinned.
@@ -114,7 +114,7 @@ ok("ipc/client.ts imports ENGINE_VERSION", /from "\.\.\/version"/.test(ipcClient
 // Clean-name policy: the product shows NO version number by design. Settings → About names the
 // product and the engine from src/brand.ts; the build identity stays in manifests/receipts.
 ok("Settings → About shows the product + engine names, never a version number", /from "\.\.\/\.\.\/brand"/.test(settings) && /PRODUCT_NAME/.test(settings) && /ENGINE_CREDIT/.test(settings) && !/ENGINE_VERSION/.test(settings), "About still shows a version");
-ok("src/brand.ts is the one source of the product name and carries no number", /PRODUCT_NAME = "11Handle"/.test(read("src/brand.ts")) && !/\d+\.\d+\.\d+/.test(read("src/brand.ts")));
+ok("src/brand.ts is the one source of the product name and carries no number", /PRODUCT_NAME = "SelfImpulse"/.test(read("src/brand.ts")) && !/\d+\.\d+\.\d+/.test(read("src/brand.ts")));
 ok("no hardcoded release string survives in ipc/client.ts", !/version:\s*"\d+\.\d+\.\d+"/.test(ipcClient), (ipcClient.match(/version:\s*"\d+\.\d+\.\d+"/) ?? [""])[0]);
 ok("no hardcoded release string survives in Settings", !/VH \d+\.\d+|"19\.\d+\.\d+/.test(settings), (settings.match(/VH \d+\.\d+|"19\.\d+\.\d+/) ?? [""])[0]);
 
@@ -143,13 +143,13 @@ for (const doc of OPERATIONAL_DOCS) {
     // mask pointers to history/upgrade files: their filenames legitimately carry old versions
     .replace(/docs\/history\/(VH|11H)-[0-9.]+[-A-Za-z0-9_]*\.md/g, "")
     .replace(/\b(VH|11H)-[0-9]+\.[0-9]+\.[0-9]+-[A-Za-z0-9-]*\.md\b/g, "");
-  body = body.replace(/\b11H-[0-9]+\.[0-9]+-UPGRADE\.md\b/g, "");
+  body = body.replace(/\bSI-[0-9]+\.[0-9]+-UPGRADE\.md\b/g, "");
   // 16.10.2: the scan only matched "VH <version>" tokens, so
   // "a retired-name installer artifact" sailed through in BUILD-NATIVE.md.
-  // The net now catches every product-named version token: VH/11H/11Handle
+  // The net now catches every product-named version token: VH/11H/SelfImpulse
   // prefixes AND bare artifact names (`<version>_x64-setup`).
   const staleTokens = [...new Set(
-    [...body.matchAll(/(?:VH|11H|11Handle)[ _-]?(\d+(?:\.\d+){2,3})|(\d+(?:\.\d+){2,3})_x64/gi)]
+    [...body.matchAll(/(?:VH|11H|SelfImpulse)[ _-]?(\d+(?:\.\d+){2,3})|(\d+(?:\.\d+){2,3})_x64/gi)]
       .map((m) => (m[1] ?? m[2] ?? "").trim())
       .filter((v) => v.length > 0 && v !== ENGINE_VERSION && v !== PRODUCT_VERSION),
   )];
@@ -158,7 +158,7 @@ for (const doc of OPERATIONAL_DOCS) {
 }
 
 section("4. the archive name the user is given matches the release");
-const upgradeDoc = `11H-${ENGINE_SHORT}-UPGRADE.md`;
+const upgradeDoc = `SI-${ENGINE_SHORT}-UPGRADE.md`;
 ok(`${upgradeDoc} exists`, fs.existsSync(path.join(root, upgradeDoc)) || fs.existsSync(path.join(root, "docs", "history", upgradeDoc)) || fs.existsSync(path.join(root, "docs", "releases", upgradeDoc)), "missing — the release notes for this version were never written");
 
 /* ── 5. CI can still allocate a runner (VH 11.8.5) ────────────────────────────

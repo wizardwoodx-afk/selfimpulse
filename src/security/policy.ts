@@ -6,7 +6,7 @@
  * answer you can point at in a policy document, only at an implementation.
  *
  * Every serious policy engine in this space converged on the same answer, and
- * 11Handle is the product where getting the FAILURE SEMANTICS right matters
+ * SelfImpulse is the product where getting the FAILURE SEMANTICS right matters
  * more than the syntax:
  *
  *   - Open Policy Agent (Rego, CNCF-graduated): policy is data, not code, and
@@ -271,7 +271,7 @@ export function resolveRole(configured: unknown): string {
  * prevent, and this is the document an operator is expected to edit.
  */
 export const DEFAULT_POLICY_SOURCE: Policy = {
-  name: "11handle-baseline",
+  name: "selfimpulse-baseline",
   deny: [
     /* A seat that never declared a role gets no authority at all. This rule
      * exists because the shipped read rule below is deliberately role-INDEPENDENT:

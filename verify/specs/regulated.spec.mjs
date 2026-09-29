@@ -1,6 +1,6 @@
 import { createRequire as __mjCreateRequire } from "node:module"; const require = __mjCreateRequire(import.meta.url);
 
-// src/vh19/reach/batchSpec.ts
+// src/engine/reach/batchSpec.ts
 var REACH_BATCH_STATIONS = ["assess", "design", "build", "verify", "sustain"];
 var STATION_RISK = {
   assess: "safe",
@@ -53,7 +53,7 @@ var STATION_PROMPTS = {
   sustain: (d, m) => `You sustain ${d}: ${m}. Production is the patient. Watch for drift, degrade honestly, and hand over to a human at every irreversible step with a status a person can act on without reading the logs.`
 };
 
-// src/vh19/federation/batchKit.ts
+// src/engine/federation/batchKit.ts
 function batchEntryId(domain, station) {
   return `${domain.slug}.${station}`;
 }
@@ -92,8 +92,8 @@ function censusOf(entries) {
   return { total: entries.length, byRisk, byStation, byCategory, domains: domains.size };
 }
 
-// src/vh19/federation/regulatedSpec.ts
-var REGULATED_BATCH_PROVENANCE = "vh-19.6.2-regulated";
+// src/engine/federation/regulatedSpec.ts
+var REGULATED_BATCH_PROVENANCE = "si-19.6.2-regulated";
 var REGULATED_BATCH_DOMAINS = [
   /* ── code (3): software the law treats as a safety artefact ─────────────── */
   { slug: "avionics-software", name: "Avionics Software", category: "code", mission: "avionics software is certified, not merely tested: the evidence obligations of DO-178C shape every artefact this work produces", keywords: ["do-178c", "certification evidence", "dali", "requirements traceability"] },

@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/vh19/vault.ts
+// src/engine/vault.ts
 var vault_exports = {};
 __export(vault_exports, {
   VAULT_FORMAT: () => VAULT_FORMAT,
@@ -58,7 +58,7 @@ function readMeta() {
   if (!s) return null;
   try {
     const raw = JSON.parse(s.getItem(VAULT_META_KEY) ?? "null");
-    return raw && raw.v === "vh-vault-meta/1" ? raw : null;
+    return raw && raw.v === "si-vault-meta/1" ? raw : null;
   } catch {
     return null;
   }
@@ -73,8 +73,8 @@ async function setVaultPassphrase(passphrase, now = () => /* @__PURE__ */ new Da
       const salt = randomBytes(16);
       const iv = randomBytes(12);
       const key = await deriveKey(passphrase, salt);
-      const check = await subtle().encrypt({ name: "AES-GCM", iv }, key, enc.encode("vh-vault-check/1"));
-      const meta = { v: "vh-vault-meta/1", saltB64: toB64(salt), ivB64: toB64(iv), cipherB64: toB64(check), kdf: "PBKDF2-SHA-256", iterations: PBKDF_ITERATIONS, createdAt: now().toISOString() };
+      const check = await subtle().encrypt({ name: "AES-GCM", iv }, key, enc.encode("si-vault-check/1"));
+      const meta = { v: "si-vault-meta/1", saltB64: toB64(salt), ivB64: toB64(iv), cipherB64: toB64(check), kdf: "PBKDF2-SHA-256", iterations: PBKDF_ITERATIONS, createdAt: now().toISOString() };
       const s = storage();
       if (!s) return { ok: false, error: "no storage in this runtime \u2014 the vault can exist for this session only; persistence needs a store" };
       s.setItem(VAULT_META_KEY, JSON.stringify(meta));
@@ -86,7 +86,7 @@ async function setVaultPassphrase(passphrase, now = () => /* @__PURE__ */ new Da
       const salt = fromB64(existing.saltB64);
       const key = await deriveKey(passphrase, salt);
       const plain = await subtle().decrypt({ name: "AES-GCM", iv: fromB64(existing.ivB64) }, key, fromB64(existing.cipherB64));
-      if (dec.decode(plain) !== "vh-vault-check/1") return { ok: false, error: "that passphrase did not open the vault \u2014 nothing was changed" };
+      if (dec.decode(plain) !== "si-vault-check/1") return { ok: false, error: "that passphrase did not open the vault \u2014 nothing was changed" };
       sessionKey = key;
       sessionParams = { salt, meta: existing };
       return { ok: true, created: false };
@@ -190,9 +190,9 @@ function destroyVault() {
 }
 var VAULT_FORMAT, VAULT_META_KEY, PBKDF_ITERATIONS, enc, dec, toB64, fromB64, sessionKey, sessionParams;
 var init_vault = __esm({
-  "src/vh19/vault.ts"() {
+  "src/engine/vault.ts"() {
     "use strict";
-    VAULT_FORMAT = "vh-vault/1";
+    VAULT_FORMAT = "si-vault/1";
     VAULT_META_KEY = "vh.vault.meta.v1";
     PBKDF_ITERATIONS = 31e4;
     enc = new TextEncoder();
@@ -288,7 +288,7 @@ var init_quotaSafe = __esm({
   }
 });
 
-// src/vh19/memoryGraph.ts
+// src/engine/memoryGraph.ts
 var memoryGraph_exports = {};
 __export(memoryGraph_exports, {
   REHYDRATION_MARK: () => REHYDRATION_MARK,
@@ -368,7 +368,7 @@ function isSealedEnvelope(raw) {
   if (!raw) return false;
   try {
     const parsed = JSON.parse(raw);
-    return parsed?.v === "vh-vault/1";
+    return parsed?.v === "si-vault/1";
   } catch {
     return false;
   }
@@ -719,12 +719,12 @@ function graphStats() {
 }
 var GRAPH_KEY, ENABLED_KEY, NODE_CAP, EDGE_CAP, SESSION_CAP, MSG_CAP_PER_SESSION, STOP, EMPTY, memCache, lockedAtBoot, saveToken, persistNote, persistInFlight, ALIAS_GROUPS, ALIAS_OF, escapeRe, MONTHS, REHYDRATION_MARK;
 var init_memoryGraph = __esm({
-  "src/vh19/memoryGraph.ts"() {
+  "src/engine/memoryGraph.ts"() {
     "use strict";
     init_vault();
     init_quotaSafe();
-    GRAPH_KEY = "vh19.memgraph.v1";
-    ENABLED_KEY = "vh19.memgraph.enabled.v1";
+    GRAPH_KEY = "engine.memgraph.v1";
+    ENABLED_KEY = "engine.memgraph.enabled.v1";
     NODE_CAP = 4e3;
     EDGE_CAP = 9e3;
     SESSION_CAP = 300;
@@ -816,7 +816,7 @@ ok("a real passphrase creates the vault", created.ok === true && created.created
 ok("the meta record stores NO passphrase material", !JSON.stringify(globalThis.localStorage?.getItem("vh.vault.meta.v1")).toLowerCase().includes("horse"));
 await vault.vaultSeal("vh.test.secret", '{"apiKey":"sk-super-secret-value-123"}');
 var sealedRaw = globalThis.localStorage?.getItem("vh.test.secret") ?? "";
-ok("the sealed record is a vault envelope", sealedRaw.includes("vh-vault/1"));
+ok("the sealed record is a vault envelope", sealedRaw.includes("si-vault/1"));
 ok("the sealed record does NOT contain the plaintext", !sealedRaw.includes("sk-super-secret-value-123"));
 var opened = await vault.vaultDecrypt("vh.test.secret");
 ok("an unlocked vault reads the secret back", opened.found && !opened.locked && opened.text.includes("sk-super-secret-value-123"));
@@ -846,8 +846,8 @@ mg.ingestSession([
 ], { id: "chat-vault-1" });
 await mg.flushGraphPersist();
 ok("ingestion works while unlocked", mg.graphStats().sessions === 1);
-var rawAfterSave = globalThis.localStorage?.getItem("vh19.memgraph.v1") ?? "";
-ok("with the vault unlocked, the graph at rest is a SEALED envelope", rawAfterSave.includes("vh-vault/1"));
+var rawAfterSave = globalThis.localStorage?.getItem("engine.memgraph.v1") ?? "";
+ok("with the vault unlocked, the graph at rest is a SEALED envelope", rawAfterSave.includes("si-vault/1"));
 ok("the sealed graph does NOT contain conversation text", !rawAfterSave.includes("Zephyr migration"));
 ok("graphSecurityStatus says sealed", mg.graphSecurityStatus().mode === "sealed");
 vault.lockVault();
@@ -871,11 +871,11 @@ console.log("== the plaintext mode is stated, never hidden ==");
 vault.destroyVault();
 mg.ingestSession([{ role: "user", text: "plain mode store frank pattern", at: at(7) }], { id: "chat-vault-3" });
 await mg.flushGraphPersist();
-var rawPlain = globalThis.localStorage?.getItem("vh19.memgraph.v1") ?? "";
-ok("without a vault, the graph persists as readable JSON (the honest fallback)", rawPlain.includes("frank") && !rawPlain.includes("vh-vault/1"));
+var rawPlain = globalThis.localStorage?.getItem("engine.memgraph.v1") ?? "";
+ok("without a vault, the graph persists as readable JSON (the honest fallback)", rawPlain.includes("frank") && !rawPlain.includes("si-vault/1"));
 ok("graphSecurityStatus names the mode 'plaintext'", mg.graphSecurityStatus().mode === "plaintext");
 mg.clearGraph();
-ok("clearGraph wipes every form", mg.graphStats().sessions === 0 && globalThis.localStorage?.getItem("vh19.memgraph.v1") === null);
+ok("clearGraph wipes every form", mg.graphStats().sessions === 0 && globalThis.localStorage?.getItem("engine.memgraph.v1") === null);
 console.log(`
 ${passed} passed, ${failed} failed`);
 if (failed > 0) {

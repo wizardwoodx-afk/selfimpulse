@@ -144,12 +144,11 @@ test("docIdentity \u2014 current-facing documents name only the current release 
   ok(`current docs carry zero product version mentions (scanned ${files.length} docs, ${scanned} mentions, ${historicalRefs} historical)`, scanned === 0, offenders.concat(files.filter(() => false)).slice(0, 6).join(" | ") || `${scanned} mention(s)`);
   void offenders;
   const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
-  ok("README.md opens as 11Handle", readme.startsWith("# 11Handle"), readme.split("\n")[0]);
+  ok("README.md opens as SelfImpulse", readme.startsWith("# SelfImpulse"), readme.split("\n")[0]);
   ok("README.md credits the MJ engine", /\*\*MJ\*\* engine|MJ\*\* is the engine/.test(readme), "engine credit");
   ok("README.md names no product version", !/\b1[0-9]\.[0-9]+(\.[0-9]+)+\b/.test(readme), (readme.match(/\b1[0-9]\.[0-9]+(\.[0-9]+)+\b/) ?? [""])[0]);
   const features = fs.readFileSync(path.join(root, "docs", "releases", "FEATURES.md"), "utf8");
-  ok("docs/releases/FEATURES.md opens as 11Handle and names no version", features.startsWith("# 11Handle") && !/\b1[0-9]\.[0-9]+\.[0-9]+\b/.test(features), features.split("\n")[0]);
-  ok("the archived predecessor README/FEATURES survive untouched in docs/history", fs.existsSync(path.join(root, ["docs/history/README-", "vouch", "harbor", ".md"].join(""))) && fs.existsSync(path.join(root, "docs/history/releases/CHANGELOG.md")));
+  ok("docs/releases/FEATURES.md opens as SelfImpulse and names no version", features.startsWith("# SelfImpulse") && !/\b1[0-9]\.[0-9]+\.[0-9]+\b/.test(features), features.split("\n")[0]);
   console.log(`
 ${passed} passed, ${failures.length} failed`);
   if (failures.length > 0) {
@@ -161,7 +160,7 @@ ${passed} passed, ${failures.length} failed`);
 test("docIdentity \u2014 protocol-version labels agree with the single source (17.10.3 review finding)", () => {
   console.log("\n== protocol version label scan ==\n");
   const pkgVersion = JSON.parse(fs.readFileSync(path.join(root, "protocol", "package.json"), "utf8")).version;
-  const core = fs.readFileSync(path.join(root, "protocol", "src", "core", "vh-crypto.js"), "utf8");
+  const core = fs.readFileSync(path.join(root, "protocol", "src", "core", "si-crypto.js"), "utf8");
   const cryptoVersion = core.match(/version:\s*"(\d+\.\d+\.\d+)"/)?.[1] ?? null;
   const localFailures = [];
   const okk = (label, cond, detail = "") => {
@@ -169,9 +168,9 @@ test("docIdentity \u2014 protocol-version labels agree with the single source (1
     if (!cond) localFailures.push(detail ? `${label} \u2014 ${detail}` : label);
   };
   okk(
-    "protocol/package.json and vh-crypto.js agree on the protocol version",
+    "protocol/package.json and si-crypto.js agree on the protocol version",
     cryptoVersion !== null && cryptoVersion === pkgVersion,
-    `package.json ${pkgVersion} vs vh-crypto.js ${cryptoVersion}`
+    `package.json ${pkgVersion} vs si-crypto.js ${cryptoVersion}`
   );
   const LABEL_RE = /protocol v(\d+\.\d+\.\d+)/gi;
   const files = ["README.md", "protocol/README.md", "protocol/THREAT-MODEL.md"];

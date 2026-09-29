@@ -1,12 +1,12 @@
-import * as VH              from "../src/core/vh-crypto.js";
-import { assertSignerBinding } from "../src/core/vh-binding.js";
-import { PolicyEngine }     from "../src/core/vh-policy.js";
-import { createHarbor }     from "../src/server/harbor.js";
-import { VHClient }         from "../src/client/vh-sdk.js";
-import { VHTamperError, VHLedgerError, VHCryptoError } from "../src/core/vh-errors.js";
+import * as VH              from "../src/core/si-crypto.js";
+import { assertSignerBinding } from "../src/core/si-binding.js";
+import { PolicyEngine }     from "../src/core/si-policy.js";
+import { createSelfImpulse }     from "../src/server/selfimpulse.js";
+import { VHClient }         from "../src/client/si-sdk.js";
+import { VHTamperError, VHLedgerError, VHCryptoError } from "../src/core/si-errors.js";
 import { CheckpointStore }  from "../src/server/checkpoints.js";
-import { loadOrCreateHarborIdentity } from "../src/server/harbor-identity.js";
-import { computeReputationSignals, canDelegate, delegableTokens, isAttested, authorityFps, VOUCH_KINDS } from "../src/core/vh-trust.js";
+import { loadOrCreateSelfImpulseIdentity } from "../src/server/selfimpulse-identity.js";
+import { computeReputationSignals, canDelegate, delegableTokens, isAttested, authorityFps, SELFIMPULSE_KINDS } from "../src/core/si-trust.js";
 import fs   from "node:fs";
 import path from "node:path";
 
@@ -56,11 +56,11 @@ check("wrong key rejects",                !(await VH.verifyChallenge(bob.sign.pu
 check("tampered challenge rejects",       !(await VH.verifyChallenge(alice.sign.publicJwk, chal+"X", alice.fp, chalSig)));
 
 /* ─── L3 ─── */
-section("L3 · vouching + hash chain");
+section("L3 · selfimpulseing + hash chain");
 const facts = { v: 2, kind: "share", from: { n: "A", fp: alice.fp }, to: { n: "B", fp: bob.fp }, file: "x.pdf", size: 10, hash: "a".repeat(64), ok: true, ts: Date.now() };
-const vouch = await VH.buildVouch(facts, alice.sign.privateKey);
-check("vouch verifies",           await VH.verifyVouch(vouch, alice.sign.publicJwk));
-check("vouch rejected wrong key", !(await VH.verifyVouch(vouch, bob.sign.publicJwk)));
+const selfimpulse = await VH.buildSelfImpulse(facts, alice.sign.privateKey);
+check("selfimpulse verifies",           await VH.verifySelfImpulse(selfimpulse, alice.sign.publicJwk));
+check("selfimpulse rejected wrong key", !(await VH.verifySelfImpulse(selfimpulse, bob.sign.publicJwk)));
 
 /* ─── L4 ─── */
 section("L4 · link fingerprint");
@@ -73,9 +73,9 @@ check("valid share passes",       pol.share(facts).ok);
 check("oversized file blocked",   !pol.share({ ...facts, size: 1e12 }).ok);
 check("empty message blocked",    !pol.message("").ok);
 check("message ok",               pol.message("hi").ok);
-check("unsafe action blocked",    !pol.vouch({ v: 2, kind: "agent_action", agent: { fp: alice.fp }, action: "<script>" }).ok);
+check("unsafe action blocked",    !pol.selfimpulse({ v: 2, kind: "agent_action", agent: { fp: alice.fp }, action: "<script>" }).ok);
 check("bad hash format blocked",  !pol.share({ ...facts, hash: "nothex" }).ok);
-check("expiry >30d blocked",      !pol.vouch({ v: 2, kind: "authorization", from: { fp: alice.fp }, subject: { fp: bob.fp }, action: "foo", expiresAt: Date.now() + 31*24*3_600_000, ts: Date.now() }).ok);
+check("expiry >30d blocked",      !pol.selfimpulse({ v: 2, kind: "authorization", from: { fp: alice.fp }, subject: { fp: bob.fp }, action: "foo", expiresAt: Date.now() + 31*24*3_600_000, ts: Date.now() }).ok);
 
 /* ─── Sentinel: BindingValidator ─── */
 section("Sentinel · assertSignerBinding() centralized check");
@@ -163,7 +163,7 @@ check("new fp differs",        aN.fp !== alice.fp);
 /* ─── FIX A ─── */
 section("Fix A · CheckpointStore fail-closed on bad lines");
 {
-  const cpd = fs.mkdtempSync("/tmp/vh-cp-");
+  const cpd = fs.mkdtempSync("/tmp/si-cp-");
   let of = false; try { const s = new CheckpointStore(cpd); fs.writeFileSync(path.join(cpd,"checkpoints.jsonl"), JSON.stringify({statement:"x".repeat(20_000),sig:"s",rootFp:"f"})+"\n"); await s.init(null); } catch(e) { of = e instanceof VHLedgerError && e.message.includes("exceeds maximum"); }
   check("oversized line throws",    of);
   let mf = false; try { const s = new CheckpointStore(cpd); fs.writeFileSync(path.join(cpd,"checkpoints.jsonl"),"not-json\n"); await s.init(null); } catch(e) { mf = e instanceof VHLedgerError && e.message.includes("unparseable JSON"); }
@@ -172,26 +172,26 @@ section("Fix A · CheckpointStore fail-closed on bad lines");
 }
 
 /* ─── FIX B ─── */
-section("Fix B · Harbor identity keypair self-test");
+section("Fix B · SelfImpulse identity keypair self-test");
 {
-  const idTmp = fs.mkdtempSync("/tmp/vh-id-");
-  const vid   = await loadOrCreateHarborIdentity(idTmp);
+  const idTmp = fs.mkdtempSync("/tmp/si-id-");
+  const vid   = await loadOrCreateSelfImpulseIdentity(idTmp);
   check("valid identity self-test passes", typeof vid.fp === "string");
-  const idFile = path.join(idTmp, "harbor-identity.json");
+  const idFile = path.join(idTmp, "selfimpulse-identity.json");
   const rec    = JSON.parse(fs.readFileSync(idFile, "utf8"));
   const { webcrypto } = await import("node:crypto");
   const imp    = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign","verify"]);
   rec.publicJwk = await webcrypto.subtle.exportKey("jwk", imp.publicKey);
   fs.writeFileSync(idFile, JSON.stringify(rec,null,2), { mode: 0o600 });
   let mismatch = false;
-  try { await loadOrCreateHarborIdentity(idTmp); } catch(e) { mismatch = e instanceof VHCryptoError && e.message.includes("keypair mismatch"); }
+  try { await loadOrCreateSelfImpulseIdentity(idTmp); } catch(e) { mismatch = e instanceof VHCryptoError && e.message.includes("keypair mismatch"); }
   check("mismatched public JWK throws VHCryptoError", mismatch);
   fs.rmSync(idTmp, { recursive: true, force: true });
 }
 
-/* ─── Harbor integration ─── */
-section("Harbor · full integration");
-const tmpDir = fs.mkdtempSync("/tmp/vh-test-");
+/* ─── SelfImpulse integration ─── */
+section("SelfImpulse · full integration");
+const tmpDir = fs.mkdtempSync("/tmp/si-test-");
 /* v0.10.6 RULE 5 — the operator authorizes WHO may delegate authority. In this
    suite the operator authorizes Alice only; every other identity's capability
    declarations are CLAIMS (descriptive), never licences to grant.
@@ -199,16 +199,16 @@ const tmpDir = fs.mkdtempSync("/tmp/vh-test-");
    RULE 5 lineage clause — the designation follows the IDENTITY across a proven
    rotation, not the key material. */
 const aliceIdentity = await VH.generateIdentity();
-const harbor = await createHarbor({
+const selfimpulse = await createSelfImpulse({
   authorities: [aliceIdentity.fp],
   port: 0, dataDir: tmpDir, ledgerFile: "ledger.jsonl",
   chainMemory: 500, tsWindowMs: 300_000, maxFileMB: 500, maxNameLen: 60,
   maxSocketsPerIp: 50, maxPayloadBytes: 1_048_576,
   banThreshold: 200, banDurationMs: 5_000,
   requireMetaSig: true, maxDelegationDepth: 2,
-  rate: { join: 600, signal: 10_000, vouch: 1000 }, failFastOnTamper: true,
+  rate: { join: 600, signal: 10_000, selfimpulse: 1000 }, failFastOnTamper: true,
 });
-const port = await harbor.start(0);
+const port = await selfimpulse.start(0);
 const url  = `http://127.0.0.1:${port}`;
 
 const clientA = new VHClient(url);
@@ -217,7 +217,7 @@ await clientA.join("Alice", "eng", { identity: aliceIdentity });
 await clientB.join("Bob",   "eng");
 check("both joined",        clientA.me && clientB.me);
 check("B sees A",           [...clientB.peers.values()].some((p) => p.name === "Alice"));
-check("harbor fp stable",   typeof harbor.harborKey.fp === "string");
+check("selfimpulse fp stable",   typeof selfimpulse.selfimpulseKey.fp === "string");
 
 await waitFor(() => clientA.peers.size > 0 && clientB.peers.size > 0);
 const bobIdA = [...clientA.peers.values()].find((p) => p.name === "Bob")?.id;
@@ -247,10 +247,10 @@ const fdata = VH.randomBytes(2048);
 const { packed: p2, facts: sf } = await clientA.vaultSend(bobIdA, fdata, "secret.png");
 const recv = await clientB.vaultReceive(p2);
 check("E2E file intact",         Buffer.from(recv.data).equals(Buffer.from(fdata)));
-const vr = await clientA.vouchShare(sf);
-check("harbor accepts vouch",    vr.ok && typeof vr.seq === "number");
-const br = await clientA.vouchShare({ ...sf, size: 1e12 });
-check("oversized vouch rejected", !br.ok && br.reason.includes("policy"));
+const vr = await clientA.selfimpulseShare(sf);
+check("selfimpulse accepts selfimpulse",    vr.ok && typeof vr.seq === "number");
+const br = await clientA.selfimpulseShare({ ...sf, size: 1e12 });
+check("oversized selfimpulse rejected", !br.ok && br.reason.includes("policy"));
 
 /* ─── Sentinel binding: SDK local rejection ─── */
 section("Sentinel · SDK binding rejects locally before network");
@@ -267,7 +267,7 @@ section("Sentinel · SDK binding rejects locally before network");
 }
 
 const rot = await clientA.rotate();
-check("harbor accepts rotation", rot.ok);
+check("selfimpulse accepts rotation", rot.ok);
 
 const chain = await clientA.chainGet();
 check("chain has entries",       chain.length >= 1);
@@ -276,19 +276,19 @@ check("links carry metaSig",     chain.tail.every((l) => typeof l.metaSig === "s
 
 /* ─── Sentinel: requireMetaSig ─── */
 section("Sentinel · requireMetaSig config");
-check("requireMetaSig defaults to true", harbor.config.requireMetaSig === true);
-check("ledger requireMetaSig is true",   harbor.ledger.requireMetaSig === true);
-check("firstMetaSigSeq is set",          harbor.ledger._firstMetaSigSeq !== null);
+check("requireMetaSig defaults to true", selfimpulse.config.requireMetaSig === true);
+check("ledger requireMetaSig is true",   selfimpulse.ledger.requireMetaSig === true);
+check("firstMetaSigSeq is set",          selfimpulse.ledger._firstMetaSigSeq !== null);
 
 /* ─── Sentinel: O(1) append verification ─── */
 section("Sentinel · O(1) append (file grows, not re-written)");
 {
   const ledgerPath = path.join(tmpDir, "ledger.jsonl");
   const sizeBefore = fs.statSync(ledgerPath).size;
-  /* submit one more vouch to trigger an append */
+  /* submit one more selfimpulse to trigger an append */
   /* FIX-10: sf carries Alice's PRE-rotation fp; the Sentinel binding check
      correctly rejects it locally. Rebuild the facts with her current fp. */
-  await clientA.vouchShare({ ...sf, from: { n: clientA.me.name, fp: clientA.me.fp }, ts: Date.now() });
+  await clientA.selfimpulseShare({ ...sf, from: { n: clientA.me.name, fp: clientA.me.fp }, ts: Date.now() });
   const sizeAfter  = fs.statSync(ledgerPath).size;
   check("ledger file grows on append (O(1) path)", sizeAfter > sizeBefore);
 }
@@ -300,7 +300,7 @@ const bobId2 = [...clientA.peers.values()].find((p) => p.name === "Bob").id;
 
 const capRes = await clientB.declareCapability(["execute_trade","read_market_data"],{ runtime:"node" });
 check("capability accepted",              capRes.ok);
-const unauth = await clientB.vouchAction({ action:"execute_trade", tool:"broker_api" });
+const unauth = await clientB.selfimpulseAction({ action:"execute_trade", tool:"broker_api" });
 check("unauthorized REJECTED",            !unauth.ok && unauth.reason === "policy:no-authorization");
 /* v0.10.3: granting requires an on-record attestation — Alice declares one.
    v0.10.4 RULE 3: attestation says she MAY delegate; coverage says WHAT she may
@@ -310,20 +310,20 @@ check("unauthorized REJECTED",            !unauth.ok && unauth.reason === "polic
 await clientA.declareCapability(["delegate:portfolio-v3","read_market_data"], { runtime: "node" });
 const grantRes = await clientA.authorize(bobId2,"execute_trade",{ scope:"portfolio-v3", ttlMs:3_600_000 });
 check("authorization accepted",           grantRes.ok, grantRes);
-const authAction = await clientB.vouchAction({ action:"execute_trade", tool:"broker_api", purpose:"rebalance_portfolio", policy:"portfolio-v3", evidence:"order_id=12345", result:"success" });
+const authAction = await clientB.selfimpulseAction({ action:"execute_trade", tool:"broker_api", purpose:"rebalance_portfolio", policy:"portfolio-v3", evidence:"order_id=12345", result:"success" });
 check("authorized action ACCEPTED",       authAction.ok);
 
 /* submit a second execute_trade so we have count >= 2 for decay test */
-const authAction2 = await clientB.vouchAction({ action:"execute_trade", tool:"broker_api", purpose:"rebalance2", policy:"portfolio-v3", evidence:"order_id=67890", result:"success" });
+const authAction2 = await clientB.selfimpulseAction({ action:"execute_trade", tool:"broker_api", purpose:"rebalance2", policy:"portfolio-v3", evidence:"order_id=67890", result:"success" });
 check("second authorized action ACCEPTED", authAction2.ok);
 
 await clientA.authorize(bobId2,"read_market_data",{ ttlMs:3_600_000 });
-await clientB.vouchAction({ action:"read_market_data", tool:"feed", purpose:"pricing", result:"success" });
+await clientB.selfimpulseAction({ action:"read_market_data", tool:"feed", purpose:"pricing", result:"success" });
 
 /* revocation */
 const revRes = await clientA.revoke({ fp:clientB.me.fp, action:"execute_trade" },"demo");
 check("revocation accepted",              revRes.ok);
-const postRev = await clientB.vouchAction({ action:"execute_trade", tool:"broker_api" });
+const postRev = await clientB.selfimpulseAction({ action:"execute_trade", tool:"broker_api" });
 check("action after revocation REJECTED", !postRev.ok);
 
 /* endorsement */
@@ -518,7 +518,7 @@ section("Grant authority · attested granters + capped delegation + coverage");
   /* …and the lineage trust root: "rotate" is not a member-submittable kind, so
      a participant cannot mint its own predecessor out of thin air. */
   check("RULE 5 · lineage records are never member-submittable",
-        !VOUCH_KINDS.includes("rotate") && !VOUCH_KINDS.includes("join"));
+        !SELFIMPULSE_KINDS.includes("rotate") && !SELFIMPULSE_KINDS.includes("join"));
   /* RULE 1 × RULE 5: designation is the operator's own statement about who an
      identity is, so it satisfies attestation by construction. Without this a
      designated key would still be refused as grantor-unattested — the trap that
@@ -674,7 +674,7 @@ section("Grant authority · attested granters + capped delegation + coverage");
 
 /* checkpoint */
 const cp = await clientA.checkpoint();
-check("checkpoint signed by harbor root", cp.ok && cp.verified);
+check("checkpoint signed by selfimpulse root", cp.ok && cp.verified);
 
 /* ─── healthz ─── */
 const health = await (await fetch(url + "/healthz")).json();
@@ -686,20 +686,20 @@ check("healthz requireMetaSig is true",      health.requireMetaSig === true);
 check("healthz has no 'quantum-safe'",       !JSON.stringify(health).includes("quantum-safe"));
 
 const metricsRes = await (await fetch(url + "/metrics")).json();
-check("metrics: vouches counted",            metricsRes.vouchAccepted >= 3);
+check("metrics: selfimpulsees counted",            metricsRes.selfimpulseAccepted >= 3);
 check("metrics: bindingRejected tracked",    typeof metricsRes.bindingRejected === "number");
 check("metrics: rotationRejected tracked",   metricsRes.rotationRejected >= 2);
 check("metrics: revocationRejected tracked", metricsRes.revocationRejected >= 1);
 
 clientA.disconnect();
 clientB.disconnect();
-await harbor.close();
+await selfimpulse.close();
 
 /* ─── Persistence + requireMetaSig strict enforcement ─── */
 section("Persistence + strict metaSig enforcement across restart");
-const h2 = await createHarbor({ ...harbor.config, dataDir: tmpDir, requireMetaSig: true, failFastOnTamper: true });
+const h2 = await createSelfImpulse({ ...selfimpulse.config, dataDir: tmpDir, requireMetaSig: true, failFastOnTamper: true });
 check("ledger reloads",                  h2.ledger.length >= 1);
-check("harbor fp identical",             h2.harborKey.fp === harbor.harborKey.fp);
+check("selfimpulse fp identical",             h2.selfimpulseKey.fp === selfimpulse.selfimpulseKey.fp);
 check("checkpoint store reloads",        h2.checkpointStore.size >= 1);
 check("firstMetaSigSeq survives restart", h2.ledger._firstMetaSigSeq !== null);
 await h2.close();
@@ -718,7 +718,7 @@ await h2.close();
       const cpP = path.join(tmpDir,"checkpoints.jsonl");
       if (fs.existsSync(cpP)) fs.unlinkSync(cpP);
       let sf2 = false;
-      try { const h3 = await createHarbor({ ...harbor.config, dataDir:tmpDir, requireMetaSig:true, failFastOnTamper:true }); await h3.close(); }
+      try { const h3 = await createSelfImpulse({ ...selfimpulse.config, dataDir:tmpDir, requireMetaSig:true, failFastOnTamper:true }); await h3.close(); }
       catch(e) { sf2 = e instanceof VHTamperError && e.message.includes("metaSig requirement"); }
       check("startup rejects stripped metaSig", sf2);
     } else { check("strict metaSig startup test skipped", true); }
@@ -736,7 +736,7 @@ section("Ledger · tamper detection");
     const cp2 = path.join(tmpDir,"checkpoints.jsonl");
     if (fs.existsSync(cp2)) fs.unlinkSync(cp2);
     let tc = false;
-    try { const h4 = await createHarbor({ ...harbor.config, dataDir:tmpDir, failFastOnTamper:true }); await h4.close(); }
+    try { const h4 = await createSelfImpulse({ ...selfimpulse.config, dataDir:tmpDir, failFastOnTamper:true }); await h4.close(); }
     catch(e) { tc = e instanceof VHTamperError; }
     check("tampered ledger DETECTED & refused", tc);
   } else { check("tamper test skipped", true); }

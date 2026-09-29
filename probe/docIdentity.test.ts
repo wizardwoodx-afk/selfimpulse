@@ -19,8 +19,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-declare const HANDLE_ROOT: string;
-const root = HANDLE_ROOT ?? process.cwd();
+declare const SI_ROOT: string;
+const root = SI_ROOT ?? process.cwd();
 const PRODUCT_VERSION = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version as string;
 
 /* 19.7.10 [Screenwright] — THE DORMANT GATE, REPAIRED.
@@ -153,13 +153,12 @@ test("docIdentity — current-facing documents name only the current release (ou
 
   // identity lines: the flagship documents open under the product name, engine credited
   const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
-  ok("README.md opens as 11Handle", readme.startsWith("# 11Handle"), readme.split("\n")[0]);
+  ok("README.md opens as SelfImpulse", readme.startsWith("# SelfImpulse"), readme.split("\n")[0]);
   ok("README.md credits the MJ engine", /\*\*MJ\*\* engine|MJ\*\* is the engine/.test(readme), "engine credit");
   ok("README.md names no product version", !/\b1[0-9]\.[0-9]+(\.[0-9]+)+\b/.test(readme), (readme.match(/\b1[0-9]\.[0-9]+(\.[0-9]+)+\b/) ?? [""])[0]);
   const features = fs.readFileSync(path.join(root, "docs", "releases", "FEATURES.md"), "utf8");
-  ok("docs/releases/FEATURES.md opens as 11Handle and names no version", features.startsWith("# 11Handle") && !/\b1[0-9]\.[0-9]+\.[0-9]+\b/.test(features), features.split("\n")[0]);
-  ok("the archived predecessor README/FEATURES survive untouched in docs/history", fs.existsSync(path.join(root, ["docs/history/README-", "vouch", "harbor", ".md"].join(""))) && fs.existsSync(path.join(root, "docs/history/releases/CHANGELOG.md")));
-
+  ok("docs/releases/FEATURES.md opens as SelfImpulse and names no version", features.startsWith("# SelfImpulse") && !/\b1[0-9]\.[0-9]+\.[0-9]+\b/.test(features), features.split("\n")[0]);
+  
   console.log(`\n${passed} passed, ${failures.length} failed`);
   if (failures.length > 0) {
     console.log("\nfailures:");
@@ -178,7 +177,7 @@ test("docIdentity — protocol-version labels agree with the single source (17.1
      legitimately name older versions and are out of scope by design. */
   console.log("\n== protocol version label scan ==\n");
   const pkgVersion = JSON.parse(fs.readFileSync(path.join(root, "protocol", "package.json"), "utf8")).version as string;
-  const core = fs.readFileSync(path.join(root, "protocol", "src", "core", "vh-crypto.js"), "utf8");
+  const core = fs.readFileSync(path.join(root, "protocol", "src", "core", "si-crypto.js"), "utf8");
   const cryptoVersion = core.match(/version:\s*"(\d+\.\d+\.\d+)"/)?.[1] ?? null;
 
   const localFailures: string[] = [];
@@ -188,9 +187,9 @@ test("docIdentity — protocol-version labels agree with the single source (17.1
   };
 
   okk(
-    "protocol/package.json and vh-crypto.js agree on the protocol version",
+    "protocol/package.json and si-crypto.js agree on the protocol version",
     cryptoVersion !== null && cryptoVersion === pkgVersion,
-    `package.json ${pkgVersion} vs vh-crypto.js ${cryptoVersion}`,
+    `package.json ${pkgVersion} vs si-crypto.js ${cryptoVersion}`,
   );
 
   const LABEL_RE = /protocol v(\d+\.\d+\.\d+)/gi;

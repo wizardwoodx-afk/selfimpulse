@@ -362,8 +362,8 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
@@ -428,7 +428,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -458,7 +458,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY = "vouch.v3.db";
+    KEY = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -997,7 +997,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1027,7 +1027,7 @@ var init_client = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -1046,7 +1046,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1069,7 +1069,7 @@ var init_client = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -1092,7 +1092,7 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -1810,7 +1810,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vh-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `si-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -1825,7 +1825,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vh-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `si-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -1909,7 +1909,7 @@ async function issueRootEnvelope(args) {
   }
   seq += 1;
   return seal({
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: args.principal,
     delegationChain: [args.principal],
@@ -1942,7 +1942,7 @@ async function attenuate(parent, agentId, subScope, opts) {
   seq += 1;
   const envelope = await seal({
     budgetUsd: budget,
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: parent.principal,
     delegationChain: [...parent.delegationChain, agentId],
@@ -2244,7 +2244,7 @@ function evaluateVerifyGate(input) {
     if (snap && countingVerifiers.length < ranVerifiers.length) {
       const off = ranVerifiers.filter((v) => !(snap.built && snap.sha !== null && (v.reviewedSha ?? null) === snap.sha));
       for (const o of off) {
-        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot vouch for the writers' work.`);
+        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot selfimpulse for the writers' work.`);
       }
     }
     const selfVerified = writerHarnesses.filter(
@@ -2680,7 +2680,7 @@ var HARNESSES = [
     name: "Native agent (in-process)",
     bins: [],
     argv: [],
-    install: "Nothing to install \u2014 the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+    install: "Nothing to install \u2014 the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
     notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
     source: "src/engine/hermesRuntime.ts"
   },
@@ -2712,7 +2712,7 @@ var AGENT_CAPABILITIES = {
     // does not exist; every caller that read them was reasoning about a seat
     // that could not run.
     bins: [],
-    install: "bundled with 11Handle; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
+    install: "bundled with SelfImpulse; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
     prompt: { argv: [], confidence: "docs", source: "in-process runtime: no argv exists by construction" },
     json: null,
     readOnly: null,
@@ -2969,7 +2969,7 @@ function sessionArgv(harness, opts) {
 function sessionIdKind(harness) {
   const rc = resolveCaps(harness);
   if (rc.custom) return "cli-chosen";
-  return rc.caps.sessionStart?.argv ? "vh-chosen" : "cli-chosen";
+  return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 function parseSessionId(harness, raw) {
   if (!raw.trim()) return null;
@@ -3155,8 +3155,8 @@ function composeSeatArgv(teamSeat, ctx) {
     $CWD: ctx.cwd,
     $SECS: String(teamSeat.timeoutSecs),
     $SESSION: ctx.sessionId ?? "",
-    $REVIEWER: "vh-readonly",
-    $NAME: `vh-${teamSeat.id}`
+    $REVIEWER: "si-readonly",
+    $NAME: `si-${teamSeat.id}`
   };
   const argv = [];
   const flags = [];
@@ -3512,7 +3512,7 @@ function planWorktrees(team, opts) {
   for (const seat2 of team.seats) {
     if (!seat2.mayWrite) {
       if (opts.deferReview && hasWriter) {
-        const path4 = `${root}-vh-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+        const path4 = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
         plans.push({
           seatId: seat2.id,
           branch: "",
@@ -3538,7 +3538,7 @@ function planWorktrees(team, opts) {
       continue;
     }
     const branch = `vh/${opts.missionSlug}/${branchSafe(seat2.id)}`;
-    const path3 = `${root}-vh-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+    const path3 = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
     plans.push({
       seatId: seat2.id,
       branch,
@@ -4116,7 +4116,7 @@ var INITIAL_REPUTATIONS = Object.fromEntries(
 
 // src/mission/teamExecutor.ts
 var OUTPUT_TAIL_CHARS = 4e3;
-var BRIEF_DIR = ".vh-brief";
+var BRIEF_DIR = ".si-brief";
 async function git(deps, args, cwd) {
   if (!deps.git) return { ok: false, stdout: "", stderr: "", exitCode: null };
   const r = await deps.git(args, cwd);
@@ -4320,7 +4320,7 @@ Spent: $${(spentUsd2 || 0).toFixed(4)}`, "orchestrator", "finding");
   const learnedMarkdown = globalMemoryCortex.compileBriefing().generatedBriefingMarkdown;
   for (const seat2 of req.team.seats) {
     briefingsByHarness.push({
-      path: ".vh-brief/LEARNED_INVARIANTS.md",
+      path: ".si-brief/LEARNED_INVARIANTS.md",
       contents: learnedMarkdown,
       forHarness: seat2.harness
     });
@@ -4333,7 +4333,7 @@ ${lessonLines.map((l) => `- ${l}`).join("\n")}
 `;
     for (const seat2 of req.team.seats) {
       briefingsByHarness.push({
-        path: ".vh-brief/ORG_LESSONS.md",
+        path: ".si-brief/ORG_LESSONS.md",
         contents: lessonsMd,
         forHarness: seat2.harness
       });
@@ -4875,7 +4875,7 @@ async function runSeat(req, deps, a, sessions, wt, binaryExists, resolvedBin, se
   let commitDetail = readOnly ? "Read-only seat; nothing to commit." : "No git runner, so the work could not be committed.";
   if (deps.git && !readOnly) {
     await git(deps, ["add", "-A"], cwd);
-    const commit = await git(deps, ["-c", "user.email=vh@vouch.harbor", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
+    const commit = await git(deps, ["-c", "user.email=vh@selfimpulse.selfimpulse", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
     commitDetail = commit.ok ? `Committed on ${branch}.` : commit.exitCode === null ? "Could not run git commit." : /nothing to commit|no changes added/i.test(commit.stderr + commit.stdout) ? "Nothing to commit \u2014 this seat changed no files." : `git commit exited ${commit.exitCode}: ${(commit.stderr || commit.stdout).trim().slice(0, 200)}`;
   }
   const finalRecord = {
@@ -5025,10 +5025,10 @@ function buildSummary(o) {
 }
 
 // src/mission/licensing.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT = {
-  "vh-proof-receipt/2": VERIFY_SECRET,
+  "si-proof-receipt/2": VERIFY_SECRET,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET
 };
@@ -5119,7 +5119,7 @@ async function buildProofReceipt(args) {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -5128,7 +5128,7 @@ async function buildProofReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -5138,7 +5138,7 @@ async function buildProofReceipt(args) {
   };
 }
 async function verifyProofReceipt(rc) {
-  if (rc.format !== "vh-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
+  if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
   let prev = "0".repeat(64);
   for (const e of rc.events) {
     if (e.prev !== prev) return { ok: false, reason: `chain broken at seq ${e.seq}` };
@@ -5150,7 +5150,7 @@ async function verifyProofReceipt(rc) {
   const sealSecret = SEAL_SECRET_BY_FORMAT[rc.format] ?? VERIFY_SECRET;
   const seal2 = await hmacHex(prev, sealSecret);
   if (seal2 !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "vh-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok2 = await verifyIssuerSignature(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok2) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
@@ -5240,7 +5240,7 @@ async function runInboundDelegation(teammate2, task, fromUser, cfg = {}) {
     } : refuse("no repoRoot bound \u2014 a real seat run needs a repository to work in");
   }
   if (typeof cfg.deps.nativeInvoke !== "function") {
-    const reason = `this host has no in-process seat runner (no provider key) \u2014 refusing the delegation in words rather than answering with a fabricated completion. Set 11H_A2A_PROVIDER_KEY to run seats here.`;
+    const reason = `this host has no in-process seat runner (no provider key) \u2014 refusing the delegation in words rather than answering with a fabricated completion. Set SI_A2A_PROVIDER_KEY to run seats here.`;
     return cfg.allowUnexecuted ? { ok: false, outcome: "not-executed", artifact: `${teammate2.name}: ${reason}`, execution: null, receipt: null, reason } : refuse(reason);
   }
   const statedChain = cfg.principalChain;
@@ -5359,7 +5359,7 @@ async function runInboundDelegation(teammate2, task, fromUser, cfg = {}) {
 init_version();
 var v1Encoder = new TextEncoder();
 
-// src/mission/harborTeams.ts
+// src/mission/selfimpulseTeams.ts
 init_guardrail();
 
 // src/mission/riskPolicy.ts
@@ -5403,7 +5403,7 @@ function classifyRisk(action, toolName) {
   };
 }
 
-// src/mission/harborTeams.ts
+// src/mission/selfimpulseTeams.ts
 init_version();
 
 // src/mission/a2aClient.ts
@@ -5412,7 +5412,7 @@ init_guardrail();
 // src/mission/a2aV10.ts
 var enc2 = new TextEncoder();
 
-// src/mission/harborTeams.ts
+// src/mission/selfimpulseTeams.ts
 function createTeam(user) {
   return { user: sanitizeText(user, 60) || "USER", teammates: [], createdAt: (/* @__PURE__ */ new Date()).toISOString() };
 }
@@ -5553,7 +5553,7 @@ async function handleInboundDelegation(remoteTeam, packet, inboundGate, bridge, 
       ts
     }
   });
-  if (packet.toUser !== remoteTeam.user) return refused(`packet is addressed to "${packet.toUser}" but this harbor is "${remoteTeam.user}"`);
+  if (packet.toUser !== remoteTeam.user) return refused(`packet is addressed to "${packet.toUser}" but this selfimpulse is "${remoteTeam.user}"`);
   if (packetExpired(packet.ts)) return refused("packet expired (TTL 10 min) \u2014 stale delegations are refused");
   const digest = await sha256Hex2(JSON.stringify({ ...packet, packetDigest: "" }));
   if (digest !== packet.packetDigest) return refused("packet digest mismatch \u2014 the packet was modified in transit");
@@ -5585,7 +5585,7 @@ async function handleInboundDelegation(remoteTeam, packet, inboundGate, bridge, 
         artifact: null,
         packetDigest: packet.packetDigest,
         receiverDigest: null,
-        note: riskVerdict.upgraded ? `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 the sender declared "${packet.tier}" but this harbor classified the task ${riskVerdict.risk} (${riskVerdict.why}). Nothing executed` : `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 nothing executed`,
+        note: riskVerdict.upgraded ? `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 the sender declared "${packet.tier}" but this selfimpulse classified the task ${riskVerdict.risk} (${riskVerdict.why}). Nothing executed` : `denied at the RECEIVER gate by ${remoteTeam.user} \u2014 nothing executed`,
         ts,
         receiverPolicy: riskVerdict,
         execution: null,
@@ -5618,7 +5618,7 @@ async function handleInboundDelegation(remoteTeam, packet, inboundGate, bridge, 
         artifact: null,
         packetDigest: packet.packetDigest,
         receiverDigest: null,
-        note: `this harbor could not execute the delegation \u2014 ${run.reason}. Nothing ran, so nothing is claimed.`,
+        note: `this selfimpulse could not execute the delegation \u2014 ${run.reason}. Nothing ran, so nothing is claimed.`,
         ts,
         execution: null,
         receipt: null,
@@ -5861,9 +5861,9 @@ async function main() {
     (ran.execution?.summary ?? "").length > 0 && ran.execution?.seatsVerified !== void 0,
     `summary=${ran.execution?.summary ?? "\u2014"}`
   );
-  section("3. the receipt is a real vh-proof-receipt/2 \u2014 and it catches tampering");
+  section("3. the receipt is a real si-proof-receipt/2 \u2014 and it catches tampering");
   ok("a receipt was minted", ran.receipt !== null);
-  ok("it is on the current proof wire", ran.receipt?.format === "vh-proof-receipt/2", String(ran.receipt?.format));
+  ok("it is on the current proof wire", ran.receipt?.format === "si-proof-receipt/2", String(ran.receipt?.format));
   const v = ran.receipt ? await verifyProofReceipt(ran.receipt) : { ok: false, reason: "no receipt" };
   ok("the receipt VERIFIES", v.ok === true, v.ok ? "" : v.reason);
   ok("the chain links every event", (ran.receipt?.events.length ?? 0) >= 2 && (ran.receipt?.events ?? []).every((e, i) => i === 0 ? e.prev === "0".repeat(64) : e.prev === ran.receipt.events[i - 1].hash));
@@ -5913,7 +5913,7 @@ async function main() {
   const live = await handleInboundDelegation(remoteTeam, signed, void 0, { ...cfg, repoRoot: makeRepo().repo });
   ok("an inbound delegation WITH a bridge completes", live.ok === true && live.record.status === "completed", live.record.note);
   ok("the record carries the measured execution", live.record.execution !== null && live.record.execution?.harness === "hermes");
-  ok("the record carries the sealed receipt", live.record.receipt !== null && live.record.receipt?.format === "vh-proof-receipt/2");
+  ok("the record carries the sealed receipt", live.record.receipt !== null && live.record.receipt?.format === "si-proof-receipt/2");
   ok("that receipt verifies from the record alone", live.record.receipt ? (await verifyProofReceipt(live.record.receipt)).ok === true : false);
   const barePacket = { ...packet, id: "d-bridge-2" };
   const bareDigest = await (async () => {
@@ -5927,14 +5927,14 @@ async function main() {
     bare.record.artifact === null && bare.record.execution === null && bare.record.receipt === null && bare.record.note.includes("Nothing ran")
   );
   section("6. REGRESSION PIN \u2014 no path can silently fabricate a completion again");
-  const src = fs.readFileSync(path2.join(ROOT, "src", "mission", "harborTeams.ts"), "utf8");
+  const src = fs.readFileSync(path2.join(ROOT, "src", "mission", "selfimpulseTeams.ts"), "utf8");
   ok(
-    "harborTeams.ts contains no fabricated completion string",
+    "selfimpulseTeams.ts contains no fabricated completion string",
     !/completed:\s*["'`]/.test(src.replace(/run=|gate=/g, "")) || !src.includes('completed: "'),
     'a literal `completed: "\u2026"` template is back in the delegation path'
   );
   ok(
-    "harborTeams.ts reaches execution ONLY through the bridge",
+    "selfimpulseTeams.ts reaches execution ONLY through the bridge",
     src.includes("runInboundDelegation") && !/from "\.\/teamExecutor"/.test(src),
     "the delegation path bypassed the bridge or grew its own executor call"
   );

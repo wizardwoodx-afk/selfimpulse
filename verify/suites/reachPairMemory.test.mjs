@@ -4,7 +4,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-// src/vh19/pureHash.ts
+// src/engine/pureHash.ts
 var K = [
   1116352408,
   1899447441,
@@ -134,10 +134,10 @@ function pureSha256(text) {
   return toHex(sha256Bytes(utf8(text)));
 }
 
-// src/vh19/vouchMesh.ts
+// src/engine/selfimpulseMesh.ts
 var pairKey = (a, b) => [a, b].sort().join("\u2194");
 
-// src/vh19/reach/pairMemory.ts
+// src/engine/reach/pairMemory.ts
 var RECEIPT_BOUND_SCOPES = ["pair", "org"];
 var HEX64 = /^[0-9a-f]{64}$/;
 function looksLikeSecret(text) {
@@ -276,12 +276,12 @@ test("reach pair memory \u2014 receipt-bound, append-only, honest about cuts", a
     const runScoped = remember([], { id: "m8", scope: "run", key: "k", value: "v", why: "w", at: T("2026-09-01T00:00:00Z") });
     assert.equal(runScoped.ok, true, "a run fact is witnessed by the run itself");
   });
-  await t.test("\xA73 the pair is VouchMesh's pair \u2014 one identity, not two", () => {
-    assert.equal(pairMemoryScope("harbor-a", "harbor-b"), pairKey("harbor-a", "harbor-b"));
-    assert.equal(pairMemoryScope("harbor-a", "harbor-b"), pairMemoryScope("harbor-b", "harbor-a"), "the pair key is order-free, like the mesh's");
+  await t.test("\xA73 the pair is SelfImpulseMesh's pair \u2014 one identity, not two", () => {
+    assert.equal(pairMemoryScope("selfimpulse-a", "selfimpulse-b"), pairKey("selfimpulse-a", "selfimpulse-b"));
+    assert.equal(pairMemoryScope("selfimpulse-a", "selfimpulse-b"), pairMemoryScope("selfimpulse-b", "selfimpulse-a"), "the pair key is order-free, like the mesh's");
   });
   await t.test("\xA74 supersession is append-only; asOf answers on any date", () => {
-    const key = pairMemoryScope("harbor-a", "harbor-b");
+    const key = pairMemoryScope("selfimpulse-a", "selfimpulse-b");
     let log = [];
     log = add(log, { id: "e1", scope: "pair", key, value: "the shared staging window is tuesday 09:00", why: "agreed in the joint run", at: T("2026-09-01T09:00:00Z"), receiptDigest: DIGEST_A });
     log = add(log, { id: "e2", scope: "pair", key, value: "the shared staging window moved to thursday 14:00", why: "second joint run re-negotiated it", at: T("2026-09-10T09:00:00Z"), receiptDigest: DIGEST_B });

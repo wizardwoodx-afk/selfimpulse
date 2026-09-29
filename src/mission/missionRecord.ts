@@ -75,7 +75,7 @@ export interface MissionEconomics {
 }
 
 export interface MissionRecord {
-  format: "vh-mission-record/1";
+  format: "si-mission-record/1";
   mission: string;
   teamId: string;
   teamName: string;
@@ -193,7 +193,7 @@ export async function buildMissionRecord(mission: string, opts?: { sealedAt?: st
   const dossier = await dossierForMission(mission);
 
   const body = {
-    format: "vh-mission-record/1" as const,
+    format: "si-mission-record/1" as const,
     mission,
     teamId: cycles[0]?.teamId ?? vault[0]?.teamId ?? "unknown",
     teamName: cycles[0]?.teamName ?? vault[0]?.teamId ?? "unknown",
@@ -225,7 +225,7 @@ export async function verifyMissionRecord(
   r: MissionRecord,
 ): Promise<{ ok: true } | { ok: false; reasons: string[] }> {
   const reasons: string[] = [];
-  if (r.format !== "vh-mission-record/1" && r.format !== "mj-mission-record/1") reasons.push(`unknown format ${r.format}`);
+  if (r.format !== "si-mission-record/1" && r.format !== "mj-mission-record/1") reasons.push(`unknown format ${r.format}`);
   // "mj-mission-record/1" = pre-16.1 legacy record; older records stay verifiable.
   const { digest, issuer, signature, signatureNote, ...rest } = r;
   if ((await sha256hex(canon(rest))) !== digest) reasons.push("digest mismatch — the record was edited after sealing");

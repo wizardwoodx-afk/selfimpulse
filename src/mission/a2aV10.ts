@@ -20,7 +20,7 @@
  *     UnsupportedOperationError −32004, ContentTypeNotSupportedError −32005,
  *     InvalidAgentResponseError −32006.
  *
- * Signing uses the harbor's ECDSA P-256 identity (crossHarbor wire
+ * Signing uses the selfimpulse's ECDSA P-256 identity (crossSelfImpulse wire
  * discipline) — the card minus its `signatures` array is canonicalized
  * (recursive key-sorted, no whitespace) and signed as the JWS payload.
  * Verification re-derives the canonical payload, so any post-signing mutation
@@ -358,7 +358,7 @@ export function validateAgentCardV10(raw: unknown): string[] {
   return v;
 }
 
-/* ── signing / verification (harbor ECDSA P-256 identity) ──────────────── */
+/* ── signing / verification (selfimpulse ECDSA P-256 identity) ──────────────── */
 
 export interface CardSigningIdentityV10 {
   fp: string;
@@ -375,7 +375,7 @@ const ECDSA_SIGN = { name: "ECDSA", hash: "SHA-256" } as const;
  * covers the canonical card-without-signatures bytes.
  */
 export async function signAgentCardV10(card: AgentCardV10, identity: CardSigningIdentityV10): Promise<AgentCardV10> {
-  const header = { alg: "ES256", typ: "vh-a2a-card", kid: identity.fp, a2a: "1.0" };
+  const header = { alg: "ES256", typ: "si-a2a-card", kid: identity.fp, a2a: "1.0" };
   const protectedB64 = b64u(enc.encode(JSON.stringify(header)));
   const payload = enc.encode(cardPayload(card));
   const sig = new Uint8Array(await crypto.subtle.sign(ECDSA_SIGN, identity.privateKey, payload));

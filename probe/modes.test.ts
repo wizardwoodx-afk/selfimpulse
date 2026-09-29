@@ -17,7 +17,7 @@ function ok(label: string, cond: boolean, detail = ""): void {
 import {
   CREW_MODES, CREW_MODE_LABELS, CREW_MODE_DOCTRINE, initialModeState, setMode,
   actRunsUnattended, gateAskLine, pinnedInitiativeLevel, type CrewMode,
-} from "../src/vh19/modes";
+} from "../src/engine/modes";
 
 function main(): void {
   console.log("modes — the owner's throttle");

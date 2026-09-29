@@ -1,5 +1,5 @@
 # RSIRALS v5.0 — Trust-Rooted Recursive Self-Improvement
-## A proprietary 11Handle product architecture (implementation: `src/vh19/rsirals.ts` + `src/vh19/rsi.ts`)
+## A proprietary SelfImpulse product architecture (implementation: `src/engine/rsirals.ts` + `src/engine/rsi.ts`)
 
 **RSIRALS** = **R**ecursive **S**elf-**I**mprovement + **R**einforcement + **A**gentic **L**earning **S**ystem.
 

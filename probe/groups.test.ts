@@ -30,18 +30,18 @@ class MemStore implements Storage {
 }
 (globalThis as { localStorage?: Storage }).localStorage = new MemStore();
 
-import type { ProviderConfig } from "../src/vh19/types";
+import type { ProviderConfig } from "../src/engine/types";
 import {
   createCharter, acceptCharter, revokeCharter, charterDigest, checkCharter,
   createGroupSession, resolveGroupItem, switchGroupMode, runGroupSession,
   groupBriefing, resetGroupSessions, productionCross,
   type GroupCharter,
-} from "../src/vh19/groups";
+} from "../src/engine/groups";
 
 const PROVIDER: ProviderConfig = {
   kind: "openai-compatible", provider: "openai-compatible",
-  model: "vh-probe-model", apiKey: "sk-vh-probe-key",
-  baseUrl: "https://vh-probe.invalid/v1",
+  model: "si-probe-model", apiKey: "sk-si-probe-key",
+  baseUrl: "https://si-probe.invalid/v1",
 };
 
 type FetchLike = (url: string, init?: { body?: string }) => Promise<{ ok: boolean; status: number; text: () => Promise<string>; json: () => Promise<unknown> }>;
@@ -54,7 +54,7 @@ function makeCharter(at: number, over: Partial<{ mode: "manual" | "semi" | "full
   const caps = (over.caps ?? 2) === 2 ? ["repo.read", "test.run"] as never[] : (["repo.read"] as never[]);
   const res = createCharter({
     name: "Ram ↔ Raj",
-    members: [{ ownerId: "vh-owner", label: "Ram" }, { ownerId: "vh-owner-2", label: "Raj" }],
+    members: [{ ownerId: "si-owner", label: "Ram" }, { ownerId: "si-owner-2", label: "Raj" }],
     capabilities: caps as never,
     limits: {
       maxTasksPerDay: over.maxTasksPerDay ?? 10,
@@ -91,11 +91,11 @@ function main(): void {
   /* acceptance */
   const stranger = acceptCharter(c, "eve", t0 + 1);
   ok("a non-member cannot accept", !stranger.ok && stranger.line.includes("not a member"));
-  const a1 = acceptCharter(c, "vh-owner", t0 + 2);
+  const a1 = acceptCharter(c, "si-owner", t0 + 2);
   ok("first acceptance names who is still waiting", a1.ok && c.status === "proposed" && a1.line.includes("waiting for Raj"));
-  const again = acceptCharter(c, "vh-owner", t0 + 3);
+  const again = acceptCharter(c, "si-owner", t0 + 3);
   ok("double acceptance is an honest no-op refusal", !again.ok && again.line.includes("already accepted"));
-  const a2 = acceptCharter(c, "vh-owner-2", t0 + 4);
+  const a2 = acceptCharter(c, "si-owner-2", t0 + 4);
   ok("the LAST acceptance activates the group", a2.ok && c.status === "active" && a2.line.includes("ACTIVE"));
   ok("both members accepted the SAME charter digest",
     c.acceptances.length === 2 && c.acceptances[0].digest === c.acceptances[1].digest && c.acceptances[0].digest === charterDigest(c) && c.acceptances[0].digest.length === 64);
@@ -106,24 +106,24 @@ function main(): void {
   const sNo = createGroupSession(noacc, "group task", SLICES, { at: t0 + 11 });
   ok("a proposed charter executes nothing", sNo.status === "failed" && (sNo.refusal ?? "").includes("every member must accept"));
   const exp = makeCharter(t0 + 20, { expiresAt: t0 + 25 });
-  acceptCharter(exp, "vh-owner", t0 + 21); acceptCharter(exp, "vh-owner-2", t0 + 22);
+  acceptCharter(exp, "si-owner", t0 + 21); acceptCharter(exp, "si-owner-2", t0 + 22);
   const sExp = createGroupSession(exp, "group task", SLICES, { at: t0 + 30 });
   ok("an expired charter refuses in words", sExp.status === "failed" && (sExp.refusal ?? "").includes("expired"));
   const capped = makeCharter(t0 + 40, { maxTasksPerDay: 2 });
-  acceptCharter(capped, "vh-owner", t0 + 41); acceptCharter(capped, "vh-owner-2", t0 + 42);
+  acceptCharter(capped, "si-owner", t0 + 41); acceptCharter(capped, "si-owner-2", t0 + 42);
   createGroupSession(capped, "task one", SLICES, { at: t0 + 43 });
   createGroupSession(capped, "task two", SLICES, { at: t0 + 44 });
   const sCap = createGroupSession(capped, "task three", SLICES, { at: t0 + 45 });
   ok("the rolling 24h task cap is the charter working, not an error", sCap.status === "failed" && (sCap.refusal ?? "").includes("per rolling 24h"));
   const fresh = makeCharter(t0 + 50);
-  acceptCharter(fresh, "vh-owner", t0 + 51); acceptCharter(fresh, "vh-owner-2", t0 + 52);
+  acceptCharter(fresh, "si-owner", t0 + 51); acceptCharter(fresh, "si-owner-2", t0 + 52);
   const sEmpty = createGroupSession(fresh, "task", [], { at: t0 + 53 });
   ok("no slices — nothing to plan", sEmpty.status === "failed" && (sEmpty.refusal ?? "").includes("at least one slice"));
 
   /* modes over local + crossing items */
   resetGroupSessions();
   const manual = makeCharter(t0 + 100, { mode: "manual", maxCrossingsPerTask: 1, caps: 1 });
-  acceptCharter(manual, "vh-owner", t0 + 101); acceptCharter(manual, "vh-owner-2", t0 + 102);
+  acceptCharter(manual, "si-owner", t0 + 101); acceptCharter(manual, "si-owner-2", t0 + 102);
   const sM = createGroupSession(manual, "build the joint draft", SLICES, { at: t0 + 103 });
   ok("manual gates EVERY item — local AND crossing", sM.items.every((i) => i.status === "gated") && sM.status === "awaiting-gate");
   ok("every gated item carries its ask wording", sM.items.every((i) => (i.gateAsk ?? "").includes("approval needed")));
@@ -131,7 +131,7 @@ function main(): void {
 
   resetGroupSessions();
   const semi = makeCharter(t0 + 110, { mode: "semi", caps: 1 });
-  acceptCharter(semi, "vh-owner", t0 + 111); acceptCharter(semi, "vh-owner-2", t0 + 112);
+  acceptCharter(semi, "si-owner", t0 + 111); acceptCharter(semi, "si-owner-2", t0 + 112);
   const sS = createGroupSession(semi, "build the joint draft", SLICES, { at: t0 + 113 });
   ok("semi runs local safe items free — but CROSSINGS still gate (delegation is risky by nature)",
     sS.items.filter((i) => i.kind === "local").every((i) => i.status === "queued") && sS.items.filter((i) => i.kind === "crossing").every((i) => i.status === "gated"));
@@ -182,15 +182,15 @@ function main(): void {
           /* revocation */
           const badRevoke = revokeCharter(c, "eve", "no reason", t0 + 300);
           ok("a non-member cannot revoke", !badRevoke.ok);
-          const rev = revokeCharter(c, "vh-owner-2", "Raj steps out", t0 + 301);
+          const rev = revokeCharter(c, "si-owner-2", "Raj steps out", t0 + 301);
           ok("revocation is one-sided, final, and named", rev.ok && c.status === "revoked" && (c.revocation?.reason ?? "").includes("Raj steps out"));
           const sRev = createGroupSession(c, "task", SLICES, { at: t0 + 302 });
           ok("a revoked group executes nothing", sRev.status === "failed" && (sRev.refusal ?? "").includes("revoked"));
-          const reAccept = acceptCharter(c, "vh-owner", t0 + 303);
+          const reAccept = acceptCharter(c, "si-owner", t0 + 303);
           ok("no acceptance revives a revoked group", !reAccept.ok && reAccept.line.includes("revoked"));
 
           /* the production seam exists and is wired to the real crossing */
-          ok("the production crossing seam is the signed federation crossing", typeof productionCross("vh-owner") === "function");
+          ok("the production crossing seam is the signed federation crossing", typeof productionCross("si-owner") === "function");
 
           console.log(`\n${passed} passed, ${failed} failed`);
           if (failed > 0) { console.log("\nfailures:"); for (const f of failures) console.log(`  - ${f}`); process.exit(1); }

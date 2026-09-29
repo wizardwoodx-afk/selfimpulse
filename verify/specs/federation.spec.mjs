@@ -1,6 +1,6 @@
 import { createRequire as __mjCreateRequire } from "node:module"; const require = __mjCreateRequire(import.meta.url);
 
-// src/vh19/reach/batchSpec.ts
+// src/engine/reach/batchSpec.ts
 var REACH_BATCH_STATIONS = ["assess", "design", "build", "verify", "sustain"];
 var STATION_RISK = {
   assess: "safe",
@@ -53,7 +53,7 @@ var STATION_PROMPTS = {
   sustain: (d, m) => `You sustain ${d}: ${m}. Production is the patient. Watch for drift, degrade honestly, and hand over to a human at every irreversible step with a status a person can act on without reading the logs.`
 };
 
-// src/vh19/federation/batchKit.ts
+// src/engine/federation/batchKit.ts
 function batchEntryId(domain, station) {
   return `${domain.slug}.${station}`;
 }
@@ -92,8 +92,8 @@ function censusOf(entries) {
   return { total: entries.length, byRisk, byStation, byCategory, domains: domains.size };
 }
 
-// src/vh19/federation/federationSpec.ts
-var FEDERATION_BATCH_PROVENANCE = "vh-19.6-federation";
+// src/engine/federation/federationSpec.ts
+var FEDERATION_BATCH_PROVENANCE = "si-19.6-federation";
 var FEDERATION_BATCH_DOMAINS = [
   {
     slug: "quantum-software",

@@ -2,8 +2,8 @@
 
 These are the OFFICIAL JSON Schemas of the Model Context Protocol
 specification, committed verbatim from the spec's own repository. They are the
-ground truth that `probe/mcpConformance.test.ts` (suite #89) validates Vouch
-Harbor's MCP wire against, in both directions (our requests and the server's
+ground truth that `probe/mcpConformance.test.ts` (suite #89) validates SelfImpulse
+SelfImpulse's MCP wire against, in both directions (our requests and the server's
 responses).
 
 ## Files

@@ -11,8 +11,8 @@
 
 import fs   from "node:fs";
 import path from "node:path";
-import { verify }        from "../core/vh-crypto.js";
-import { VHLedgerError } from "../core/vh-errors.js";
+import { verify }        from "../core/si-crypto.js";
+import { VHLedgerError } from "../core/si-errors.js";
 import { log }           from "./logger.js";
 
 const MAX_LINE_BYTES = 8 * 1024;   /* checkpoints are small signed statements */

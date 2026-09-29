@@ -16,8 +16,8 @@ import path from "node:path";
 /* The shell file the door list is DERIVED from — never a hardcoded list.
    A literal list is what let "the five doors are on screen" keep passing after a
    sixth door (Docs) shipped: the gate described a shell that no longer existed. */
-declare const HANDLE_ROOT: string;
-const ROOT = HANDLE_ROOT ?? process.cwd();
+declare const SI_ROOT: string;
+const ROOT = SI_ROOT ?? process.cwd();
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), "utf8");
 /** Every door the shell actually declares, in order: /\{ key: "x", label: "Y", icon: "z" \}/ */
 function shellDoors(): Array<{ key: string; label: string }> {
@@ -84,7 +84,7 @@ async function main(): Promise<void> {
   ok("it is honest about plan-only without a provider", /plan only|Plan-only/i.test(text) && /nothing executes/i.test(text), "no plan-only statement");
   ok("no version number on the primary surface", !/\b19\.\d+\.\d+/.test(text), (text.match(/\b19\.\d+\.\d+/) ?? [""])[0]);
   ok("no agent name leaks (Generalist / specialist ids)", !/Generalist|business\.|code\./.test(text), "internal names leaked");
-  ok("no boot splash, no keyboard-shortcut hints", !/vh-boot|⌘K|⌘N/.test(html), "leftover chrome");
+  ok("no boot splash, no keyboard-shortcut hints", !/si-boot|⌘K|⌘N/.test(html), "leftover chrome");
 
   section("1. every door renders on its own, empty");
   /* Driven by the SAME derived set as the check above, so a door cannot be added

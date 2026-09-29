@@ -1,5 +1,5 @@
 /**
- * 11Handle — the Docs door.
+ * SelfImpulse — the Docs door.
  *
  * WHY THIS DOOR EXISTS: the engine has always been able to distill a document
  * into an approved knowledge skill (`mission/knowledgeSkills.ts` —

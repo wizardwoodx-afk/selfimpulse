@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 11Handle — MCP capability router, stdio transport (16.2.0).
+ * SelfImpulse — MCP capability router, stdio transport (16.2.0).
  *
  *   node tools/mcp.mjs          (or: npm run mcp)
  *
@@ -11,7 +11,7 @@
  * EVERY capability call is routed through the product's governed pipeline
  * (risk classification → human gate on risky calls → signed receipt per
  * completed call). This entry point is a transport, not a back door: the
- * engine's single governed executor (runVouchToolCall) is the only route
+ * engine's single governed executor (runSelfImpulseToolCall) is the only route
  * to the tools. Risky calls return pending with an approval id — approve
  * or deny through this server's own approve_action / deny_action tools,
  * then poll call_status.

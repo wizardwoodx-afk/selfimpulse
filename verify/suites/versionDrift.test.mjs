@@ -8,8 +8,8 @@ import * as path from "node:path";
 var PRODUCT_VERSION = "1.0.0";
 var ENGINE_VERSION = "19.7.15";
 var ENGINE_SHORT = "19.7";
-var ENGINE_CODENAME = "Handle";
-var PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+var ENGINE_CODENAME = "SelfImpulse";
+var PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
 
 // probe/versionDrift.test.ts
 var passed = 0;
@@ -31,7 +31,7 @@ function section(name) {
 }
 var root = ".".length > 0 ? "." : path.resolve(process.cwd(), "package.json").startsWith("/home/user/mj") || fs.existsSync(path.join(process.cwd(), "package.json")) ? process.cwd() : path.resolve(__dirname ?? process.cwd(), "..");
 if (!fs.existsSync(path.join(root, "package.json"))) {
-  console.error(`versionDrift: cannot find the project root (looked in ${root}). Rebuild with --define:HANDLE_ROOT='"'$(pwd)'"'.`);
+  console.error(`versionDrift: cannot find the project root (looked in ${root}). Rebuild with --define:SI_ROOT='"'$(pwd)'"'.`);
   process.exit(2);
 }
 console.log(`project root: ${root}`);
@@ -44,7 +44,7 @@ ok("PRODUCT_VERSION is a product semver and is not the engine number", /^\d+\.\d
 ok("docs/VERSIONING.md is the policy of record for the pair", read("docs/VERSIONING.md").includes(`product ${PRODUCT_VERSION}`) && read("docs/VERSIONING.md").includes(`engine MJ ${ENGINE_VERSION}`), "docs/VERSIONING.md");
 ok(
   "PRODUCT_TITLE is the product name with the engine identity beside it",
-  PRODUCT_TITLE === `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`,
+  PRODUCT_TITLE === `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`,
   PRODUCT_TITLE
 );
 section("1. product manifests state PRODUCT_VERSION; engine sites name ENGINE_VERSION");
@@ -62,11 +62,11 @@ var pkgTyped = pkg;
 ok("package.json carries the engine release in its engine field", pkgTyped.engine?.version === ENGINE_VERSION && pkgTyped.engine?.name === "MJ", JSON.stringify(pkgTyped.engine));
 var versionTxt = read("VERSION.txt");
 ok(`VERSION.txt states both numbers (product ${PRODUCT_VERSION} / engine ${ENGINE_VERSION})`, versionTxt.includes(`Product release: ${PRODUCT_VERSION}`) && versionTxt.includes("Engine release:") && versionTxt.includes(ENGINE_VERSION), versionTxt.split("\n").slice(0, 3).join(" | "));
-ok("Cargo.toml package name is the clean product name", /^name\s*=\s*"eleven-handle"/m.test(cargo) && /name = "elevenhandle_lib"/.test(cargo), "Cargo identity");
+ok("Cargo.toml package name is the clean product name", /^name\s*=\s*"selfimpulse"/m.test(cargo) && /name = "elevenhandle_lib"/.test(cargo), "Cargo identity");
 var buildInfoIdentity = read("verify/BUILD-INFO.txt");
 ok(
-  `BUILD-INFO.txt opens as 11Handle ${PRODUCT_VERSION} naming the engine ${ENGINE_VERSION} (no stale release identity)`,
-  buildInfoIdentity.startsWith(`11Handle ${PRODUCT_VERSION}`) && buildInfoIdentity.includes(ENGINE_VERSION),
+  `BUILD-INFO.txt opens as SelfImpulse ${PRODUCT_VERSION} naming the engine ${ENGINE_VERSION} (no stale release identity)`,
+  buildInfoIdentity.startsWith(`SelfImpulse ${PRODUCT_VERSION}`) && buildInfoIdentity.includes(ENGINE_VERSION),
   (buildInfoIdentity.split("\n")[0] ?? "missing").slice(0, 80)
 );
 ok(
@@ -84,7 +84,7 @@ var ipcClient = read("src/ipc/client.ts");
 var settings = read("src/ui/screens/Settings.tsx");
 ok("ipc/client.ts imports ENGINE_VERSION", /from "\.\.\/version"/.test(ipcClient) && /ENGINE_VERSION/.test(ipcClient), "no import found");
 ok("Settings \u2192 About shows the product + engine names, never a version number", /from "\.\.\/\.\.\/brand"/.test(settings) && /PRODUCT_NAME/.test(settings) && /ENGINE_CREDIT/.test(settings) && !/ENGINE_VERSION/.test(settings), "About still shows a version");
-ok("src/brand.ts is the one source of the product name and carries no number", /PRODUCT_NAME = "11Handle"/.test(read("src/brand.ts")) && !/\d+\.\d+\.\d+/.test(read("src/brand.ts")));
+ok("src/brand.ts is the one source of the product name and carries no number", /PRODUCT_NAME = "SelfImpulse"/.test(read("src/brand.ts")) && !/\d+\.\d+\.\d+/.test(read("src/brand.ts")));
 ok("no hardcoded release string survives in ipc/client.ts", !/version:\s*"\d+\.\d+\.\d+"/.test(ipcClient), (ipcClient.match(/version:\s*"\d+\.\d+\.\d+"/) ?? [""])[0]);
 ok("no hardcoded release string survives in Settings", !/VH \d+\.\d+|"19\.\d+\.\d+/.test(settings), (settings.match(/VH \d+\.\d+|"19\.\d+\.\d+/) ?? [""])[0]);
 section("3. the shipped documents name the current release");
@@ -103,9 +103,9 @@ for (const doc of docs) {
 }
 for (const doc of OPERATIONAL_DOCS) {
   let body = read(doc).replace(/docs\/history\/(VH|11H)-[0-9.]+[-A-Za-z0-9_]*\.md/g, "").replace(/\b(VH|11H)-[0-9]+\.[0-9]+\.[0-9]+-[A-Za-z0-9-]*\.md\b/g, "");
-  body = body.replace(/\b11H-[0-9]+\.[0-9]+-UPGRADE\.md\b/g, "");
+  body = body.replace(/\bSI-[0-9]+\.[0-9]+-UPGRADE\.md\b/g, "");
   const staleTokens = [...new Set(
-    [...body.matchAll(/(?:VH|11H|11Handle)[ _-]?(\d+(?:\.\d+){2,3})|(\d+(?:\.\d+){2,3})_x64/gi)].map((m) => (m[1] ?? m[2] ?? "").trim()).filter((v) => v.length > 0 && v !== ENGINE_VERSION && v !== PRODUCT_VERSION)
+    [...body.matchAll(/(?:VH|11H|SelfImpulse)[ _-]?(\d+(?:\.\d+){2,3})|(\d+(?:\.\d+){2,3})_x64/gi)].map((m) => (m[1] ?? m[2] ?? "").trim()).filter((v) => v.length > 0 && v !== ENGINE_VERSION && v !== PRODUCT_VERSION)
   )];
   ok(
     `${doc} names no release other than ${PRODUCT_VERSION} / ${ENGINE_VERSION} in its body`,
@@ -114,7 +114,7 @@ for (const doc of OPERATIONAL_DOCS) {
   );
 }
 section("4. the archive name the user is given matches the release");
-var upgradeDoc = `11H-${ENGINE_SHORT}-UPGRADE.md`;
+var upgradeDoc = `SI-${ENGINE_SHORT}-UPGRADE.md`;
 ok(`${upgradeDoc} exists`, fs.existsSync(path.join(root, upgradeDoc)) || fs.existsSync(path.join(root, "docs", "history", upgradeDoc)) || fs.existsSync(path.join(root, "docs", "releases", upgradeDoc)), "missing \u2014 the release notes for this version were never written");
 section("5. CI targets runners that still exist");
 var wfDir = path.join(root, ".github", "workflows");

@@ -1,5 +1,5 @@
 /**
- * TEAMMATES PLANE PROBE — 19.5.6 (crew UX, VH-hardened).
+ * TEAMMATES PLANE PROBE — 19.5.6 (crew UX, governance-hardened).
  *
  * Pins the crew plane mechanically:
  *   1. every multi-member run derives a Chief Steward row + one teammate row
@@ -23,13 +23,13 @@ import assert from "node:assert";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 import {
   teammatesFromResponse, chiefRow, teammateRows, coordinationFeed, playgroundMission, workspaceFor, CHIEF_STEWARD,
-} from "../src/vh19/teammates";
-import type { GeneralistResponse, MemberRunView } from "../src/vh19/types";
+} from "../src/engine/teammates";
+import type { GeneralistResponse, MemberRunView } from "../src/engine/types";
 
 const D64 = "ab".repeat(32);
 
@@ -85,7 +85,7 @@ describe("teammate rows", () => {
         tools: ["fs.read"],
         toolReceipts: [{ tool: "fs.read", outcome: "executed", inputPreview: "", outputPreview: "", digest: "12".repeat(32) }],
       })],
-      workspace: { kind: "browser-memory", root: "/vh-mission" },
+      workspace: { kind: "browser-memory", root: "/si-mission" },
     });
     const rows = teammateRows(resp);
     assert.equal(rows.length, 1);
@@ -174,7 +174,7 @@ describe("the wiring is structural", () => {
   });
 
   it("the module states the honesty difference (shown vs signed) and the run-derived framing", () => {
-    const src = fs.readFileSync(path.join(ROOT, "src", "vh19", "teammates.ts"), "utf8");
+    const src = fs.readFileSync(path.join(ROOT, "src", "engine", "teammates.ts"), "utf8");
     assert.ok(src.includes("Anyone can SHOW a trace") && src.includes("VH SIGNS it"));
     assert.ok(src.includes("RUN-DERIVED"), "rows are stated as run-derived, not persistent instances");
   });

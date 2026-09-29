@@ -54,7 +54,7 @@ const receipt = async (): Promise<ReturnType<typeof buildProofReceipt>> =>
     },
   });
 
-const root = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+const root = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 const cli = path.join(root, "tools", "verify-mission-record.mjs");
 
 function runCli(file: string, extra: string[] = []): { code: number; out: string } {
@@ -77,7 +77,7 @@ describe("missionRecord — one signed file per mission", () => {
 
     const r = await buildMissionRecord("checkout-bugfix");
     assert.ok(r);
-    assert.equal(r.format, "vh-mission-record/1");
+    assert.equal(r.format, "si-mission-record/1");
     // 16.4.1 — a mission artifact must report the CURRENT execution version,
     // never a stale hardcoded literal (reviewer provenance finding)
     assert.equal(r.mjVersion, ENGINE_VERSION, `record claims execution core ${ENGINE_VERSION}, not a stale literal`);

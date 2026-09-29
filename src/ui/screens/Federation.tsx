@@ -26,7 +26,7 @@ import { ipc, type FederationStatus } from "../../ipc/client";
 
 const IDLE: FederationStatus = {
   state: "unavailable", bundled: false, hostPath: null, running: false,
-  pid: null, port: null, cardUrl: null, interfaceUrl: null, harbor: null,
+  pid: null, port: null, cardUrl: null, interfaceUrl: null, selfimpulse: null,
   identityFp: null, cardSigned: false, tokenMinted: false,
   bindScope: null, bindAddress: null, pairingCode: null, pairingExpires: null,
   detail: "Reading the bundle state…",
@@ -75,7 +75,7 @@ export default function Federation(): React.ReactElement {
     setOutcome(null);
     setSt((s) => ({ ...s, state: "starting", running: false, detail: "Verifying the engine pin, then signing the card…" }));
     try {
-      const r = await ipc.federationMount({ harbor: "11Handle", port: 0, bind, pair });
+      const r = await ipc.federationMount({ selfimpulse: "SelfImpulse", port: 0, bind, pair });
       setOutcome(r.detail);
     } catch (e) {
       setOutcome(`Mount failed in words rather than pretending: ${String(e)}`);
@@ -103,21 +103,21 @@ export default function Federation(): React.ReactElement {
   const canStop = st.running && !busy;
 
   return (
-    <div className="vh-screen" data-testid="federation">
-      <header className="vh-screen-head">
+    <div className="si-screen" data-testid="federation">
+      <header className="si-screen-head">
         <h2>Federation</h2>
-        <p className="vh-sub">
-          Let other 11Handle nodes delegate work to this one over the A2A wire.
+        <p className="si-sub">
+          Let other SelfImpulse nodes delegate work to this one over the A2A wire.
         </p>
       </header>
 
-      <section className="vh-card">
+      <section className="si-card">
         <h3>What mounting does</h3>
-        <ul className="vh-list">
+        <ul className="si-list">
           <li>Starts the A2A host that ships <em>inside</em> this app — not a separately installed service.</li>
           <li>
             Binds a local port and publishes a <strong>signed agent card</strong> describing this machine,
-            its teammates and its policy. Peers must present the shared token to call it.
+            its teammates and its policy. Peers must present an authorized credential to call it.
           </li>
           <li>
             The host verifies its own engine against a committed SHA-256 before it will listen; a stale or
@@ -128,44 +128,44 @@ export default function Federation(): React.ReactElement {
             principal chain, and this seat&rsquo;s authority envelope.
           </li>
           <li>
-            It stays up until you unmount it or quit 11Handle. Quitting the app stops the listener — a
+            It stays up until you unmount it or quit SelfImpulse. Quitting the app stops the listener — a
             card must not outlive the machine whose owner closed the window.
           </li>
         </ul>
-        <p className="vh-note">
+        <p className="si-note">
           This app does <strong>not</strong> start a federation listener on launch. A network listener is
           something you turn on, not something that turns on with you.
         </p>
       </section>
 
-      <section className="vh-card">
+      <section className="si-card">
         <h3>Status</h3>
-        <p className="vh-sub" data-testid="federation-detail">
+        <p className="si-sub" data-testid="federation-detail">
           <strong data-testid="federation-state">{STATE_WORD[st.state]}</strong> — {st.detail}
         </p>
 
-        {st.hostPath ? <p className="vh-mono vh-small">host: {st.hostPath}</p> : null}
+        {st.hostPath ? <p className="si-mono si-small">host: {st.hostPath}</p> : null}
 
         {st.running ? (
-          <dl className="vh-kv" data-testid="federation-live">
-            <dt>pid</dt><dd className="vh-mono">{st.pid}</dd>
-            <dt>port</dt><dd className="vh-mono">{st.port}</dd>
-            <dt>card</dt><dd className="vh-mono">{st.cardUrl}</dd>
+          <dl className="si-kv" data-testid="federation-live">
+            <dt>pid</dt><dd className="si-mono">{st.pid}</dd>
+            <dt>port</dt><dd className="si-mono">{st.port}</dd>
+            <dt>card</dt><dd className="si-mono">{st.cardUrl}</dd>
             <dt>bound to</dt>
-            <dd className="vh-mono" data-testid="federation-bind">{st.bindAddress ?? "—"}</dd>
-            <dt>harbor</dt><dd className="vh-mono">{st.harbor}</dd>
-            <dt>identity</dt><dd className="vh-mono">{st.identityFp}</dd>
+            <dd className="si-mono" data-testid="federation-bind">{st.bindAddress ?? "—"}</dd>
+            <dt>selfimpulse</dt><dd className="si-mono">{st.selfimpulse}</dd>
+            <dt>identity</dt><dd className="si-mono">{st.identityFp}</dd>
             <dt>card signed</dt><dd>{st.cardSigned ? "yes" : "no"}</dd>
             <dt>token</dt><dd>{st.tokenMinted ? "minted here" : "supplied by you"}</dd>
           </dl>
         ) : null}
 
         {!st.running ? (
-          <fieldset className="vh-fieldset" data-testid="federation-choose">
+          <fieldset className="si-fieldset" data-testid="federation-choose">
             <legend>Who may reach this machine</legend>
-            <label className="vh-radio">
+            <label className="si-radio">
               <input
-                type="radio" name="vh-bind" value="local" checked={bind === "local"}
+                type="radio" name="si-bind" value="local" checked={bind === "local"}
                 onChange={() => setBind("local")} data-testid="federation-bind-local"
               />
               <span>
@@ -173,23 +173,23 @@ export default function Federation(): React.ReactElement {
                 network cannot see the card at all.
               </span>
             </label>
-            <label className="vh-radio">
+            <label className="si-radio">
               <input
-                type="radio" name="vh-bind" value="lan" checked={bind === "lan"}
+                type="radio" name="si-bind" value="lan" checked={bind === "lan"}
                 onChange={() => setBind("lan")} data-testid="federation-bind-lan"
               />
               <span>
                 <strong>My network</strong> — binds this machine&rsquo;s network address,
-                so another 11Handle can reach it. Anything else on the same network can
+                so another SelfImpulse can reach it. Anything else on the same network can
                 reach the port too, which is why a peer still needs a paired credential.
               </span>
             </label>
-            <p className="vh-note" data-testid="federation-bind-note">
+            <p className="si-note" data-testid="federation-bind-note">
               There is no &ldquo;everything&rdquo; option. A wildcard bind would serve this
               machine&rsquo;s card on every interface it has at once, and you did not ask
               for that, so it is not offered.
             </p>
-            <label className="vh-check">
+            <label className="si-check">
               <input
                 type="checkbox" checked={pair} onChange={() => setPair(!pair)}
                 data-testid="federation-pair-toggle"
@@ -200,13 +200,13 @@ export default function Federation(): React.ReactElement {
         ) : null}
 
         {st.running && st.pairingCode ? (
-          <div className="vh-card" data-testid="federation-pairing">
+          <div className="si-card" data-testid="federation-pairing">
             <h3>Pair a peer</h3>
-            <p className="vh-sub">
+            <p className="si-sub">
               Read this to the machine you are pairing. It works <strong>once</strong>.
             </p>
-            <p className="vh-mono vh-big" data-testid="federation-pairing-code">{st.pairingCode}</p>
-            <p className="vh-note">
+            <p className="si-mono si-big" data-testid="federation-pairing-code">{st.pairingCode}</p>
+            <p className="si-note">
               Expires {st.pairingExpires ?? "shortly"}. After that, or after it is used,
               it is dead — pair again by remounting. This is not the host&rsquo;s token:
               the token never leaves this process, and this code only buys the peer a
@@ -215,9 +215,9 @@ export default function Federation(): React.ReactElement {
           </div>
         ) : null}
 
-        <div className="vh-row">
+        <div className="si-row">
           <button
-            className="vh-btn vh-btn-primary"
+            className="si-btn si-btn-primary"
             onClick={() => void mount()}
             disabled={!canMount}
             data-testid="federation-mount"
@@ -225,27 +225,27 @@ export default function Federation(): React.ReactElement {
             {st.state === "starting" ? "Mounting…" : "Mount the A2A host"}
           </button>
           <button
-            className="vh-btn"
+            className="si-btn"
             onClick={() => void stop()}
             disabled={!canStop}
             data-testid="federation-stop"
           >
             Unmount
           </button>
-          <button className="vh-btn" onClick={() => void refresh()} data-testid="federation-refresh">
+          <button className="si-btn" onClick={() => void refresh()} data-testid="federation-refresh">
             Re-check
           </button>
         </div>
 
         {!st.bundled ? (
-          <p className="vh-note">
+          <p className="si-note">
             This build shipped without the A2A host bundle, so the control is disabled rather than
             silently doing nothing.
           </p>
         ) : null}
 
         {outcome ? (
-          <pre className="vh-mono vh-small vh-pre" data-testid="federation-outcome">{outcome}</pre>
+          <pre className="si-mono si-small si-pre" data-testid="federation-outcome">{outcome}</pre>
         ) : null}
       </section>
     </div>

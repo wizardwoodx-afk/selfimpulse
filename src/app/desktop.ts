@@ -111,7 +111,7 @@ export async function pickJsonFile(): Promise<unknown | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "application/json,.vouch.json,.mjpack"; // .mjpack kept: legacy pack import compatibility
+    input.accept = "application/json,.selfimpulse.json,.mjpack"; // .mjpack kept: legacy pack import compatibility
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return resolve(null);

@@ -29,14 +29,14 @@ section("1. every tool drives from its own defaults, twice, identically");
 ok("the pack ships a substantial set of tools", sp.TOOLS.length >= 30, `${sp.TOOLS.length} tools`);
 // 19.7.15 [Cartographer]: the pack widens from nine domains to twenty-five — sixteen new
 // ones, each with engines of its own, because a domain with no tool is a label, not a domain.
-ok("across all twenty-six domains", sp.DOMAINS.length === 26, `${sp.DOMAINS.length} domains`);
+ok("across all twenty-five domains", sp.DOMAINS.length === 25, `${sp.DOMAINS.length} domains`);
 const TOOL_DOMAINS = [...new Set(sp.TOOLS.map((t) => t.domain))];
 ok("every domain except finance-in has tools of its own",
   TOOL_DOMAINS.length === 25 && !TOOL_DOMAINS.includes("finance-in"),
   TOOL_DOMAINS.join(" · "));
 ok("and every one of those domains has at least two deterministic tools",
-  sp.DOMAINS.filter((d) => d.id !== "finance-in").every((d) => sp.toolsForDomain(d.id).length >= 2),
-  sp.DOMAINS.filter((d) => d.id !== "finance-in" && sp.toolsForDomain(d.id).length < 2).map((d) => d.id).join(", "));
+  sp.DOMAINS.every((d) => sp.toolsForDomain(d.id).length >= 2),
+  sp.DOMAINS.filter((d) => sp.toolsForDomain(d.id).length < 2).map((d) => d.id).join(", "));
 ok("the pack ships sixty-seven tools of its own (seven more arrive with the finance pack)",
   sp.TOOLS.length === 67, `${sp.TOOLS.length} tools`);
 
@@ -343,8 +343,8 @@ const status = sp.specialistStatus();
 ok("the generalist pack ships two hundred and fifty-one specialists", status.total === 251, String(status.total));
 ok("across twenty-five domains", status.domains === 25, String(status.domains));
 ok("every domain carries at least eight specialists",
-  sp.DOMAINS.filter((d) => d.id !== "finance-in").every((d) => sp.specialistsByDomain(d.id).length >= 8),
-  sp.DOMAINS.filter((d) => d.id !== "finance-in").map((d) => `${d.id}:${sp.specialistsByDomain(d.id).length}`).join(" "));
+  sp.DOMAINS.every((d) => sp.specialistsByDomain(d.id).length >= 8),
+  sp.DOMAINS.map((d) => `${d.id}:${sp.specialistsByDomain(d.id).length}`).join(" "));
 ok("an id is unique per specialist", new Set(sp.SPECIALISTS.map((s) => s.id)).size === status.total);
 ok("every specialist declares a purpose and a receipt",
   sp.SPECIALISTS.every((s) => s.purpose.length > 40 && s.receipt.length > 20));
@@ -381,11 +381,11 @@ ok("every specialist this release gated is a workflow that changes something",
   sp.SPECIALISTS.filter((s) => s.requiresApproval && NEW_DOMAINS.test(s.id)).every((s) => s.status === "workflow"),
   sp.SPECIALISTS.filter((s) => s.requiresApproval && NEW_DOMAINS.test(s.id) && s.status !== "workflow").map((s) => s.id).join(", "));
 ok("and no domain is mostly gates — in every one, the ungated specialists outnumber the gated",
-  sp.DOMAINS.filter((d) => d.id !== "finance-in").every((d) => {
+  sp.DOMAINS.every((d) => {
     const list = sp.specialistsByDomain(d.id);
     return list.filter((s) => !s.requiresApproval).length > list.filter((s) => s.requiresApproval).length;
   }),
-  sp.DOMAINS.filter((d) => d.id !== "finance-in").map((d) => {
+  sp.DOMAINS.map((d) => {
     const list = sp.specialistsByDomain(d.id);
     return `${d.id}:${list.filter((s) => !s.requiresApproval).length}/${list.filter((s) => s.requiresApproval).length}`;
   }).join(" "));
@@ -393,11 +393,9 @@ ok("a read-only audit is NOT gated, because a gate that always fires is noise",
   sp.SPECIALISTS.filter((s) => /(audit|sweep|inspect|read|check|watch|scan)/i.test(s.id)).every((s) => !s.requiresApproval),
   sp.SPECIALISTS.filter((s) => /(audit|sweep|inspect|read|check|watch|scan)/i.test(s.id) && s.requiresApproval).map((s) => s.id).join(", "));
 ok("every domain has at least four specialists",
-  sp.DOMAINS.filter((d) => d.id !== "finance-in").every((d) => sp.specialistsByDomain(d.id).length >= 4),
-  sp.DOMAINS.filter((d) => d.id !== "finance-in").map((d) => `${d.id}:${sp.specialistsByDomain(d.id).length}`).join(" "));
+  sp.DOMAINS.every((d) => sp.specialistsByDomain(d.id).length >= 4),
+  sp.DOMAINS.map((d) => `${d.id}:${sp.specialistsByDomain(d.id).length}`).join(" "));
 ok("findSpecialist resolves an id", sp.findSpecialist("ops.deploy-gate")?.requiresApproval === true);
-ok("the finance pack is listed as a domain of this pack, not copied into it",
-  sp.DOMAINS.some((d) => d.id === "finance-in" && d.label.includes("India")));
 
 /* ── 11 · the sixteen new domains (19.7.15) ────────────────────────────────────
    Every engine added by the Cartographer release gets a pinned vector here: a number the

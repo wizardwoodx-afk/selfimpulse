@@ -1,5 +1,5 @@
 /**
- * §7 Agent-to-Agent discovery for VH (V11, VH-11.0-PROPOSAL W7). FENCED: OFF by default.
+ * §7 Agent-to-Agent discovery for VH (V11, SI-11.0-PROPOSAL W7). FENCED: OFF by default.
  *
  * The 2026 state of agent interoperability: A2A v0.3 is a Linux Foundation project with real
  * adoption (50+ partners), but it describes *task* exchange between self-standing agents, not
@@ -173,16 +173,16 @@ export function remoteAgentToSeatDraft(card: AgentCard): { ok: true; draft: Seat
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   A2A v1.0 (major upgrade — Harbor Teams): the Linux Foundation's released
+   A2A v1.0 (major upgrade — SelfImpulse Teams): the Linux Foundation's released
    1.0 shape, added WITHOUT touching the v0.3 surface above (probe/a2a.test.ts
    pins it byte by byte). New capabilities:
      • AgentCardV1        — supportedInterfaces, securitySchemes, signatures
-     • signAgentCard      — the harbor's ECDSA P-256 identity signs the card
-                            (same wire discipline as crossHarbor envelopes),
+     • signAgentCard      — the selfimpulse's ECDSA P-256 identity signs the card
+                            (same wire discipline as crossSelfImpulse envelopes),
                             so USER 1 can prove the card USER 2 links against
      • verifyAgentCardSignature — tamper-evident card acceptance
-   Discovery-only honesty is kept: v1.0 cards DESCRIBE a harbor's team; the
-   human-gated delegation flow lives in harborTeams.ts.
+   Discovery-only honesty is kept: v1.0 cards DESCRIBE a selfimpulse's team; the
+   human-gated delegation flow lives in selfimpulseTeams.ts.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 export interface AgentInterfaceV1 {
@@ -197,8 +197,8 @@ export interface AgentCardV1 {
   description: string;
   version: string;
   url: string;
-  /** Harbor/user this card belongs to (e.g. "USER 1"). */
-  harbor: string;
+  /** SelfImpulse/user this card belongs to (e.g. "USER 1"). */
+  selfimpulse: string;
   capabilities: { streaming: boolean; pushNotifications: boolean; stateless: boolean };
   supportedInterfaces: AgentInterfaceV1[];
   securitySchemes: Array<{ scheme: "apiKey" | "httpAuth" | "oauth2" | "openIdConnect" | "mutualTls"; note: string }>;
@@ -209,7 +209,7 @@ export interface AgentCardV1 {
   signatures: Array<{ alg: "ECDSA-P256-SHA256"; fp: string; sig: string }>;
 }
 
-const REQUIRED_V1_TEXT = ["name", "description", "version", "url", "harbor"] as const;
+const REQUIRED_V1_TEXT = ["name", "description", "version", "url", "selfimpulse"] as const;
 
 /** Validate an A2A v1.0 card. Errors name the offending field, never crash. */
 export function parseAgentCardV1(raw: unknown): { ok: true; card: AgentCardV1 } | { ok: false; errors: string[] } {
@@ -277,7 +277,7 @@ export function parseAgentCardV1(raw: unknown): { ok: true; card: AgentCardV1 } 
       description: o.description as string,
       version: o.version as string,
       url,
-      harbor: o.harbor as string,
+      selfimpulse: o.selfimpulse as string,
       capabilities: { streaming: caps.streaming === true, pushNotifications: caps.pushNotifications === true, stateless: caps.stateless === true },
       supportedInterfaces: interfaces,
       securitySchemes: schemes,
@@ -289,7 +289,7 @@ export function parseAgentCardV1(raw: unknown): { ok: true; card: AgentCardV1 } 
   };
 }
 
-/* ── card signing: the harbor's identity proves its own card ──────────────── */
+/* ── card signing: the selfimpulse's identity proves its own card ──────────────── */
 
 const v1Encoder = new TextEncoder();
 
@@ -323,7 +323,7 @@ export interface CardSigningIdentity {
   privateKey: CryptoKey;
 }
 
-/** Sign a card with the harbor's ECDSA P-256 key (crossHarbor wire discipline). */
+/** Sign a card with the selfimpulse's ECDSA P-256 key (crossSelfImpulse wire discipline). */
 export async function signAgentCard(card: AgentCardV1, identity: CardSigningIdentity): Promise<AgentCardV1> {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) throw new Error("agent card signing requires WebCrypto");

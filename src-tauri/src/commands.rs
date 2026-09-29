@@ -35,12 +35,12 @@ pub fn app_info(app: AppHandle, state: State<Arc<AppState>>) -> Value {
         // The A2A host ships INSIDE the app bundle. Before this, the desktop
         // build advertised agent-to-agent federation but bundled no host to
         // federate with, so the feature was dead on arrival in the shipped
-        // artifact. tools/vh-host.mjs + its byte-pinned engine are declared in
+        // artifact. tools/si-host.mjs + its byte-pinned engine are declared in
         // bundle.resources, and this key is how the app finds them.
         "a2aHostPath": app.path().resource_dir().ok()
-            .map(|p| p.join("a2a").join("vh-host.mjs").display().to_string()),
+            .map(|p| p.join("a2a").join("si-host.mjs").display().to_string()),
         "a2aHostBundled": app.path().resource_dir().ok()
-            .map(|p| p.join("a2a").join("vh-host-engine.mjs").exists())
+            .map(|p| p.join("a2a").join("si-host-engine.mjs").exists())
             .unwrap_or(false),
     })
 }
@@ -347,7 +347,7 @@ pub fn hermes_bridge(state: State<Arc<AppState>>, msg: Value) -> Result<Value, S
 
 #[tauri::command]
 pub fn secret_get(state: State<Arc<AppState>>, secret_ref: String) -> Result<Value, String> {
-    // Read path for VH-stored secrets (provider keys, the receipt-issuer key). The value
+    // Read path for SI-stored secrets (provider keys, the receipt-issuer key). The value
     // only ever returns to VH's own webview — keychain first, degraded in-memory second.
     match state.secrets.get(&secret_ref) {
         Some(value) => Ok(json!({ "ref": secret_ref, "present": true, "value": value })),
@@ -839,7 +839,7 @@ pub fn shell_exec(state: State<Arc<AppState>>, program: String, args: Vec<String
             "shell capability boundary: '{program}' is not a dev-tool binary or an executable inside a registered workspace root — run it from a registered root. Refused in words; nothing ran."
         ));
     }
-    // The working directory must be a registered root. No cwd given -> 11Handle's own data dir,
+    // The working directory must be a registered root. No cwd given -> SelfImpulse's own data dir,
     // which is always allowed (previously it silently inherited the install dir).
     let cwd = match cwd {
         Some(c) => ensure_allowed(&state, &c)?,
@@ -898,7 +898,7 @@ pub fn mcp_call(state: State<Arc<AppState>>, server_id: String, tool: String, ar
 
 /* ------------------------------------------------------------------ browser
  *
- * 11Handle SHIPS the browser service inside the product (src-tauri/browser-service/ —
+ * SelfImpulse SHIPS the browser service inside the product (src-tauri/browser-service/ —
  * materialized into the app-data service directory on first use; nothing is required from
  * outside the product). The service owns the optional Chromium-family browser process.
  * These commands only forward to that service over loopback HTTP; no browser logic lives
@@ -918,7 +918,7 @@ fn browser_base() -> String {
 
 fn browser_down_reason(e: &str) -> String {
     format!(
-        "No browser is attached: the 11Handle browser service is not answering on {}. Nothing was \
+        "No browser is attached: the SelfImpulse browser service is not answering on {}. Nothing was \
          fetched. Start it with `node <HANDLE_BROWSER_DIR>\\cli.mjs start` (defaults under your \
          app-data directory; set HANDLE_BROWSER_DIR if you keep it elsewhere). ({e})",
         browser_base()
@@ -996,16 +996,16 @@ fn browser_dir() -> PathBuf {
             if cfg!(windows) {
                 if let Ok(la) = std::env::var("LOCALAPPDATA") {
                     if !la.trim().is_empty() {
-                        return PathBuf::from(la).join("11Handle").join("browser-service");
+                        return PathBuf::from(la).join("SelfImpulse").join("browser-service");
                     }
                 }
             }
             if let Ok(home) = std::env::var("HOME") {
                 if !home.trim().is_empty() {
-                    return PathBuf::from(home).join(".local").join("share").join("11handle").join("browser-service");
+                    return PathBuf::from(home).join(".local").join("share").join("selfimpulse").join("browser-service");
                 }
             }
-            std::env::temp_dir().join("11handle-browser-service")
+            std::env::temp_dir().join("selfimpulse-browser-service")
         }
     }
 }

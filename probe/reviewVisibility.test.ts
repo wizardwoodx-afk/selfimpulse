@@ -302,20 +302,20 @@ async function main() {
   ok("the base checkout has NO untracked briefing files", baseStatus === "", `status: ${baseStatus.slice(0, 200)}`);
   ok("no CLAUDE.md was written into the base", !fs.existsSync(path.join(repo, "CLAUDE.md")));
   ok("no AGENTS.md was written into the base", !fs.existsSync(path.join(repo, "AGENTS.md")));
-  ok("no .vh-brief directory in the base", !fs.existsSync(path.join(repo, ".vh-brief")));
+  ok("no .si-brief directory in the base", !fs.existsSync(path.join(repo, ".si-brief")));
 
   section("7. briefings reached the writer, and cannot be committed by accident");
-  const coderBrief = coderRec ? path.join(coderRec.cwd, ".vh-brief", "AGENTS.md") : "";
+  const coderBrief = coderRec ? path.join(coderRec.cwd, ".si-brief", "AGENTS.md") : "";
   ok("the briefing was written into the writer's worktree", coderBrief !== "" && fs.existsSync(coderBrief), coderBrief);
   ok("the briefing states the objective", coderBrief !== "" && fs.readFileSync(coderBrief, "utf8").includes("sub()"));
   const coderStatus = coderRec ? sh(["git", "status", "--porcelain"], coderRec.cwd).out : "";
-  ok(".vh-brief does not show up as untracked in the worktree (it is git-excluded)", !coderStatus.includes(".vh-brief"), coderStatus.slice(0, 200));
+  ok(".si-brief does not show up as untracked in the worktree (it is git-excluded)", !coderStatus.includes(".si-brief"), coderStatus.slice(0, 200));
   ok("the writer's tree is clean after its commit", coderStatus.trim() === "", coderStatus.slice(0, 200));
   // Found by experiment, not by reading: git does NOT read info/exclude from a linked worktree's own
   // git dir (.git/worktrees/<name>/), so an exclusion written there does nothing and `git add -A`
   // commits the briefing into the agent's code change. Only the COMMON exclude file is consulted.
   const committedFiles = coderRec ? sh(["git", "show", "--name-only", "--format=", "HEAD"], coderRec.cwd).out : "";
-  ok("the briefing was NOT committed into the agent's work", !committedFiles.includes(".vh-brief"), `committed: ${committedFiles.trim().slice(0, 200)}`);
+  ok("the briefing was NOT committed into the agent's work", !committedFiles.includes(".si-brief"), `committed: ${committedFiles.trim().slice(0, 200)}`);
   ok("the briefing record says exclusion actually held", report.briefings.every((b) => b.writtenTo.length === 0 || b.excludedFromGit), JSON.stringify(report.briefings.map((b) => ({ p: b.path, ex: b.excludedFromGit }))));
 
   section("8. with no writer output there is nothing to review — and VH says so");

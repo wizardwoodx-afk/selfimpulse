@@ -1,15 +1,15 @@
 {
-  "name": "11handle-protocol",
+  "name": "selfimpulse-protocol",
   "version": "0.10.7",
   "private": true,
   "type": "module",
-  "description": "11Handle Protocol v0.10.7 (Scope-Bounded Delegation, Designated Authority, Authority Provenance, Rotation Possession \u0026 Revocation Authority) \u2014 the fixed device-to-device communication + trust substrate under the 11Handle agent OS: selective sharing, signature-verified vouching, hybrid-PQ content transfer, authorization/reputation/revocation for humans and AI agents.",
-  "main": "src/server/harbor.js",
+  "description": "SelfImpulse Protocol v0.10.7 (Scope-Bounded Delegation, Designated Authority, Authority Provenance, Rotation Possession \u0026 Revocation Authority) \u2014 the fixed device-to-device communication + trust substrate under the SelfImpulse agent OS: selective sharing, signature-verified selfimpulseing, hybrid-PQ content transfer, authorization/reputation/revocation for humans and AI agents.",
+  "main": "src/server/selfimpulse.js",
   "engines": {
     "node": ">=20.0.0"
   },
   "scripts": {
-    "start": "node src/server/harbor.js",
+    "start": "node src/server/selfimpulse.js",
     "test": "node test/selftest.js"
   },
   "dependencies": {

@@ -17,9 +17,9 @@ function ok(label, cond, detail = "") {
   }
 }
 var ROOT = ".".length > 0 ? "." : process.cwd();
-var drill = fs.readFileSync(path.join(ROOT, "src", "vouch", "engine", "drill.ts"), "utf8");
+var drill = fs.readFileSync(path.join(ROOT, "src", "selfimpulse", "engine", "drill.ts"), "utf8");
 var custody = fs.readFileSync(path.join(ROOT, "src", "mission", "custody.ts"), "utf8");
-ok("the retired Harbor Master / Register views are gone", !fs.existsSync(path.join(ROOT, "src", "views")), "views tree still present");
+ok("the retired SelfImpulse Master / Register views are gone", !fs.existsSync(path.join(ROOT, "src", "views")), "views tree still present");
 ok("Backtest \u2014 runDrill exists and writes a report", /export async function runDrill\(/.test(drill) && /export function drillReports\(/.test(drill), "drill seam missing");
 ok("Backtest \u2014 a tampered test file is a named canary, not silence", /export function testFileCanary\(/.test(drill) && /"tampered"/.test(drill), "canary missing");
 ok("Lineage \u2014 the delegation chain is signed custody, not a label", /delegationChain/.test(custody) && /export async function issueRootEnvelope\(/.test(custody), "delegation chain missing");

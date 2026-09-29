@@ -2,7 +2,7 @@
  * probe · wings — ORG routing, REACH channel policy + inbound scan, CONNECTORS.
  */
 import assert from "node:assert/strict";
-import { routeCaptainTask, applyChannelPolicy, scanInbound, CONNECTORS, financeCsvParse } from "../src/vh19/wings";
+import { routeCaptainTask, applyChannelPolicy, scanInbound, CONNECTORS, financeCsvParse } from "../src/engine/wings";
 
 let checks = 0;
 const ok = (cond: boolean, msg: string): void => {
@@ -11,7 +11,7 @@ const ok = (cond: boolean, msg: string): void => {
 };
 
 // --- ORG ---
-const fin = routeCaptainTask("classify the huge finance excel ledger and reconcile gst vouchers");
+const fin = routeCaptainTask("classify the huge finance excel ledger and reconcile gst selfimpulseers");
 ok(!("refused" in fin) && fin.desk === "FINANCE", "finance task routes to FINANCE desk");
 ok(!("refused" in fin) && fin.leads.length === 2 && fin.crew.length >= 3, "desk has Lead+HR and a crew");
 const refused = routeCaptainTask("paint the wall blue");

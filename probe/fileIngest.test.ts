@@ -33,11 +33,11 @@ import { createIngestRun, ingestFile, INGEST_LIMITS, sniffFormat } from "../src/
 import type { IngestLimits } from "../src/mission/fileIngest";
 import { extractStructure } from "../src/mission/knowledgeSkills";
 
-/* House convention: the runner defines HANDLE_ROOT at bundle time. Deriving the
+/* House convention: the runner defines SI_ROOT at bundle time. Deriving the
    root from import.meta.url instead breaks inside the offline pack, where the
    bundle lives in verify/suites/ and the sources it checks are one level up. */
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 const memStore = new Map<string, string>();
@@ -64,7 +64,7 @@ const bytesOf = (v: ArrayBuffer | Uint8Array) => (v instanceof Uint8Array ? v : 
 /* The pdf.js worker is resolved from the tree by the module itself in Node;
    say so explicitly here so a missing vendor file fails THIS suite loudly
    rather than turning every PDF check into a "refused" that looks correct.
-   path.resolve, not string-join: inside the offline pack HANDLE_ROOT is "." and
+   path.resolve, not string-join: inside the offline pack SI_ROOT is "." and
    the bundle runs with cwd = the tree, so a relative path must be resolved
    against it rather than turned into a file:// URL that points at a drive root. */
 configurePdfWorker(pathToFileURL(path.resolve(ROOT, "vendor", "pdfjs", "pdf.worker.min.mjs")).href);
@@ -585,7 +585,7 @@ ok("htmlToMarkdown preserves heading DEPTH (h1→#, h3→###), not just 'has hea
    any machine, including one with no user documents at all. */
 const realCandidates = [
   ["D:/edge downloads/K.S.Sree Harshen_Resume.pdf", "pdf"],
-  ["D:/11handle-work/demo/Synthetic-Industrial-FY26-CLASSIFIED.xlsx", "xlsx"],
+  ["D:/selfimpulse-work/demo/Synthetic-Industrial-FY26-CLASSIFIED.xlsx", "xlsx"],
 ] as const;
 for (const [p, label] of realCandidates) {
   if (!fs.existsSync(p)) { console.log(`  —    ${label}: no real ${label} at ${p} on this machine — skipped, not passed`); continue; }

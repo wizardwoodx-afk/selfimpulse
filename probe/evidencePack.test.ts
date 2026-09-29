@@ -48,14 +48,14 @@ describe("evidence pack — assembly and honesty", () => {
   it("an empty vault produces an honest empty pack", async () => {
     const vault = new ReceiptVault();
     const pack = await buildEvidencePack({ vault, mjVersion: "11.10.1", edition: "pro", ownedHarnesses: ["claude-code"] });
-    assert.equal(pack.format, "vh-evidence-pack/1");
+    assert.equal(pack.format, "si-evidence-pack/1");
     assert.equal(pack.manifest.receiptsOnFile, 0);
     assert.equal(pack.receipts.length, 0);
     assert.match(pack.manifest.note, /no receipts/i);
     assert.ok(pack.disclaimer.length > 100, "the disclaimer must be real text, not a token");
     assert.match(pack.disclaimer, /NOT a legal opinion|NOT an audit|NOT a claim/i);
     const json = evidencePackToJson(pack);
-    assert.ok(JSON.parse(json).format === "vh-evidence-pack/1", "the pack must serialize as JSON");
+    assert.ok(JSON.parse(json).format === "si-evidence-pack/1", "the pack must serialize as JSON");
   });
 
   it("a vault with receipts + attestation → complete, re-verified pack", async () => {
@@ -69,7 +69,7 @@ describe("evidence pack — assembly and honesty", () => {
     const repo = fs.mkdtempSync(path.join(os.tmpdir(), "mjep-"));
     fs.writeFileSync(path.join(repo, "app.js"), "1\n");
     execFileSync("git", ["init", "-q", "."], { cwd: repo });
-    execFileSync("git", ["config", "user.email", "vh@11handle.local"], { cwd: repo });
+    execFileSync("git", ["config", "user.email", "vh@selfimpulse.local"], { cwd: repo });
     execFileSync("git", ["config", "user.name", "VH"], { cwd: repo });
     execFileSync("git", ["add", "-A"], { cwd: repo });
     execFileSync("git", ["commit", "-q", "-m", "base"], { cwd: repo });
@@ -100,7 +100,7 @@ describe("evidence pack — assembly and honesty", () => {
     assert.equal(pack.manifest.receiptsBrokenAtExport.length, 0);
     assert.equal(pack.receipts.length, 2);
     assert.ok(pack.receipts.every((r) => r.validAtExport === true));
-    assert.match(pack.receipts[0].receiptJsonl, /vh-proof-receipt\/2/, "pack receipts are the v2 JSONL verbatim");
+    assert.match(pack.receipts[0].receiptJsonl, /si-proof-receipt\/2/, "pack receipts are the v2 JSONL verbatim");
 
     assert.equal(pack.manifest.mergeAttestations, 1);
     assert.equal(pack.mergeAttestations.length, 1);

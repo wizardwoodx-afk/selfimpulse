@@ -1,7 +1,7 @@
 /**
- * §A2A LIVE BRIDGE — an inbound cross-harbor delegation EXECUTES, and is sealed.
+ * §A2A LIVE BRIDGE — an inbound cross-selfimpulse delegation EXECUTES, and is sealed.
  *
- * THE GAP THIS CLOSES. `harborTeams.ts` owns the cross-harbor ladder: strict A2A
+ * THE GAP THIS CLOSES. `selfimpulseTeams.ts` owns the cross-selfimpulse ladder: strict A2A
  * v1.0 discovery, JWS card verification, sender routing, GuardRail, the sender
  * human gate, a tamper-evident packet digest, the receiver re-scan, the receiver
  * human gate, and a digest both sides re-verify. All of that was real. The last
@@ -12,17 +12,17 @@
  * A template literal that asserts execution it never performed, in a product
  * whose entire premise is that a claim without evidence is not a claim. That is
  * the one place the product could say "the agent did the work" without anything
- * behind it — exactly the failure mode 11Handle exists to make impossible.
+ * behind it — exactly the failure mode SelfImpulse exists to make impossible.
  *
  * WHAT THIS DOES INSTEAD.
  *
  *     A2A packet
- *       ↓  (harborTeams: card verify · GuardRail · receiver gate · replay guard)
+ *       ↓  (selfimpulseTeams: card verify · GuardRail · receiver gate · replay guard)
  *     runInboundDelegation()                       ← this module
  *       ↓  one seat, built from the receiving teammate
  *     executeTeam()                                ← the REAL executor
  *       ↓  real CLI spawn through the injected deps, real git, real verify
- *     buildProofReceipt() → verifyProofReceipt()   ← vh-proof-receipt/2, sealed AND re-verified
+ *     buildProofReceipt() → verifyProofReceipt()   ← si-proof-receipt/2, sealed AND re-verified
  *       ↓
  *     { outcome, execution, receipt }              ← bound into the DelegationRecord
  *
@@ -43,7 +43,7 @@
   type Capability, type ChainHop, type Grant, type Principal,
 } from "../security/authority";
 
-import type { Teammate } from "./harborTeams";
+import type { Teammate } from "./selfimpulseTeams";
 import {
   executeTeam,
   type SeatAssignment,
@@ -189,8 +189,8 @@ function executionOf(report: TeamRunReport, inProcess: boolean): BridgeExecution
  * Run an inbound delegation for real and seal it.
  *
  * @param teammate the receiving teammate the packet was routed to
- * @param task     the GuardRail-clean task text (harborTeams already scanned it)
- * @param fromUser the sending harbor's user, for provenance only
+ * @param task     the GuardRail-clean task text (selfimpulseTeams already scanned it)
+ * @param fromUser the sending selfimpulse's user, for provenance only
  */
 export async function runInboundDelegation(
   teammate: Teammate,
@@ -257,7 +257,7 @@ export async function runInboundDelegation(
      an honest "cannot run" into a silent failure. */
   if (typeof cfg.deps.nativeInvoke !== "function") {
     const reason = `this host has no in-process seat runner (no provider key) — refusing the delegation in words rather ` +
-      `than answering with a fabricated completion. Set 11H_A2A_PROVIDER_KEY to run seats here.`;
+      `than answering with a fabricated completion. Set SI_A2A_PROVIDER_KEY to run seats here.`;
     return cfg.allowUnexecuted
       ? { ok: false, outcome: "not-executed", artifact: `${teammate.name}: ${reason}`, execution: null, receipt: null, reason }
       : refuse(reason);

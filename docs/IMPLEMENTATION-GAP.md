@@ -17,7 +17,7 @@ These were verified in code, not inferred from the docs, and were not touched.
 
 | Frozen requirement | Where it lives | Verdict |
 |---|---|---|
-| One runtime, role/capability profiles | `vh19/agentLoop.ts` `runMemberAgent`; tiers are `Specialist` records in `types.ts`, not separate codebases | satisfied |
+| One runtime, role/capability profiles | `engine/agentLoop.ts` `runMemberAgent`; tiers are `Specialist` records in `types.ts`, not separate codebases | satisfied |
 | Captain is the only human-facing agent | `captains.ts`; `face.tsx` | satisfied |
 | Routing is sparse, capped | `moeV2.ts` `CREW_MAX = 25`, `POOL_CATEGORY_MIN = 3` | satisfied |
 | AI proposes, deterministic code authorises | `tools.ts:371` refuses non-`safe` tools without a gate; `generalist.ts:284` tier gate | satisfied |
@@ -28,7 +28,7 @@ These were verified in code, not inferred from the docs, and were not touched.
 | Federation is cross-principal | `federation/standing.ts` two-signature ECDSA standing grant, `reach/delegationGrant.ts` capability narrowing | satisfied, 2-party only |
 | Regulated activation is cryptographically gated | `federation/regulatedPolicy.ts` refuses unsigned activation "a name is not an authorisation" | satisfied |
 | Self-improvement cannot rewrite its own authority | `rsirals.ts` `GOVERNANCE_PLANE` frozen, `∂T/∂A = 0` | satisfied |
-| Checker is never the author | external `verifier/vh-verifier.mjs`, 10-check battery, digest-pinned, owner-countersigned | satisfied |
+| Checker is never the author | external `verifier/si-verifier.mjs`, 10-check battery, digest-pinned, owner-countersigned | satisfied |
 | Untrusted archives are scanned before decompression | `mission/archiveScan.ts` bomb defence + entry-name sanitising | satisfied |
 | Quarantine exists for extraction | `mission/fileIngest.ts` | satisfied |
 
@@ -52,7 +52,7 @@ path. Consequences in the shipped app:
 - `attestMissionRun` returned `null` on every run, because `executedTools`
   was always empty
 
-`vh19/browserWorkspace.ts` already existed and was written for exactly this
+`engine/browserWorkspace.ts` already existed and was written for exactly this
 seam. It was simply never wired. `runDeps` now supplies `workspaceRoot` and
 `fsImpl` from a store-held workspace, defaulting to the in-memory backing and
 offering a user-picked directory via `useRealFolder()` when the File System
@@ -115,7 +115,7 @@ Left in place, with reasons:
 |---|---|
 | `munshi/gstin.ts` "Tamil Nadu" | real GST state-code data; removing it breaks tax validation |
 | `INR` and the GST challan line in the finance fixture | domain characteristics of the pack, not customer identity |
-| `vouch.ts` city knowledge base and the IST clock tool | a timezone feature, not a company reference — see OPEN-3 |
+| `selfimpulse.ts` city knowledge base and the IST clock tool | a timezone feature, not a company reference — see OPEN-3 |
 
 ---
 
@@ -147,15 +147,15 @@ These are real. None is cosmetic.
 constitution, drift, canary and rollback governance. `runRsiCycle`,
 `applyRsiDraft` and `settleRsiPromotion` have **no caller in `src/`**. Only
 `recordRsiSignal` and `revertRsiMemory` are wired. The pinned external
-verifier at `verifier/vh-verifier.mjs` is never spawned by the app. The
+verifier at `verifier/si-verifier.mjs` is never spawned by the app. The
 machinery is correct and unreachable.
 
 **OPEN-2 · `crew.ts` is dead (472 lines).** The only code with true
 concurrency, per-member failover, a circuit breaker and hot mode switching.
 No UI or `src/` caller. §2.3 works around this rather than through it.
 
-**OPEN-3 · The clock tool is hard-wired to one city's timezone.** `vouch.ts`
-computes IST and `VouchPage.tsx` ships a starter button that asks for that
+**OPEN-3 · The clock tool is hard-wired to one city's timezone.** `selfimpulse.ts`
+computes IST and `SelfImpulsePage.tsx` ships a starter button that asks for that
 city's time. For a global product the clock should read the machine's own
 zone. Left alone because generalising it touches timezone logic and three
 probes, and it is a product decision rather than a defect.
@@ -178,7 +178,7 @@ cross-principal decision point whose output is an unsigned hash, and
 `bridge.ts` feeds its verdict straight into `crossFederation`. Everything else
 in the trust fabric is ECDSA P-256.
 
-**OPEN-8 · `vouchMesh.ts` uses symmetric HMAC** inside an otherwise asymmetric
+**OPEN-8 · `selfimpulseMesh.ts` uses symmetric HMAC** inside an otherwise asymmetric
 fabric (`attest` takes a shared `peerSecret`).
 
 **OPEN-9 · `demoEntry.ts` writes files at import time.** Zero exports,

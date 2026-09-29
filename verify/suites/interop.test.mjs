@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/vouch/ipc/client.ts
+// src/selfimpulse/ipc/client.ts
 var client_exports = {};
 __export(client_exports, {
   ipc: () => ipc,
@@ -20,7 +20,7 @@ function isNativeHost() {
 }
 var invoke, ipc;
 var init_client = __esm({
-  "src/vouch/ipc/client.ts"() {
+  "src/selfimpulse/ipc/client.ts"() {
     "use strict";
     invoke = (cmd, args) => {
       const internals = window.__TAURI_INTERNALS__;
@@ -52,9 +52,9 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-// src/vouch/engine/signing.ts
-var STORAGE_KEY = "vouch.issuerkey.v1";
-var KEYCHAIN_REF = "vouch.issuerkey.v1";
+// src/selfimpulse/engine/signing.ts
+var STORAGE_KEY = "selfimpulse.issuerkey.v1";
+var KEYCHAIN_REF = "selfimpulse.issuerkey.v1";
 async function keychainBridge() {
   if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return null;
   try {
@@ -108,7 +108,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vouch-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `selfimpulse-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -123,7 +123,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vouch-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `selfimpulse-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -166,11 +166,11 @@ async function verifyIssuerSignature(chainHashHex, sigHex, publicKeyHex) {
   }
 }
 
-// src/vouch/engine/proof.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+// src/selfimpulse/engine/proof.ts
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT = {
-  "vh-proof-receipt/2": VERIFY_SECRET,
+  "si-proof-receipt/2": VERIFY_SECRET,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET
 };
@@ -219,7 +219,7 @@ async function buildChainedReceipt(args) {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal,
@@ -228,7 +228,7 @@ async function buildChainedReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal,
@@ -272,14 +272,14 @@ function receiptToJsonl(rc) {
 // src/version.ts
 var ENGINE_VERSION = "19.7.15";
 var ENGINE_SHORT = "19.7";
-var ENGINE_CODENAME = "Handle";
-var PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+var ENGINE_CODENAME = "SelfImpulse";
+var PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
 
-// src/vouch/engine/crossHarbor.ts
+// src/selfimpulse/engine/crossSelfImpulse.ts
 var subtle = globalThis.crypto?.subtle;
 var ECDSA = { name: "ECDSA", namedCurve: "P-256" };
 var ECDSA_SIGN = { name: "ECDSA", hash: "SHA-256" };
-var IDENTITY_KEY = "vouch.crossharbor.identity.v1";
+var IDENTITY_KEY = "selfimpulse.crossselfimpulse.identity.v1";
 var ANCHOR_WINDOW_MS = 5 * 6e4;
 var enc2 = new TextEncoder();
 function b64e(buf) {
@@ -289,7 +289,7 @@ function b64e(buf) {
   return typeof btoa === "function" ? btoa(s) : Buffer.from(bytes).toString("base64");
 }
 async function fingerprintFromJwk(jwk) {
-  if (!subtle) throw new Error("cross-harbor identity requires WebCrypto");
+  if (!subtle) throw new Error("cross-selfimpulse identity requires WebCrypto");
   const stable = JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x, y: jwk.y });
   const h = Array.from(new Uint8Array(await subtle.digest("SHA-256", enc2.encode(stable)))).map((b) => b.toString(16).padStart(2, "0")).join("");
   return h.slice(0, 16).toUpperCase().match(/.{4}/g).join("-");
@@ -297,7 +297,7 @@ async function fingerprintFromJwk(jwk) {
 async function selfTest(privateKey, publicJwk) {
   if (!subtle) return false;
   try {
-    const msg = enc2.encode("VH-CROSS-HARBOR-SELFTEST-v1");
+    const msg = enc2.encode("SI-CROSS-SELFIMPULSE-SELFTEST-v1");
     const sig = await subtle.sign(ECDSA_SIGN, privateKey, msg);
     const pub = await subtle.importKey("jwk", publicJwk, ECDSA, false, ["verify"]);
     return await subtle.verify(ECDSA_SIGN, pub, sig, msg);
@@ -305,8 +305,8 @@ async function selfTest(privateKey, publicJwk) {
     return false;
   }
 }
-async function loadOrCreateCrossHarborIdentity(store, name = "patina-agent") {
-  if (!subtle) return { ok: false, reason: "runtime has no WebCrypto \u2014 cannot hold a cross-harbor identity" };
+async function loadOrCreateCrossSelfImpulseIdentity(store, name = "patina-agent") {
+  if (!subtle) return { ok: false, reason: "runtime has no WebCrypto \u2014 cannot hold a cross-selfimpulse identity" };
   let raw = null;
   try {
     raw = store.get(IDENTITY_KEY);
@@ -318,17 +318,17 @@ async function loadOrCreateCrossHarborIdentity(store, name = "patina-agent") {
       const rec = JSON.parse(raw);
       const privateKey = await subtle.importKey("jwk", rec.privateJwk, ECDSA, true, ["sign"]);
       if (!await selfTest(privateKey, rec.publicJwk))
-        return { ok: false, reason: "cross-harbor identity keypair mismatch: stored public key does not match private key" };
+        return { ok: false, reason: "cross-selfimpulse identity keypair mismatch: stored public key does not match private key" };
       return { ok: true, value: { fp: await fingerprintFromJwk(rec.publicJwk), name, publicKey: await subtle.importKey("jwk", rec.publicJwk, ECDSA, false, ["verify"]), privateKey, publicJwk: rec.publicJwk } };
     } catch (e) {
-      return { ok: false, reason: `cross-harbor identity unreadable: ${e.message}` };
+      return { ok: false, reason: `cross-selfimpulse identity unreadable: ${e.message}` };
     }
   }
   const kp = await subtle.generateKey(ECDSA, true, ["sign", "verify"]);
   const publicJwk = await subtle.exportKey("jwk", kp.publicKey);
   const privateJwk = await subtle.exportKey("jwk", kp.privateKey);
   if (!await selfTest(kp.privateKey, publicJwk))
-    return { ok: false, reason: "freshly generated cross-harbor identity failed self-test" };
+    return { ok: false, reason: "freshly generated cross-selfimpulse identity failed self-test" };
   try {
     store.set(IDENTITY_KEY, JSON.stringify({ v: 1, publicJwk, privateJwk, createdAt: (/* @__PURE__ */ new Date()).toISOString() }));
   } catch (e) {
@@ -360,7 +360,7 @@ async function anchorReceipt(rc, identity, purpose = "cross-org-proof-anchoring"
     kind: "agent_action",
     agent: { n: identity.name.slice(0, 60), fp: identity.fp },
     action: "anchor_receipt",
-    tool: "vh-cross-harbor",
+    tool: "si-cross-selfimpulse",
     purpose: purpose.slice(0, 200),
     policy: null,
     evidence: evidence.slice(0, 2e3),
@@ -377,7 +377,7 @@ async function anchorReceipt(rc, identity, purpose = "cross-org-proof-anchoring"
 
 // probe/interop.test.ts
 var root = ".".length > 0 ? path.resolve(".") : path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-var cli = path.join(root, "tools", "vh-interop.mjs");
+var cli = path.join(root, "tools", "si-interop.mjs");
 function memStore() {
   const map = /* @__PURE__ */ new Map();
   return { map, get: (k) => map.get(k) ?? null, set: (k, v) => {
@@ -403,8 +403,8 @@ function runCli(args) {
 }
 describe("interop \u2014 two machines, one trust chain (17.6.2)", () => {
   it("machine A (TS runtime) \u2192 transport files \u2192 machine B (JS CLI): the whole chain verifies", async () => {
-    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "vh-interop-"));
-    const idA = await loadOrCreateCrossHarborIdentity(memStore(), "machine-a");
+    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "si-interop-"));
+    const idA = await loadOrCreateCrossSelfImpulseIdentity(memStore(), "machine-a");
     assert.equal(idA.ok, true);
     if (!idA.ok) return;
     const rc = await buildChainedReceipt({
@@ -443,8 +443,8 @@ describe("interop \u2014 two machines, one trust chain (17.6.2)", () => {
     assert.equal(opened.agent.fp, idA.value.fp, "machine B attributes the proof to machine A's signer");
   });
   it("replay at machine B: the same envelope is ONE-TIME evidence", async () => {
-    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "vh-interop-"));
-    const idA = await loadOrCreateCrossHarborIdentity(memStore(), "machine-a");
+    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "si-interop-"));
+    const idA = await loadOrCreateCrossSelfImpulseIdentity(memStore(), "machine-a");
     if (!idA.ok) throw new Error("identity");
     const rc = await buildChainedReceipt({
       mission: "replay-mission",
@@ -467,8 +467,8 @@ describe("interop \u2014 two machines, one trust chain (17.6.2)", () => {
     assert.match(second.stderr, /replayed-envelope/);
   });
   it("transport tampering is refused IN WORDS at machine B", async () => {
-    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "vh-interop-"));
-    const idA = await loadOrCreateCrossHarborIdentity(memStore(), "machine-a");
+    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "si-interop-"));
+    const idA = await loadOrCreateCrossSelfImpulseIdentity(memStore(), "machine-a");
     if (!idA.ok) throw new Error("identity");
     const rc = await buildChainedReceipt({
       mission: "tamper-mission",
@@ -489,7 +489,7 @@ describe("interop \u2014 two machines, one trust chain (17.6.2)", () => {
     assert.match(res.stderr, /bad-signature/);
   });
   it("a tampered receipt in transit is refused by machine B's rulebook", async () => {
-    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "vh-interop-"));
+    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "si-interop-"));
     const rc = await buildChainedReceipt({
       mission: "receipt-tamper",
       teamId: "t",
@@ -510,8 +510,8 @@ describe("interop \u2014 two machines, one trust chain (17.6.2)", () => {
     assert.match(res.stderr, /REFUSED/);
   });
   it("the transport-pack command ships the machine boundary as files", async () => {
-    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "vh-interop-"));
-    const idA = await loadOrCreateCrossHarborIdentity(memStore(), "packer");
+    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "si-interop-"));
+    const idA = await loadOrCreateCrossSelfImpulseIdentity(memStore(), "packer");
     if (!idA.ok) throw new Error("identity");
     const rc = await buildChainedReceipt({
       mission: "pack-mission",

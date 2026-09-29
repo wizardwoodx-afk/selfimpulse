@@ -26,18 +26,18 @@
  * in that throw — and the one live call site wraps `durableSave` in a try/catch
  * that swallows the error, so the failure was INVISIBLE: in the web edition
  * durable missions never saved at all. The digest is now `pureSha256`
- * (src/vh19/pureHash.ts), a from-scratch FIPS 180-4 implementation that is
+ * (src/engine/pureHash.ts), a from-scratch FIPS 180-4 implementation that is
  * byte-identical to node:crypto — probe/meshRuntime already pins that
  * equivalence on fixed vectors. Receipt and envelope digests are unchanged, so
  * every previously issued snapshot still verifies; this module no longer
  * imports a builtin, so the same code runs on Node, Tauri and the WebView.
  */
-import { pureSha256 } from "../vh19/pureHash";
+import { pureSha256 } from "../engine/pureHash";
 import type { MissionRuntime } from "./missionRuntime";
 import type { PersistedMissionState } from "./checkpoints";
 
 export interface DurableEnvelope {
-  format: "vh-durable-mission/1";
+  format: "si-durable-mission/1";
   missionId: string;
   savedAt: string;
   digest: string; // sha256 over the canonical persisted state JSON
@@ -87,7 +87,7 @@ const key = (missionId: string) => `vh.durable.${missionId}`;
 export function durableSave(runtime: MissionRuntime, store: DurableKVLike = defaultDurableKV()): DurableEnvelope {
   const state = runtime.persist();
   const envelope: DurableEnvelope = {
-    format: "vh-durable-mission/1",
+    format: "si-durable-mission/1",
     missionId: state.missionId,
     savedAt: new Date().toISOString(),
     digest: digestOf(JSON.stringify(state)),
@@ -111,7 +111,7 @@ export function durableResume(runtime: MissionRuntime, store: DurableKVLike = de
   } catch {
     return { ok: false, refused: "durable snapshot is corrupt (unparseable) — refused in words; work is NOT resumed into half-state." };
   }
-  if (env.format !== "vh-durable-mission/1") return { ok: false, refused: `unknown durable format "${env.format}" — refused.` };
+  if (env.format !== "si-durable-mission/1") return { ok: false, refused: `unknown durable format "${env.format}" — refused.` };
   if (digestOf(JSON.stringify(env.state)) !== env.digest) return { ok: false, refused: "durable snapshot failed its digest — it was modified after save; refused rather than resumed." };
   const r = runtime.restore(env.state);
   if (!r.ok) return { ok: false, refused: `runtime restore refused: ${r.errors.join("; ")}` };

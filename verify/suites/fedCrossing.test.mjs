@@ -4,7 +4,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-// src/vh19/pureHash.ts
+// src/engine/pureHash.ts
 var K = [
   1116352408,
   1899447441,
@@ -134,12 +134,12 @@ function pureSha256(text) {
   return toHex(sha256Bytes(utf8(text)));
 }
 
-// src/vh19/vouchMesh.ts
+// src/engine/selfimpulseMesh.ts
 var pairKey = (a, b) => [a, b].sort().join("\u2194");
-var meshStanding = (t) => !t ? "unknown" : t.trust < 3 ? "probation" : t.trust < 10 ? "vouched" : "proven";
+var meshStanding = (t) => !t ? "unknown" : t.trust < 3 ? "probation" : t.trust < 10 ? "selfimpulseed" : "proven";
 
-// src/vh19/meshRuntime.ts
-var TRUST_KEY = "vh19.mesh.trust.v1";
+// src/engine/meshRuntime.ts
+var TRUST_KEY = "engine.mesh.trust.v1";
 function loadTrust() {
   try {
     const raw = globalThis.localStorage?.getItem(TRUST_KEY);
@@ -157,7 +157,7 @@ function standingFor(a, b) {
   return meshStanding(pairTrustFor(a, b));
 }
 
-// src/vh19/reach/delegationGrant.ts
+// src/engine/reach/delegationGrant.ts
 var DELEGATION_CAPABILITIES = [
   "repo.read",
   "data.aggregate",
@@ -173,7 +173,7 @@ var DELEGATION_CAPABILITIES = [
 var CAPABILITIES_BY_STANDING = {
   unknown: [],
   probation: ["repo.read", "data.aggregate"],
-  vouched: ["repo.read", "data.aggregate", "test.run", "net.fetch", "egress.share"],
+  selfimpulseed: ["repo.read", "data.aggregate", "test.run", "net.fetch", "egress.share"],
   proven: [
     "repo.read",
     "data.aggregate",
@@ -199,7 +199,7 @@ function grantCanonical(g) {
   return [g.id, g.pair, g.tier, g.at, String(g.humanFirst), g.granted.join(","), refusals].join("");
 }
 function tiersFor(capability) {
-  return ["probation", "vouched", "proven"].filter((t) => CAPABILITIES_BY_STANDING[t].includes(capability));
+  return ["probation", "selfimpulseed", "proven"].filter((t) => CAPABILITIES_BY_STANDING[t].includes(capability));
 }
 function narrowGrant(input) {
   const tier = input.standing ?? "unknown";
@@ -246,7 +246,7 @@ function narrowGrant(input) {
         refused.push({
           capability,
           rule: "human-first",
-          why: `${capability} changes the state of this harbor, so it needs a human decision naming it; none was attached`
+          why: `${capability} changes the state of this selfimpulse, so it needs a human decision naming it; none was attached`
         });
         continue;
       }
@@ -288,7 +288,7 @@ function grantForPair(input, deps = {}) {
   return narrowGrant({ ...input, standing: read(input.ownerA, input.ownerB) });
 }
 
-// src/vh19/authorityCore.ts
+// src/engine/authorityCore.ts
 function bytesToB64(bytes) {
   let s = "";
   for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
@@ -301,7 +301,7 @@ function b64ToBytes(b64) {
   return out;
 }
 
-// src/vh19/authorityWeb.ts
+// src/engine/authorityWeb.ts
 var EC = { name: "ECDSA", namedCurve: "P-256" };
 async function generateOwnerKeysWeb() {
   const pair = await crypto.subtle.generateKey(EC, true, ["sign", "verify"]);
@@ -321,22 +321,22 @@ async function importPublicKeyWeb(publicKeyPem) {
   return crypto.subtle.importKey("spki", b64ToBytes(b64).buffer, EC, false, ["verify"]);
 }
 
-// src/vh19/missionAuthority.ts
+// src/engine/missionAuthority.ts
 var browserRawStorage = (() => {
   try {
     const ls = globalThis.localStorage;
     if (!ls) return null;
-    return { get: () => ls.getItem("vh19.ownerKeys.v1"), set: (v) => ls.setItem("vh19.ownerKeys.v1", v) };
+    return { get: () => ls.getItem("engine.ownerKeys.v1"), set: (v) => ls.setItem("engine.ownerKeys.v1", v) };
   } catch {
     return null;
   }
 })();
 
-// src/vh19/avatarEngine.ts
+// src/engine/avatarEngine.ts
 var AVATAR_INKS = ["#2d3142", "#3a3f52", "#586a66", "#46554f", "#827278", "#695c5e"];
 var AVATAR_FIELDS = ["#d8d5db", "#d5dfea", "#e2e6ed", "#c6cdd3"];
 
-// src/vh19/federation/sigil.ts
+// src/engine/federation/sigil.ts
 var PINNED_PALETTE = [
   ...AVATAR_INKS,
   ...AVATAR_FIELDS,
@@ -382,7 +382,7 @@ function fingerprintOf(seed) {
   return [hex.slice(0, 4), hex.slice(4, 8), hex.slice(8, 12), hex.slice(12, 16)].join("-");
 }
 
-// src/vh19/federation/identity.ts
+// src/engine/federation/identity.ts
 var KEY_FACE_PREFIX = "vh.fed.face.key.v1:";
 function canonicalKeyMaterial(publicKeyPem) {
   return publicKeyPem.replace(/-----[A-Z ]+-----/g, "").replace(/\s+/g, "");
@@ -394,12 +394,12 @@ function keyHandle(publicKeyPem) {
   return fingerprintOf(faceSeedForKey(publicKeyPem));
 }
 
-// src/vh19/federation/approval.ts
+// src/engine/federation/approval.ts
 var APPROVAL_SCHEME = "ecdsa-p256";
 var APPROVAL_FORMAT = "vh.fed.approval.v1";
 var APPROVAL_PREFIX = `${APPROVAL_SCHEME}:`;
 var APPROVAL_SIGNER = "owner-authority-key";
-var APPROVAL_ATTESTATION = "the harbor owner's authority key approved this crossing, naming the human who authorised it";
+var APPROVAL_ATTESTATION = "the selfimpulse owner's authority key approved this crossing, naming the human who authorised it";
 var APPROVAL_NOT_ATTESTED = "that the named human authenticated with a credential distinct from the owner key";
 var HEX64 = /^[0-9a-f]{64}$/;
 var MIN_NONCE_CHARS = 16;
@@ -428,13 +428,13 @@ async function issueFederationApproval(body, keys) {
     return { ok: false, reason: "no-human", detail: "a capability decision must name the person it is made on behalf of; without a name there is nothing to sign" };
   }
   if (!body.pair.includes("\u2194")) {
-    return { ok: false, reason: "malformed", detail: "the pair key must be the two-harbor pair key, not a single harbor name" };
+    return { ok: false, reason: "malformed", detail: "the pair key must be the two-selfimpulse pair key, not a single selfimpulse name" };
   }
   if (body.side !== "initiator" && body.side !== "responder") {
     return { ok: false, reason: "malformed", detail: `side "${String(body.side)}" is neither end of a crossing` };
   }
   if (!DELEGATION_CAPABILITIES.includes(body.capability)) {
-    return { ok: false, reason: "unknown-capability", detail: `"${body.capability}" is not a delegation capability the harbor has a policy for` };
+    return { ok: false, reason: "unknown-capability", detail: `"${body.capability}" is not a delegation capability the selfimpulse has a policy for` };
   }
   if (!HEX64.test(body.envelopeDigest)) {
     return { ok: false, reason: "not-a-crossing-binding", detail: "the envelope digest must be the 64-hex sha256 of the exact crossing this decision authorises" };
@@ -540,11 +540,11 @@ function approvalDigest(approval) {
   return pureSha256(`vh.fed.approval.v1:${approvalCanonical(approval)}|${approval.signature}`);
 }
 
-// src/vh19/federation/standing.ts
+// src/engine/federation/standing.ts
 var STANDING_FORMAT = "vh.fed.standing.v1";
 var STANDING_PREFIX = `ecdsa-p256:`;
 var STANDING_SIGNER = APPROVAL_SIGNER;
-var STANDING_ATTESTATION = "the harbor owner's authority key authorised this crossing in advance, under a standing grant that names the human who set its scope and its bounds";
+var STANDING_ATTESTATION = "the selfimpulse owner's authority key authorised this crossing in advance, under a standing grant that names the human who set its scope and its bounds";
 var STANDING_NOT_ATTESTED = "that a human reviewed this specific crossing \u2014 the grant was approved once, and its bounds (capabilities, budget, window, expiry) are what stand in for a per-crossing decision";
 var OUT_OF_SCOPE_ESCALATE = "escalate";
 function standingCanonical(b) {
@@ -571,7 +571,7 @@ function judgeGrantBody(b) {
     return { ok: false, reason: "malformed", detail: "a grant without an id cannot be revoked, cited or audited" };
   }
   if (!b.pair.includes("\u2194")) {
-    return { ok: false, reason: "malformed", detail: "the pair key must be the two-harbor pair key, not a single harbor name" };
+    return { ok: false, reason: "malformed", detail: "the pair key must be the two-selfimpulse pair key, not a single selfimpulse name" };
   }
   if (!b.initiatorHuman?.trim() || !b.responderHuman?.trim()) {
     return { ok: false, reason: "no-human", detail: "a standing grant runs without a human in the loop, so BOTH humans must be named at the moment it is set \u2014 an unnamed side has nobody accountable for what it authorised" };
@@ -584,7 +584,7 @@ function judgeGrantBody(b) {
   }
   const unknown = b.capabilities.filter((c) => !DELEGATION_CAPABILITIES.includes(c));
   if (unknown.length > 0) {
-    return { ok: false, reason: "unknown-capability", detail: `"${unknown.join('", "')}" is not a delegation capability this harbor has a policy for` };
+    return { ok: false, reason: "unknown-capability", detail: `"${unknown.join('", "')}" is not a delegation capability this selfimpulse has a policy for` };
   }
   if (new Set(b.capabilities).size !== b.capabilities.length) {
     return { ok: false, reason: "malformed", detail: "the same capability is listed twice; a grant is a set, not a tally" };
@@ -746,7 +746,7 @@ function standingNotice(grant, usage) {
   return `standing authority: ${grant.capabilities.join(", ")} on ${grant.pair} \u2014 ${usage.crossings}/${grant.maxCrossings} crossings used, expiring ${new Date(grant.expiresAt).toISOString()}; out-of-scope work returns to a human`;
 }
 
-// src/vh19/federation/ledger.ts
+// src/engine/federation/ledger.ts
 var LEDGER_FORMAT = "vh.fed.ledger.v1";
 var LEDGER_ATTESTATION = "both sides hold the same set of records: each derived this root from its own store, and the two roots agree";
 var LEDGER_NOT_ATTESTED = "that the recorded actions were wise or well authorised \u2014 agreement about what happened is not agreement about what should have happened";
@@ -841,7 +841,7 @@ function ledgerRowSentence(row) {
   return `crossing ${row.crossingId}: held only by the ${row.seenBy.replace("-only", "")} \u2014 the other side has no record of it`;
 }
 
-// src/vh19/federation/bridge.ts
+// src/engine/federation/bridge.ts
 var CROSSING_FORMAT = "vh.fed.crossing.v1";
 var DEFAULT_ENVELOPE_TTL_MS = 10 * 60 * 1e3;
 function envelopeCanonical(e) {
@@ -924,8 +924,8 @@ async function crossFederation(parties, wiring = {}) {
   const readResponder = wiring.standingResponder ?? wiring.standing ?? localLedger;
   const sharedStore = readInitiator === readResponder;
   const standingSource = {
-    initiator: wiring.stores?.initiator ?? (readInitiator === localLedger ? "this machine's VouchMesh ledger" : sharedStore ? "the shared local store" : "the initiator's local store"),
-    responder: wiring.stores?.responder ?? (readResponder === localLedger ? "this machine's VouchMesh ledger" : sharedStore ? "the shared local store" : "the responder's local store"),
+    initiator: wiring.stores?.initiator ?? (readInitiator === localLedger ? "this machine's SelfImpulseMesh ledger" : sharedStore ? "the shared local store" : "the initiator's local store"),
+    responder: wiring.stores?.responder ?? (readResponder === localLedger ? "this machine's SelfImpulseMesh ledger" : sharedStore ? "the shared local store" : "the responder's local store"),
     shared: sharedStore
   };
   const atIso = new Date(envelope2.at).toISOString();
@@ -1088,7 +1088,7 @@ async function crossFederation(parties, wiring = {}) {
   if (!initiatorVerdict.ok) {
     const needsHuman = grantInitiator.refused.some((r) => r.rule === "human-first");
     const reason = initiatorVerdict.reason === "malformed" && needsHuman ? "initiator-human-first" : "initiator-approval-invalid";
-    const detail = initiatorVerdict.reason === "malformed" && needsHuman ? `${envelope2.capability} changes the initiator's harbor, so its owner must approve it by name: ${initiatorVerdict.detail}. A previous successful crossing is a record, not a decision.` : `the initiator's approval does not hold: ${initiatorVerdict.reason} \u2014 ${initiatorVerdict.detail}`;
+    const detail = initiatorVerdict.reason === "malformed" && needsHuman ? `${envelope2.capability} changes the initiator's selfimpulse, so its owner must approve it by name: ${initiatorVerdict.detail}. A previous successful crossing is a record, not a decision.` : `the initiator's approval does not hold: ${initiatorVerdict.reason} \u2014 ${initiatorVerdict.detail}`;
     return finish("refused", reason, detail, filed);
   }
   const responderVerdict = await verifyFederationApproval(
@@ -1100,7 +1100,7 @@ async function crossFederation(parties, wiring = {}) {
   if (!responderVerdict.ok) {
     const needsHuman = grantResponder.refused.some((r) => r.rule === "human-first");
     const reason = responderVerdict.reason === "malformed" && needsHuman ? "responder-human-first" : "responder-approval-invalid";
-    const detail = responderVerdict.reason === "malformed" && needsHuman ? `${envelope2.capability} changes the responder's harbor, so its owner must approve it by name: ${responderVerdict.detail}. A previous successful crossing is a record, not a decision.` : `the responder's approval does not hold: ${responderVerdict.reason} \u2014 ${responderVerdict.detail}`;
+    const detail = responderVerdict.reason === "malformed" && needsHuman ? `${envelope2.capability} changes the responder's selfimpulse, so its owner must approve it by name: ${responderVerdict.detail}. A previous successful crossing is a record, not a decision.` : `the responder's approval does not hold: ${responderVerdict.reason} \u2014 ${responderVerdict.detail}`;
     return finish("refused", reason, detail, filed);
   }
   if (!grantAllows(grantInitiator, envelope2.capability)) {
@@ -1120,7 +1120,7 @@ async function crossFederation(parties, wiring = {}) {
   return finish(
     "crossed",
     "crossed",
-    `${envelope2.capability} crossed between ${envelope2.pair}: the owner key of each harbor approved it, naming who authorised it, both harbors lend the capability at their own standing, and both approvals are now spent`,
+    `${envelope2.capability} crossed between ${envelope2.pair}: the owner key of each selfimpulse approved it, naming who authorised it, both selfimpulses lend the capability at their own standing, and both approvals are now spent`,
     filed,
     { receipts: { initiator: filed[0]?.digest ?? "", responder: filed[1]?.digest ?? "" } }
   );
@@ -1147,8 +1147,8 @@ async function decideCrossing(envelope2, side, human, keys, opts = {}) {
 
 // probe/fedCrossing.test.ts
 var AT = 176e10;
-var A = "harbor-alpha";
-var B = "harbor-beta";
+var A = "selfimpulse-alpha";
+var B = "selfimpulse-beta";
 var proven = () => "proven";
 var seq = /* @__PURE__ */ (() => {
   let n = 0;
@@ -1179,7 +1179,7 @@ test("federated crossing \u2014 both owner keys approve, or nothing crosses", as
     const env = await envelope("repo.write");
     const initiator = await decideCrossing(env, "initiator", "priya", ka, { entropy: seq, now: () => AT });
     if (!initiator.ok) throw new Error("initiator decision failed");
-    const priorSuccess = [{ kind: "success", pair: pairKey(A, B), note: "a person at harbor-beta walked this pair through once already" }];
+    const priorSuccess = [{ kind: "success", pair: pairKey(A, B), note: "a person at selfimpulse-beta walked this pair through once already" }];
     assert.equal(priorSuccess.length, 1, "the historical record is present and is ignored");
     const outcome = await crossFederation(
       {
@@ -1354,7 +1354,7 @@ test("federated crossing \u2014 both owner keys approve, or nothing crosses", as
       { standing: proven, ledger: memoryApprovalLedger(), now: () => AT + 1e3 }
     );
     assert.equal(outcome.status, "crossed", `${outcome.reason}: ${outcome.detail}`);
-    assert.match(outcome.detail, /owner key of each harbor approved it, naming who authorised it/);
+    assert.match(outcome.detail, /owner key of each selfimpulse approved it, naming who authorised it/);
     assert.equal(/both humans (decided|signed)/.test(outcome.detail), false, "no surface may say a human signed it");
     assert.equal(outcome.attestation.attests, APPROVAL_ATTESTATION);
     assert.equal(outcome.attestation.notAttested, APPROVAL_NOT_ATTESTED);
@@ -1436,7 +1436,7 @@ test("federated crossing \u2014 both owner keys approve, or nothing crosses", as
     });
     assert.equal(responderSaysNo.status, "refused");
     assert.equal(responderSaysNo.reason, "responder-below-standing");
-    assert.equal(responderSaysNo.tierInitiator, "proven", "the initiator's own store vouched for the pair");
+    assert.equal(responderSaysNo.tierInitiator, "proven", "the initiator's own store selfimpulseed for the pair");
     assert.equal(responderSaysNo.tierResponder, "probation", "\u2026and the responder's own store did not");
     assert.match(responderSaysNo.detail, /the responder's own local trust store \(lisbon\)/);
     assert.match(responderSaysNo.detail, /not the other side's \(reykjavik\)/);

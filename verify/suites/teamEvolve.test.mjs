@@ -21,15 +21,15 @@ function uid(prefix) {
   return `${prefix}-${cryptoToken()}`;
 }
 
-// src/vh19/secureKeys.ts
+// src/engine/secureKeys.ts
 var enc = new TextEncoder();
 var dec = new TextDecoder();
 function jwkEqual(a, b) {
   return a.kty === b.kty && a.crv === b.crv && a.x === b.x && a.y === b.y;
 }
 
-// src/vh19/collabRegistry.ts
-var PEERS_KEY = "vh19.collab.peers.v1";
+// src/engine/collabRegistry.ts
+var PEERS_KEY = "engine.collab.peers.v1";
 function storage() {
   try {
     return globalThis.localStorage ?? null;
@@ -50,7 +50,7 @@ function load() {
 function boundIdentityFor(memberId) {
   return load().peers.find((p) => p.memberId === memberId) ?? null;
 }
-var A2A_PEERS_KEY = "vh19.collab.a2a.v1";
+var A2A_PEERS_KEY = "engine.collab.a2a.v1";
 function structuralIdentityFor(memberId) {
   const raw = storage()?.getItem(A2A_PEERS_KEY) ?? null;
   if (!raw) return null;
@@ -79,7 +79,7 @@ function requireBoundKey(memberId, presentedJwk) {
   return { ok: false, error: `"${memberId}" has no bound or A2A-verified identity here \u2014 bind it (invite acceptance, manual verify, or connect over A2A) before approvals can be trusted` };
 }
 
-// src/vh19/collabInvite.ts
+// src/engine/collabInvite.ts
 var enc2 = new TextEncoder();
 function fromB64url(s) {
   const pad = s.replace(/-/g, "+").replace(/_/g, "/");
@@ -109,10 +109,10 @@ async function verifyApproval(a, expectedApprover) {
   }
 }
 
-// src/vh19/teamEvolve.ts
-var RUNS_KEY = "vh19.team.runs.v1";
-var CONFIG_KEY = "vh19.team.config.v1";
-var PENDING_KEY = "vh19.team.pending.v1";
+// src/engine/teamEvolve.ts
+var RUNS_KEY = "engine.team.runs.v1";
+var CONFIG_KEY = "engine.team.config.v1";
+var PENDING_KEY = "engine.team.pending.v1";
 var RUN_CAP = 200;
 function storage2() {
   try {
@@ -193,7 +193,7 @@ async function proposeTeamEvolution(teamId, members, now = () => /* @__PURE__ */
     sourceRunIds: verifiedRuns.map((r) => r.id),
     digest: ""
   };
-  proposal.digest = await sha256Hex(JSON.stringify(["vh19-evolution/1", proposal.teamId, proposal.recommendedSpecialists, proposal.sourceRunIds, proposal.createdAt]));
+  proposal.digest = await sha256Hex(JSON.stringify(["engine-evolution/1", proposal.teamId, proposal.recommendedSpecialists, proposal.sourceRunIds, proposal.createdAt]));
   const s = storage2();
   if (s) s.setItem(`${PENDING_KEY}:${teamId}`, JSON.stringify(proposal));
   return { ok: true, proposal };
@@ -238,7 +238,7 @@ async function approveTeamEvolution(teamId, proposalId, approvals, now = () => /
     sourceRunIds: proposal.sourceRunIds,
     approvals: approvals.map((a) => ({ ...a, at: a.at || now().toISOString() })),
     adoptedAt: now().toISOString(),
-    digest: await sha256Hex(JSON.stringify(["vh19-evolved-team/1", teamId, proposal.recommendedSpecialists, proposal.sourceRunIds, members]))
+    digest: await sha256Hex(JSON.stringify(["engine-evolved-team/1", teamId, proposal.recommendedSpecialists, proposal.sourceRunIds, members]))
   };
   const s = storage2();
   if (s) {

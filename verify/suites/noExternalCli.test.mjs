@@ -3,7 +3,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 // probe/noExternalCli.test.ts
 import * as fs from "node:fs";
 import * as path from "node:path";
-var ROOT = process.env.HANDLE_ROOT ?? process.cwd();
+var ROOT = process.env.SI_ROOT ?? process.cwd();
 var read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 var exists = (rel) => fs.existsSync(path.join(ROOT, rel));
 var passed = 0;
@@ -149,7 +149,7 @@ section("5. nothing spawns a third-party agent process");
     "hostRunnerDeps refuses to invoke an agent CLI in words",
     /external agent CLIs are removed/.test(deps)
   );
-  const brain = read("src/vouch/engine/brainSeam.ts");
+  const brain = read("src/selfimpulse/engine/brainSeam.ts");
   ok("the brain seam refuses to spawn a CLI process", /external agent CLIs are removed/.test(brain));
   ok("the brain seam no longer calls ipc.cliInvoke", !/ipc\.cliInvoke/.test(brain));
 }

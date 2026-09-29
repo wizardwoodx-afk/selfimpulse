@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* ============================================================================
- * bridge-selftest — zero-install gate for the vouch-receipt bridge.
+ * bridge-selftest — zero-install gate for the selfimpulse-receipt bridge.
  *   node protocol/bridge/bridge-selftest.mjs
  * Uses node builtins + protocol core files only (no npm install), in the
  * culture of tools/verify-receipt.mjs.
@@ -9,16 +9,16 @@ import crypto from "node:crypto";
 import {
   generateBridgeIdentity, verifyReceiptChain, issuerFingerprint,
   anchorReceipt, verifyAnchor, openFact, sealFact,
-} from "./vouch-receipt-bridge.mjs";
+} from "./selfimpulse-receipt-bridge.mjs";
 /* Protocol gate checks (PolicyEngine + BindingValidator) are imported
-   dynamically: they pull vh-crypto → @hpke/core. Without `npm install` in
+   dynamically: they pull si-crypto → @hpke/core. Without `npm install` in
    protocol/ those three checks are honestly marked SKIP (counted separately,
    never as passes) — same posture as verify/run.mjs. With deps installed,
    they run for real. */
 let PolicyEngine = null, assertSignerBinding = null, haveProtocol = false;
 try {
-  ({ PolicyEngine } = await import("../src/core/vh-policy.js"));
-  ({ assertSignerBinding } = await import("../src/core/vh-binding.js"));
+  ({ PolicyEngine } = await import("../src/core/si-policy.js"));
+  ({ assertSignerBinding } = await import("../src/core/si-binding.js"));
   haveProtocol = true;
 } catch { haveProtocol = false; }
 let skipped = 0;
@@ -30,12 +30,12 @@ const check = (name, cond) => {
   console.log((cond ? "  ✅ " : "  ❌ ") + name);
 };
 
-/* ── build a synthetic, CORRECT vh-proof-receipt/2 receipt ─────────────── */
+/* ── build a synthetic, CORRECT si-proof-receipt/2 receipt ─────────────── */
 const sortDeep = (v) => Array.isArray(v) ? v.map(sortDeep)
   : (v && typeof v === "object") ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortDeep(v[k])])) : v;
 const canon = (o) => JSON.stringify(sortDeep(o));
 const sha = (s) => crypto.createHash("sha256").update(s, "utf8").digest("hex");
-const hmac = (s) => crypto.createHmac("sha256", "vh-commercial-v1-offline").update(s, "utf8").digest("hex");
+const hmac = (s) => crypto.createHmac("sha256", "si-commercial-v1-offline").update(s, "utf8").digest("hex");
 
 const issuer = crypto.generateKeyPairSync("ed25519");
 const issuerPubHex = issuer.publicKey.export({ format: "jwk" }).x
@@ -50,7 +50,7 @@ function buildReceipt(events, { sign = true, tamperSeq } = {}) {
     prev = e.hash;
     return e;
   });
-  const rc = { format: "vh-proof-receipt/2", header: { mission: "bridge-selftest" }, events: built, seal: hmac(prev) };
+  const rc = { format: "si-proof-receipt/2", header: { mission: "bridge-selftest" }, events: built, seal: hmac(prev) };
   if (sign) {
     rc.issuer = { alg: "ed25519", publicKeyHex: issuerPubHex };
     rc.signature = crypto.sign(null, Buffer.from(prev, "hex"), issuer.privateKey).toString("hex");
@@ -88,7 +88,7 @@ check("bad issuer signature detected", !vg.ok && /issuer signature/.test(vg.reas
 const sealOnly = buildReceipt(baseEvents, { sign: false });
 check("seal-only receipt verifies as unsigned", verifyReceiptChain(sealOnly).ok === true);
 
-console.log("\n── anchoring into the vouch chain ──");
+console.log("\n── anchoring into the selfimpulse chain ──");
 const anchor = generateBridgeIdentity("patina-agent");
 const anchored = anchorReceipt(anchor, good);
 check("anchorReceipt succeeds on verified receipt", anchored.ok === true);
@@ -109,7 +109,7 @@ check("wrong signer rejected", !verifyAnchor(anchored.env, wrongKey.publicJwk).o
 
 if (haveProtocol) {
   const policy = new PolicyEngine();
-  check("anchor fact passes protocol policy", policy.vouch(anchored.facts).ok === true);
+  check("anchor fact passes protocol policy", policy.selfimpulse(anchored.facts).ok === true);
   check("binding: signer == actor accepted", assertSignerBinding(anchored.facts, anchor.fp).ok === true);
   const claim = { ...anchored.facts, agent: { n: "other", fp: wrongKey.fp } };
   check("binding: signer != actor rejected", !assertSignerBinding(claim, anchor.fp).ok);

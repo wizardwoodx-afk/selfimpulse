@@ -3,7 +3,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 // probe/graph3d.test.ts
 import * as path from "node:path";
 
-// src/vh19/graph3d.ts
+// src/engine/graph3d.ts
 function fnv1a(text) {
   let h = 2166136261;
   for (let i = 0; i < text.length; i++) {
@@ -357,24 +357,24 @@ function main() {
   ok(
     "canvas carries the interaction contract (drag/zoom handlers in the engine)",
     (() => {
-      const src = fs.readFileSync(path.join(ROOT, "src/vh19/graph3d.ts"), "utf8");
+      const src = fs.readFileSync(path.join(ROOT, "src/engine/graph3d.ts"), "utf8");
       return src.includes("pointerdown") && src.includes("pointermove") && src.includes("wheel") && src.includes("idleUntil");
     })()
   );
   ok(
     "the house finish is pinned: silver specular \u2192 graphite \u2192 glossy black stops",
     (() => {
-      const src = fs.readFileSync(path.join(ROOT, "src/vh19/graph3d.ts"), "utf8");
+      const src = fs.readFileSync(path.join(ROOT, "src/engine/graph3d.ts"), "utf8");
       return src.includes("236, 239, 244") && src.includes("52, 56, 66") && src.includes("8, 9, 12");
     })()
   );
   ok("edge styling is depth-faded silver", (() => {
-    const src = fs.readFileSync(path.join(ROOT, "src/vh19/graph3d.ts"), "utf8");
+    const src = fs.readFileSync(path.join(ROOT, "src/engine/graph3d.ts"), "utf8");
     return src.includes("rgba(200, 205, 214,");
   })());
   ok("the graph is genuinely interactive \u2014 orbit controls, drag, zoom and rotation are wired", /enableNodeDrag|onNodeDrag|controls\(\)/.test(consoleSrc) && /autoRotate|rot/.test(consoleSrc));
   ok("zero-dependency engine (no three.js, no d3 import/require)", (() => {
-    const src = fs.readFileSync(path.join(ROOT, "src/vh19/graph3d.ts"), "utf8");
+    const src = fs.readFileSync(path.join(ROOT, "src/engine/graph3d.ts"), "utf8");
     const imports = src.match(/^import[^;]*;/gm)?.join("\n") ?? "";
     return !imports.includes("three") && !imports.includes("d3") && !src.includes('require("three")') && !src.includes('require("d3');
   })());

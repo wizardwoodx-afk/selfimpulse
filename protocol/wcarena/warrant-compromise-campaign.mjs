@@ -5,7 +5,7 @@
  * Reviewer's brief for this harness, in his words: attack
  *
  *     designated-authority compromise → key rotation → delegation
- *     → revocation race → replay → cross-harbor propagation
+ *     → revocation race → replay → cross-selfimpulse propagation
  *
  * because 17.10.4 closed the obvious self-attestation paths. So this is NOT a
  * second copy of adversarial-campaign.mjs (that one starts from narrow granted
@@ -18,7 +18,7 @@
  *   DELEGATION    how far does a chain travel, and can it re-root itself?
  *   REVOCATION    does withdrawing authority kill grants minted before it?
  *   REPLAY        can captured, stale or edited traffic be re-used?
- *   CROSS-HARBOR  does authority, or designation, travel between harbours?
+ *   CROSS-SELFIMPULSE  does authority, or designation, travel between harbours?
  *
  * v0.10.7 (RULE 6) closes the two bounds this harness MEASURED when it first
  * shipped — rotation could squat an offline fingerprint, and any member could
@@ -35,9 +35,9 @@
  * Run it — one command, no setup:
  *   node protocol/wcarena/warrant-compromise-campaign.mjs
  */
-import * as VH   from "../src/core/vh-crypto.js";
-import { VHClient } from "../src/client/vh-sdk.js";
-import { startHarbor, give, peerOf, show, sleep } from "./_harbor.mjs";
+import * as VH   from "../src/core/si-crypto.js";
+import { VHClient } from "../src/client/si-sdk.js";
+import { startSelfImpulse, give, peerOf, show, sleep } from "./_selfimpulse.mjs";
 
 const line = "═".repeat(74);
 const rows = [];
@@ -70,7 +70,7 @@ async function join(url, name, group, identity) {
    honest actors receive is a real grant issued by it.
    ══════════════════════════════════════════════════════════════════════════ */
 const DECLARED = ["write:orders", "delegate:ops", "write:payroll"];
-const A = await startHarbor({ label: "compromise", declare: DECLARED });
+const A = await startSelfImpulse({ label: "compromise", declare: DECLARED });
 const opFp = A.operatorFp;
 
 const idHolder     = await VH.generateIdentity();
@@ -106,7 +106,7 @@ const subGrant = await holder.authorize(subPeerForHolder.id, "write:orders",
   { scope: "ops", ttlMs: 3_600_000, authority: { root: opFp, depth: 1 } });
 await sleep(700);
 await stand(A.operator, "compromise_sub", "standing for the second hop");
-const subAction = await sub.vouchAction({ action: "write:orders", tool: "place_order", purpose: "control: commit under a two-hop chain", result: "success" });
+const subAction = await sub.selfimpulseAction({ action: "write:orders", tool: "place_order", purpose: "control: commit under a two-hop chain", result: "success" });
 row("CONTROL · operator → holder → sub, and sub commits under that chain",
   holderGrant?.ok === true && subGrant?.ok === true && subAction?.ok === true,
   `grant=${show(holderGrant)} · subGrant=${show(subGrant)} · action=${show(subAction)}`);
@@ -123,7 +123,7 @@ const dtPeer = await peerOf(deepHolder, "compromise_deeptarget");
 const depthTwo = await deepHolder.authorize(dtPeer.id, "write:orders",
   { scope: "ops", ttlMs: 3_600_000, authority: { root: opFp, depth: 2 } });
 await sleep(700);
-const depthTwoAction = await deepTarget.vouchAction({ action: "write:orders", tool: "place_order", purpose: "commit under a depth-2 grant", result: "success" });
+const depthTwoAction = await deepTarget.selfimpulseAction({ action: "write:orders", tool: "place_order", purpose: "commit under a depth-2 grant", result: "success" });
 row("DELEGATION 1 · depth 2 (within the cap) is granted and usable",
   deepGrant?.ok === true && depthTwo?.ok === true && depthTwoAction?.ok === true,
   `depth2=${show(depthTwo)} · action=${show(depthTwoAction)}`);
@@ -191,7 +191,7 @@ console.log("\n── FRONT · REVOCATION RACE ───────────
 const holderFp = holder.me.fp;
 const withdrawn = await A.operator.revoke({ fp: holderFp, action: "write:orders" }, "authority withdrawn mid-flight");
 await sleep(900);
-const subAfterRevoke = await sub.vouchAction({ action: "write:orders", tool: "place_order", purpose: "commit after the ISSUER's authority was withdrawn", result: "success" });
+const subAfterRevoke = await sub.selfimpulseAction({ action: "write:orders", tool: "place_order", purpose: "commit after the ISSUER's authority was withdrawn", result: "success" });
 await sleep(600);
 const subRedelegate = await sub.authorize(grandPeerForSub.id, "write:orders",
   { scope: "ops", ttlMs: 3_600_000, authority: { root: opFp, depth: 1 } });
@@ -210,13 +210,13 @@ const origEmit = A.operator._emit.bind(A.operator);
 let captured = null;
 A.operator._emit = async (ev, payload) => {
   const r = await origEmit(ev, payload);
-  if (ev === "vouch:submit" && payload?.n) captured = payload;
+  if (ev === "selfimpulse:submit" && payload?.n) captured = payload;
   return r;
 };
 const payrollGrant = await A.operator.authorize(mulePeerForOp.id, "write:payroll", { ttlMs: 3_600_000 });
 A.operator._emit = origEmit;
 await sleep(700);
-const replayed = captured ? await A.operator._emit("vouch:submit", captured) : null;
+const replayed = captured ? await A.operator._emit("selfimpulse:submit", captured) : null;
 await sleep(600);
 row("REPLAY 1 · a captured envelope cannot be replayed verbatim",
   payrollGrant?.ok === true && captured !== null && replayed?.ok === false,
@@ -236,7 +236,7 @@ const staleEnv = {
   p: JSON.stringify(staleFacts), n: staleNonce, ts: staleTs,
   sig: await VH.sign(A.identity.sign.privateKey, `${JSON.stringify(staleFacts)}|${staleNonce}|${staleTs}`),
 };
-const staleRes = await A.operator._emit("vouch:submit", staleEnv);
+const staleRes = await A.operator._emit("selfimpulse:submit", staleEnv);
 await sleep(600);
 row("REPLAY 2 · a stale envelope (outside the freshness window) is refused",
   staleRes?.ok === false, show(staleRes));
@@ -245,7 +245,7 @@ row("REPLAY 2 · a stale envelope (outside the freshness window) is refused",
 const goodFacts = { ...staleFacts, ts: Date.now(), scope: "ops" };
 const goodEnv = await VH.sealSecure(goodFacts, A.identity.sign.privateKey);
 const editedEnv = { ...goodEnv, p: goodEnv.p.replace('"write:orders"', '"write:payroll"') };
-const editedRes = await A.operator._emit("vouch:submit", editedEnv);
+const editedRes = await A.operator._emit("selfimpulse:submit", editedEnv);
 await sleep(600);
 row("REPLAY 3 · an edited payload fails signature verification",
   editedRes?.ok === false && editedEnv.p !== goodEnv.p, show(editedRes));
@@ -254,10 +254,10 @@ row("REPLAY 3 · an edited payload fails signature verification",
    HARBOUR B — a SECOND, independent harbour. Everything above is authority in
    A; the question now is what any of it is worth here.
    ══════════════════════════════════════════════════════════════════════════ */
-const B = await startHarbor({ label: "crossharbor", declare: ["write:orders"] });
+const B = await startSelfImpulse({ label: "crossselfimpulse", declare: ["write:orders"] });
 console.log(`\n${line}\n HARBOUR B  ${B.url}  (operator designated at boot: ${B.operatorFp.slice(0, 12)}…)\n${line}`);
 
-console.log("\n── FRONT · CROSS-HARBOR PROPAGATION ─────────────────────────\n");
+console.log("\n── FRONT · CROSS-SELFIMPULSE PROPAGATION ─────────────────────────\n");
 const idBMule = await VH.generateIdentity();
 const bMule = (await join(B.url, "b_mule", "locals", idBMule)).c;
 
@@ -268,7 +268,7 @@ await sleep(600);
 const bMulePeerForVisitor = await peerOf(deepTargetInB, "b_mule");
 const delegateInB = await deepTargetInB.authorize(bMulePeerForVisitor.id, "write:orders", { ttlMs: 3_600_000 });
 await sleep(700);
-row("CROSS-HARBOR 1 · real authority in A is a CLAIM in B (delegation refused)",
+row("CROSS-SELFIMPULSE 1 · real authority in A is a CLAIM in B (delegation refused)",
   delegateInB?.ok === false, `declare in B=${show(declInB)} · delegate in B=${show(delegateInB)}`);
 
 /* (2) designation does not travel either — A's operator is an ordinary visitor. */
@@ -281,14 +281,14 @@ const opADeclInB = await opAInB.declareCapability(["write:orders"], { reason: "A
 await sleep(600);
 const opADelegInB = await opAInB.authorize(bMulePeerForOpAV?.id ?? bMulePeerForOpA?.id, "write:orders", { ttlMs: 3_600_000 });
 await sleep(700);
-row("CROSS-HARBOR 2 · designation does not travel: A's operator is an ordinary member in B",
+row("CROSS-SELFIMPULSE 2 · designation does not travel: A's operator is an ordinary member in B",
   opADelegInB?.ok === false, `declare=${show(opADeclInB)} · delegate=${show(opADelegInB)}`);
 
 /* (3) another harbour's signed statement is not accepted here. */
 const foreignEnv = await VH.sealSecure({ ...goodFacts, ts: Date.now() }, A.identity.sign.privateKey);
-const foreignRes = await bMule._emit("vouch:submit", foreignEnv);
+const foreignRes = await bMule._emit("selfimpulse:submit", foreignEnv);
 await sleep(600);
-row("CROSS-HARBOR 3 · a statement sealed in A is not accepted by B",
+row("CROSS-SELFIMPULSE 3 · a statement sealed in A is not accepted by B",
   foreignRes?.ok === false, show(foreignRes));
 
 /* ══════════════════════════════════════════════════════════════════════════

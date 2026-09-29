@@ -15,7 +15,7 @@ function emit(level, event, fields = {}) {
   else process.stdout.write(line + "\n");
 }
 
-/* v0.9 contract retained: the audit level used throughout harbor.js */
+/* v0.9 contract retained: the audit level used throughout selfimpulse.js */
 const audit = (event, meta) => emit("audit", event, meta);
 
 export const log = {

@@ -57,7 +57,7 @@ async function runAgent(node: NodeInstance, collected: Record<string, unknown>, 
 
   if (node.feedbackLoop === "ON") {
     const md = reassembleSkill(
-      { name: slug(node.title), description: node.purpose || node.title, version: "1.0.0", author: "11Handle", metadata: { hermes: { tags: [node.definitionId] } } },
+      { name: slug(node.title), description: node.purpose || node.title, version: "1.0.0", author: "SelfImpulse", metadata: { hermes: { tags: [node.definitionId] } } },
       `# ${node.title}\n\n${node.rolePrompt.sections.procedures}\n\n## Last run\n\n${text.slice(0, 800)}`,
     );
     await ipc.skillUpsert({

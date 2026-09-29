@@ -14,7 +14,7 @@ import { spawn, execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const root = process.env.HANDLE_ROOT ? path.resolve(process.env.HANDLE_ROOT as string) : process.cwd();
+const root = process.env.SI_ROOT ? path.resolve(process.env.SI_ROOT as string) : process.cwd();
 const SERVICE = path.join(root, "src-tauri", "browser-service");
 
 let checks = 0;
@@ -70,7 +70,7 @@ const call = async (route: string, body?: unknown): Promise<Record<string, unkno
 
 try {
   const health = await call("/health");
-  ok(health.ok === true && health.service === "11handle-browser", "health reports the bundled service identity");
+  ok(health.ok === true && health.service === "selfimpulse-browser", "health reports the bundled service identity");
 
   // No Chromium is forced here (HANDLE_BROWSER_BIN=""): the fail-closed contract
   // must speak. On a machine WITH a browser the same calls succeed — either way

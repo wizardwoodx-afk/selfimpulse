@@ -3,7 +3,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 // probe/a2aHostLifecycle.test.ts
 import { spawn } from "node:child_process";
 import * as path from "node:path";
-var ROOT = process.env.HANDLE_ROOT ?? process.cwd();
+var ROOT = process.env.SI_ROOT ?? process.cwd();
 var passed = 0;
 var failed = 0;
 var failures = [];
@@ -22,8 +22,8 @@ var section = (n) => console.log(`
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function launchHost(extra = []) {
   const child = spawn(process.execPath, [
-    path.join(ROOT, "tools", "vh-host.mjs"),
-    "--harbor",
+    path.join(ROOT, "tools", "si-host.mjs"),
+    "--selfimpulse",
     "LIFECYCLE-PROBE",
     "--port",
     "0",
@@ -35,9 +35,9 @@ function launchHost(extra = []) {
   child.stdout.on("data", (c) => {
     state.stdout += c;
     for (const line of c.split("\n")) {
-      if (line.startsWith("VH-A2A-READY") && !state.ready) {
+      if (line.startsWith("SI-A2A-READY") && !state.ready) {
         try {
-          state.ready = JSON.parse(line.slice("VH-A2A-READY".length).trim());
+          state.ready = JSON.parse(line.slice("SI-A2A-READY".length).trim());
         } catch {
           state.ready = {};
         }
@@ -59,7 +59,7 @@ async function main() {
   try {
     const deadline = Date.now() + 4e4;
     while (!h.ready && !h.exited && Date.now() < deadline) await sleep(200);
-    ok("the host reports VH-A2A-READY", h.ready !== null, h.stderr.slice(0, 300) || h.stdout.slice(0, 300));
+    ok("the host reports SI-A2A-READY", h.ready !== null, h.stderr.slice(0, 300) || h.stdout.slice(0, 300));
     ok("it is running, and says so in the descriptor", h.ready?.mounted === true, JSON.stringify(h.ready).slice(0, 200));
     ok("it names the port it actually bound", typeof h.ready?.port === "number");
     ok("it publishes a card URL", typeof h.ready?.cardUrl === "string");
@@ -105,7 +105,7 @@ async function main() {
     ok("SIGTERM ends the host", h.exited !== null, `still running ${(Date.now() - stopAt) / 1e3}s after the stop`);
     ok(
       "it unmounted in words",
-      /VH-A2A-STOPPED|unmounting|stopped/i.test(h.stdout + h.stderr),
+      /SI-A2A-STOPPED|unmounting|stopped/i.test(h.stdout + h.stderr),
       (h.stdout + h.stderr).split("\n").slice(-3).join(" | ").slice(0, 200)
     );
     ok(

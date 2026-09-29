@@ -1,7 +1,7 @@
 /**
  * Earned-authority + principal-chain probe.
  *
- * Built from four results that apply to 11Handle specifically, not in general:
+ * Built from four results that apply to SelfImpulse specifically, not in general:
  *  - "Are You Still the Agent I Authorized?" (Zhang & Zhang 2026) — earned
  *    authority under a FIXED CEILING, for an agent that improves after it was
  *    granted. This is the RSIRALS case.
@@ -25,7 +25,7 @@ import {
   type Capability, type ChainHop, type Evidence, type Grant, type Principal,
 } from "../src/security/authority";
 
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 
 let passed = 0;
 let failed = 0;

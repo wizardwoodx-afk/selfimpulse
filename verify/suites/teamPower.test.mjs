@@ -191,7 +191,7 @@ function saveAutonomy(next) {
 }
 
 // src/mission/licensing.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var TRIAL_DAYS = 14;
 var LS_LICENSE = "vh.license.v1";
 var LS_TRIAL = "vh.trial.start";

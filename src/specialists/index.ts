@@ -53,7 +53,7 @@ export interface DomainInfo {
 }
 
 /**
- * The domain table. `finance-in` is the Indian-finance pack (src/munshi) — it is listed here
+
  * because it is part of the same surface, and its own tools and roster live where they were
  * built rather than being copied into this file.
  */
@@ -83,7 +83,6 @@ export const DOMAINS: readonly DomainInfo[] = Object.freeze([
   { id: "supply", label: "Supply chain", blurb: "Order quantities and the safety stock a service level actually costs." },
   { id: "web3", label: "Web3", blurb: "Transaction cost and base-unit arithmetic — integer maths, because token floats lose money." },
   { id: "health", label: "Healthcare", blurb: "Early-warning scores and ward occupancy — arithmetic, never a diagnosis." },
-  { id: "finance-in", label: "Finance · India", blurb: "GST, TDS, ITC reconciliation, MSME clocks — the Munshi pack." },
 ]);
 
 export function toolsForDomain(domain: Domain): Tool[] {

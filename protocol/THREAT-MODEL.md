@@ -1,4 +1,4 @@
-# 11Handle Protocol — Threat Model & Trust Decisions (v0.10.7)
+# SelfImpulse Protocol — Threat Model & Trust Decisions (v0.10.7)
 
 This file records the **explicit trust-model decisions** of the protocol,
 including the answer to the question every reviewer asks:
@@ -7,8 +7,8 @@ including the answer to the question every reviewer asks:
 
 ## Decision 1 — Attested granters (17.6.1 / v0.10.3, enforced mechanically)
 
-An `authorization` vouch is accepted by a harbor **only if the granter holds
-an on-record attestation on that harbor**:
+An `authorization` selfimpulse is accepted by a selfimpulse **only if the granter holds
+an on-record attestation on that selfimpulse**:
 
 - an unrevoked **capability declaration**, or
 - an **endorsement received**.
@@ -22,7 +22,7 @@ Agent A signs authorization → Agent B is now authorized
 — is refused with `policy:grantor-unattested`. Signing proves *who spoke*;
 attestation proves *who is trusted enough to delegate*.
 
-**Bootstrap.** The first attestation on any harbor is an on-record capability
+**Bootstrap.** The first attestation on any selfimpulse is an on-record capability
 claim. That is deliberate: it is identity-bound, carries reputation
 consequences, is revocable, and is visible to every auditor of the chain.
 Anonymous authority creation does not exist.
@@ -140,7 +140,7 @@ from a bare claim, and names the rule that refused: `capability-claim-is-not-aut
 **Designation attaches to the identity, not to the key material.** A key rotation
 is recorded in the ledger only after the harbour verifies a proof signed by the
 **outgoing** key (`key:rotate`), and `rotate` is not a member-submittable kind
-(`VOUCH_KINDS`), so lineage cannot be forged from a message. A designated
+(`SELFIMPULSE_KINDS`), so lineage cannot be forged from a message. A designated
 identity's successor therefore inherits its designation, transitively along
 recorded rotations. **Grants and revocations, by contrast, stay keyed to the exact
 fingerprint that was named** — deliberately: if grants followed lineage, a revoked
@@ -246,10 +246,10 @@ are labeled as such (`PROTOCOL.signingLayer`, `CRYPTO_BOUNDARY`). ML-DSA
 
 | Threat | Status |
 |---|---|
-| Sybil identities | Mitigated by attestation requirement + per-harbor join governance; not solved globally |
+| Sybil identities | Mitigated by attestation requirement + per-selfimpulse join governance; not solved globally |
 | Colluding endorsers | Reputation is audit-only; delegation depth capped; **coverage rule (Decision 3) bounds what any granter can hand out**; human review expected at org boundaries |
 | Granter key compromise | Rotation proofs + revocation; no retroactive invalidation of pre-compromise grants (they still expire ≤ 30d) |
-| Cross-harbor attestation portability | Roadmap: bridge-anchored receipts + endorsement portability |
+| Cross-selfimpulse attestation portability | Roadmap: bridge-anchored receipts + endorsement portability |
 
 ## Alignment with Warrant (17.10)
 
@@ -258,6 +258,6 @@ root at `human:<id>`, and agents mechanically cannot install their own
 safety authority. The protocol's attested-granter rule is the multi-party
 projection of the same doctrine: *authority must be rooted in something an
 auditor can name*. Roadmap: cross-signing Patina human-root envelopes into
-harbor attestations so a harbor can require **human-rooted** attestation for
+selfimpulse attestations so a selfimpulse can require **human-rooted** attestation for
 high-risk action classes — the `authority.root` field is already shaped for
 it.

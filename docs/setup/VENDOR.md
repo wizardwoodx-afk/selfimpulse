@@ -8,7 +8,7 @@ VH doesn't reimplement everything. A few pieces are vendored so the app works fr
 | `vendor/mcp-github` | [github/github-mcp-server](https://github.com/github/github-mcp-server) | MIT | GitHub MCP over stdio |
 | `vendor/evolution-service` | **Mine — first-party** | VH proprietary | Python stdio bridge `mj_evolution.stdio_server` — Tauri spawns it, no HTTP |
 
-`vendor/evolution-service` lives under `vendor/` just because `src-tauri/src/hermes.rs` looks there (`<vendor>/evolution-service/...`). It is a VH-owned first-party component (proprietary, same license as the product).
+`vendor/evolution-service` lives under `vendor/` just because `src-tauri/src/hermes.rs` looks there (`<vendor>/evolution-service/...`). It is a first-partyowned first-party component (proprietary, same license as the product).
 
 The agent skill contract (SKILL.md), skill parsing, and the evolution fitness/constraints engine are **VH's own TypeScript** implementations with no dependency on a vendored agent codebase.
 

@@ -13,7 +13,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-declare const HANDLE_ROOT: string | undefined;
+declare const SI_ROOT: string | undefined;
 
 import { buildProofReceipt, receiptToJsonl, type ProofReceipt } from "../src/mission/receipts";
 import { ensureIssuerIdentity } from "../src/mission/signing";
@@ -35,7 +35,7 @@ function section(name: string): void {
   console.log(`\n== ${name}\n`);
 }
 
-const root = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+const root = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 const verifier = path.join(root, "tools", "verify-receipt.mjs");
 
 ok("the standalone verifier exists and imports only node: builtins", fs.existsSync(verifier) &&

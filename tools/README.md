@@ -32,7 +32,7 @@
   Captures the app to a PNG.
 
       .\tools\screenshot.ps1
-      .\tools\screenshot.ps1 -Out 'D:\11handle-shots\app.png'
+      .\tools\screenshot.ps1 -Out 'D:\selfimpulse-shots\app.png'
 
   This is the verification path for UI work, and it is deliberately the one
   that tells the truth.

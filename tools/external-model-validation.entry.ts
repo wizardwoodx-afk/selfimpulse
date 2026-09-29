@@ -1,5 +1,5 @@
 /**
- * 11Handle — external-model validation entry (bundled by
+ * SelfImpulse — external-model validation entry (bundled by
  * tools/external-model-validation.mjs).
  *
  * The 16.5.0 review, hardening item 2: "real external-model validation".
@@ -29,7 +29,7 @@
  */
 import * as crypto from "node:crypto";
 import { HARNESSES } from "../src/domain/harness";
-import { DRILL_SCENARIOS, findHarnessBin, runDrill, type DrillReport } from "../src/vouch/engine/drill";
+import { DRILL_SCENARIOS, findHarnessBin, runDrill, type DrillReport } from "../src/selfimpulse/engine/drill";
 
 interface SeatInfo {
   kind: "real-cli" | "none";
@@ -116,13 +116,13 @@ const stableKey = (s: (typeof scenarios)[number]): string =>
   [s.scenarioId, s.seat.kind, s.seat.harness, s.status, s.verifiedSeats, s.seatCount, s.cycleNo, s.engine, s.attestation].join("|");
 const overallDigest = crypto
   .createHash("sha256")
-  .update(scenarios.length > 0 ? scenarios.map(stableKey).join("\n") : "11handle:external-model-validation:no-scenarios(no agent CLI on this host)")
+  .update(scenarios.length > 0 ? scenarios.map(stableKey).join("\n") : "selfimpulse:external-model-validation:no-scenarios(no agent CLI on this host)")
   .digest("hex");
 
 const report = {
-  suite: "11handle-external-model-validation",
+  suite: "selfimpulse-external-model-validation",
   scope:
-    "External-model validation: the drill catalog through the REAL mission loop, seats run by a REAL agent CLI when one is on this host's PATH (the 16.7 runDrill harness seam — the loop spawns the real bin; the seat is labeled REAL in the report and the vouch receipt). When no agent CLI is present, this report says so — it never fakes a real-model run. The deterministic benchmark (tools/drill-benchmark.mjs) separately validates the machinery; the two are complementary, not interchangeable.",
+    "External-model validation: the drill catalog through the REAL mission loop, seats run by a REAL agent CLI when one is on this host's PATH (the 16.7 runDrill harness seam — the loop spawns the real bin; the seat is labeled REAL in the report and the selfimpulse receipt). When no agent CLI is present, this report says so — it never fakes a real-model run. The deterministic benchmark (tools/drill-benchmark.mjs) separately validates the machinery; the two are complementary, not interchangeable.",
   requestedHarness,
   harnessInventory: inventory,
   realModelAvailable: seat.kind === "real-cli",

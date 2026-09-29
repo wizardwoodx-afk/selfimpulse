@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 11Handle 17.6.2 — the reproducible benchmark pack.
+ * SelfImpulse 17.6.2 — the reproducible benchmark pack.
  *
  * WHAT THIS IS
  *   The reviewer's fourth validation pillar: a benchmark anyone can
@@ -15,7 +15,7 @@
  *       (byte-compatible with proof.ts: seq/ts/kind/seatId/data/prev canon,
  *       HMAC seal over the final chain head with the published secret).
  *   B2  anchor envelope sign/verify round-trips — ECDSA P-256 sealFact/openFact,
- *       the wire format harbors exchange.
+ *       the wire format selfimpulses exchange.
  *   B3  grant-authority gate — the protocol's FULL selftest (the dependency-
  *       backed gate that pins the v0.10.3 rule). HONESTLY SKIPPED when
  *       protocol/node_modules is absent — stated, never faked.
@@ -31,7 +31,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   generateBridgeIdentity, sealFact, openFact, verifyReceiptChain,
-} from "../protocol/bridge/vouch-receipt-bridge.mjs";
+} from "../protocol/bridge/selfimpulse-receipt-bridge.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const N_VERIFY = 500;
@@ -51,7 +51,7 @@ function sortDeep(v) {
 }
 const canon = (v) => JSON.stringify(sortDeep(v));
 
-const results = { tool: "vh-benchmark", version: "17.6.2", ts: new Date().toISOString(), node: process.version, benchmarks: [] };
+const results = { tool: "si-benchmark", version: "17.6.2", ts: new Date().toISOString(), node: process.version, benchmarks: [] };
 const checks = { pass: 0, fail: 0 };
 function ok(name, cond, detail = "") {
   if (cond) { checks.pass++; console.log(`  ok   ${name}${detail ? ` — ${detail}` : ""}`); }
@@ -80,10 +80,10 @@ function buildPinnedReceipt() {
     prev = hash;
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header: { mission: "benchmark-pinned", teamId: "benchmark", startedAt: new Date(1760000000000).toISOString(), finishedAt: new Date(1760000031000).toISOString(), version: "17.6.2", edition: "benchmark", autonomyArms: [] },
     events,
-    seal: crypto.createHmac("sha256", "vh-commercial-v1-offline").update(prev, "utf8").digest("hex"),
+    seal: crypto.createHmac("sha256", "si-commercial-v1-offline").update(prev, "utf8").digest("hex"),
     issuer: null, signature: null,
   };
 }
@@ -115,7 +115,7 @@ const receiptDigest = sha256hex(JSON.stringify(receipt));
 console.log("\nB2 — anchor envelope sign/verify round-trips (ECDSA P-256)");
 {
   const identity = generateBridgeIdentity("benchmark-agent");
-  const facts = { v: 2, kind: "agent_action", action: "anchor_receipt", tool: "vh-benchmark", evidence: "benchmark:pinned", result: "success", ts: 0 };
+  const facts = { v: 2, kind: "agent_action", action: "anchor_receipt", tool: "si-benchmark", evidence: "benchmark:pinned", result: "success", ts: 0 };
   const probeOpen = openFact(sealFact(facts, identity.privateKey), identity.publicJwk);
   ok("envelope round-trip verifies", probeOpen.verified === true);
   const start = process.hrtime.bigint();

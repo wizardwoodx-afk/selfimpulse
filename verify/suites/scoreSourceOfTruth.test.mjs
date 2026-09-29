@@ -9,7 +9,7 @@ var root = ".";
 var SANCTIONED = /* @__PURE__ */ new Set([
   "src/mission/assuranceScore.ts",
   // the scorer — the ONLY place a score is computed
-  "src/vouch/engine/bridge.ts"
+  "src/selfimpulse/engine/bridge.ts"
   // the adapter — gathers evidence, delegates to the scorer
 ]);
 var SURFACE_DIRS = ["src/ui/", "src/panels/", "src/app/"];
@@ -77,26 +77,26 @@ test("scoreSourceOfTruth \u2014 one metric has exactly one producer and one rend
     definers.length === 1,
     definers.join(", ")
   );
-  const bridge = read("src/vouch/engine/bridge.ts");
+  const bridge = read("src/selfimpulse/engine/bridge.ts");
   ok(
-    "harborRerate delegates to scoreAssurance()",
+    "selfimpulseRerate delegates to scoreAssurance()",
     /scoreAssurance\(/.test(bridge),
     "the adapter must call the scorer, not re-implement it"
   );
   ok(
-    "harborRerate calls assuranceEvidence() (real evidence, not counting)",
+    "selfimpulseRerate calls assuranceEvidence() (real evidence, not counting)",
     /assuranceEvidence\(\)/.test(bridge),
     "no evidence gatherer found"
   );
-  const kpiViews = files.filter((f) => /Safe harbor|Assurance score/.test(read(f)) && /useHarbor\(|state\.totals|assuranceKpi\(/.test(read(f)));
-  ok("no retired live-state KPI page survives (useHarbor is gone from the tree)", !files.some((f) => /useHarbor\(/.test(read(f))), files.filter((f) => /useHarbor\(/.test(read(f))).join(", "));
+  const kpiViews = files.filter((f) => /Safe selfimpulse|Assurance score/.test(read(f)) && /useSelfImpulse\(|state\.totals|assuranceKpi\(/.test(read(f)));
+  ok("no retired live-state KPI page survives (useSelfImpulse is gone from the tree)", !files.some((f) => /useSelfImpulse\(/.test(read(f))), files.filter((f) => /useSelfImpulse\(/.test(read(f))).join(", "));
   const bypassing = kpiViews.filter((f) => !/assuranceKpi\(/.test(read(f)));
   ok(
     "every live-state assurance KPI renders via assuranceKpi()",
     bypassing.length === 0,
     bypassing.join(", ")
   );
-  const sanctionedPure = files.filter((f) => /Assurance score/.test(read(f)) && /AssuranceScore/.test(read(f)) && !/useHarbor\(/.test(read(f)));
+  const sanctionedPure = files.filter((f) => /Assurance score/.test(read(f)) && /AssuranceScore/.test(read(f)) && !/useSelfImpulse\(/.test(read(f)));
   ok(
     "pure panels take the score as input rather than computing it from counts",
     sanctionedPure.every((f) => /scoreAssurance\(/.test(read(f))),
@@ -108,7 +108,7 @@ test("scoreSourceOfTruth \u2014 one metric has exactly one producer and one rend
     formatters.length === 1,
     formatters.join(", ")
   );
-  const reaching = files.filter((f) => SURFACE_DIRS.some((d) => f.startsWith(d)) && f !== "src/app/harbor.tsx").filter((f) => /from ['"][^'"]*vouch\/engine\/bridge['"]/.test(read(f)));
+  const reaching = files.filter((f) => SURFACE_DIRS.some((d) => f.startsWith(d)) && f !== "src/app/selfimpulse.tsx").filter((f) => /from ['"][^'"]*selfimpulse\/engine\/bridge['"]/.test(read(f)));
   ok(
     "no surface imports the engine directly for assurance",
     reaching.length === 0,

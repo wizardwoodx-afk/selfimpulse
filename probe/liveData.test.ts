@@ -11,9 +11,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { askVH19, responseCanonical } from "../src/vh19/generalist";
-import { assessReplyEvidence, detectTimeSensitiveClaims, liveDataBanner, liveDataVerdict } from "../src/vh19/liveData";
-import type { ProviderConfig } from "../src/vh19/types";
+import { askSelfImpulse19, responseCanonical } from "../src/engine/generalist";
+import { assessReplyEvidence, detectTimeSensitiveClaims, liveDataBanner, liveDataVerdict } from "../src/engine/liveData";
+import type { ProviderConfig } from "../src/engine/types";
 
 let pass = 0;
 let fail = 0;
@@ -52,21 +52,21 @@ test("live-data GuardRail — runtime enforcement, not a prompt ask", async () =
   check("the banner is honest about enforcing disclosure when no retrieval is wired", liveDataBanner(vBad!).includes("No retrieval capability is wired") && liveDataBanner(vBad!).includes("knowledge-cutoff"));
 
   console.log("── pipeline integration ──");
-  const stale = await askVH19({ text: "research the current market trends for electric vehicles", userId: "ld-user" }, { provider: prov, fetchImpl: scripted("The current EV market is growing fast and prices dropped in 2026.") });
+  const stale = await askSelfImpulse19({ text: "research the current market trends for electric vehicles", userId: "ld-user" }, { provider: prov, fetchImpl: scripted("The current EV market is growing fast and prices dropped in 2026.") });
   check("an unsourced time-sensitive research answer is FLAGGED at runtime", stale.liveData !== undefined && stale.liveData.required === true && stale.liveData.verified === false, stale.liveData);
   check("the stale flag is appended to the reply itself", stale.reply.includes("LIVE-DATA CHECK") && stale.reply.includes("knowledge-cutoff"));
   check("the verdict rides inside the provenance digest", JSON.parse(responseCanonical({ ...stale, provenanceDigest: "" })).liveData?.verified === false);
 
-  const fresh = await askVH19({ text: "research the current market trends for electric vehicles", userId: "ld-user" }, { provider: prov, fetchImpl: scripted("As of 2026-03-01, per https://example.org/ev-report, the current EV market grew 12%.") });
+  const fresh = await askSelfImpulse19({ text: "research the current market trends for electric vehicles", userId: "ld-user" }, { provider: prov, fetchImpl: scripted("As of 2026-03-01, per https://example.org/ev-report, the current EV market grew 12%.") });
   check("a sourced, dated answer verifies — and no banner is appended", fresh.liveData?.verified === true && !fresh.reply.includes("LIVE-DATA CHECK"));
 
-  const code = await askVH19({ text: "refactor the typescript parser types", userId: "ld-user" }, { provider: prov, fetchImpl: scripted("Here is the refactor with the latest types for version 2.0 today.") });
+  const code = await askSelfImpulse19({ text: "refactor the typescript parser types", userId: "ld-user" }, { provider: prov, fetchImpl: scripted("Here is the refactor with the latest types for version 2.0 today.") });
   check("non-research/analysis answers are left alone", code.liveData === undefined && !code.reply.includes("LIVE-DATA CHECK"));
 
-  const timeless = await askVH19({ text: "research the history of the scientific method", userId: "ld-user" }, { provider: prov, fetchImpl: scripted("The scientific method: observe, hypothesize, test, repeat. Bacon formalized it.") });
+  const timeless = await askSelfImpulse19({ text: "research the history of the scientific method", userId: "ld-user" }, { provider: prov, fetchImpl: scripted("The scientific method: observe, hypothesize, test, repeat. Bacon formalized it.") });
   check("a timeless research answer is not flagged", timeless.liveData === undefined);
 
-  const planned = await askVH19({ text: "research the current market trends for electric vehicles", userId: "ld-user" });
+  const planned = await askSelfImpulse19({ text: "research the current market trends for electric vehicles", userId: "ld-user" });
   check("a planned (non-executed) answer gets no live-data verdict — nothing was answered", planned.liveData === undefined && planned.outcome === "planned");
 
   console.log("── retrieval verification (19.3.0) — verified means FETCHED ──");
@@ -80,7 +80,7 @@ test("live-data GuardRail — runtime enforcement, not a prompt ask", async () =
     // The fetched source: contains the claim markers ("current", "2026", "price").
     return new Response("<html>EV report: current price trends down as of 2026-09-01. Price index inside.</html>", { status: 200 });
   }) as unknown as typeof fetch;
-  const retrieved = await askVH19(
+  const retrieved = await askSelfImpulse19(
     { text: "research the current EV price trend", userId: "ld-user" },
     { provider: prov, fetchImpl: scripted("As of 2026-09-01 the current EV price trend is down, per https://example.org/ev-prices."), evidenceFetch: evidenceOk },
   );
@@ -94,7 +94,7 @@ test("live-data GuardRail — runtime enforcement, not a prompt ask", async () =
     if (url.includes("chat/completions")) return new Response(JSON.stringify({ choices: [{ message: { content: "As of 2026-09-01 the current EV price trend is down, per https://example.org/ev-prices." } }] }), { status: 200 });
     return new Response("not found", { status: 404 });
   }) as unknown as typeof fetch;
-  const unfetchable = await askVH19(
+  const unfetchable = await askSelfImpulse19(
     { text: "research the current EV price trend", userId: "ld-user" },
     { provider: prov, fetchImpl: scripted("As of 2026-09-01 the current EV price trend is down, per https://example.org/ev-prices."), evidenceFetch: evidenceDown },
   );
@@ -107,13 +107,13 @@ test("live-data GuardRail — runtime enforcement, not a prompt ask", async () =
     if (url.includes("chat/completions")) return new Response(JSON.stringify({ choices: [{ message: { content: "As of 2026-09-01 the current EV price trend is down, per https://example.org/ev-prices." } }] }), { status: 200 });
     return new Response("<html>an unrelated page about medieval agriculture</html>", { status: 200 });
   }) as unknown as typeof fetch;
-  const unsupported = await askVH19(
+  const unsupported = await askSelfImpulse19(
     { text: "research the current EV price trend", userId: "ld-user" },
     { provider: prov, fetchImpl: scripted("As of 2026-09-01 the current EV price trend is down, per https://example.org/ev-prices."), evidenceFetch: unsupportive },
   );
   check("a fetched source that does NOT contain the claims does not verify", unsupported.liveData?.verified === false && unsupported.liveData?.retrieval?.[0].status === "retrieved" && unsupported.liveData?.retrieval?.[0].claimHits === 0, unsupported.liveData?.retrieval);
 
-  const disclosureFresh = await askVH19(
+  const disclosureFresh = await askSelfImpulse19(
     { text: "research the current market trends for electric vehicles", userId: "ld-user" },
     { provider: prov, fetchImpl: scripted("As of 2026-03-01, per https://example.org/ev-report, the current EV market grew 12%.") },
   );

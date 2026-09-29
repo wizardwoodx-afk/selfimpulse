@@ -28,7 +28,7 @@ import { sha256Hex } from "./learningReceipt";
 import { signHexDigest, verifyIssuerSignature, signingSupported } from "./signing";
 
 export interface ActionPacket {
-  format: "vh-action-packet/1";
+  format: "si-action-packet/1";
   id: string;
   mjVersion: string;
   issuedAt: string;
@@ -75,7 +75,7 @@ export async function issueActionPacket(args: {
   const now = args.now ?? Date.now();
   seq += 1;
   const base = {
-    format: "vh-action-packet/1" as const,
+    format: "si-action-packet/1" as const,
     id: `packet-${now.toString(36)}-${seq}`,
     mjVersion: args.mjVersion,
     issuedAt: new Date(now).toISOString(),

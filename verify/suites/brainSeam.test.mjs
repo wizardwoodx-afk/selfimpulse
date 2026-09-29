@@ -16,8 +16,8 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
@@ -367,7 +367,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -397,7 +397,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY = "vouch.v3.db";
+    KEY = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -927,7 +927,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -957,7 +957,7 @@ var init_client = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -976,7 +976,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -999,7 +999,7 @@ var init_client = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -1022,7 +1022,7 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -1453,7 +1453,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 
-// src/vouch/engine/brainSeam.ts
+// src/selfimpulse/engine/brainSeam.ts
 import fs from "node:fs";
 
 // src/domain/harness.ts
@@ -1493,7 +1493,7 @@ var HARNESSES = [
     name: "Native agent (in-process)",
     bins: [],
     argv: [],
-    install: "Nothing to install \u2014 the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+    install: "Nothing to install \u2014 the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
     notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
     source: "src/engine/hermesRuntime.ts"
   },
@@ -1509,7 +1509,7 @@ var HARNESSES = [
 var HARNESS_BY_ID = new Map(HARNESSES.map((h) => [h.id, h]));
 var HARNESS_OPTIONS = HARNESSES.filter((h) => !isRetiredHarness(h.id)).map((h) => h.id);
 
-// src/vouch/engine/brainSeam.ts
+// src/selfimpulse/engine/brainSeam.ts
 var PREF_KEY = "vh.brain.pref";
 function brainPref() {
   try {
@@ -1578,7 +1578,7 @@ function planFromModelText(text, max = 6) {
 }
 function plannerPrompt(objective) {
   return [
-    "You are the planner inside 11Handle's governed brain. Produce 3 to 6 concrete steps for the objective below.",
+    "You are the planner inside SelfImpulse's governed brain. Produce 3 to 6 concrete steps for the objective below.",
     "One step per line. No preamble, no markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.",
     `Objective: ${objective}`
   ].join("\n");
@@ -1630,13 +1630,13 @@ function wrapRealModelBrain(base, deps = realBrainDeps, prefOverride) {
   };
 }
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 init_version();
 
-// src/vouch/engine/proof.ts
+// src/selfimpulse/engine/proof.ts
 var enc = new TextEncoder();
 
-// src/vouch/engine/webSearch.ts
+// src/selfimpulse/engine/webSearch.ts
 init_guardrail();
 
 // src/mission/missionLoop.ts
@@ -1652,7 +1652,7 @@ var AGENT_CAPABILITIES = {
     // does not exist; every caller that read them was reasoning about a seat
     // that could not run.
     bins: [],
-    install: "bundled with 11Handle; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
+    install: "bundled with SelfImpulse; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
     prompt: { argv: [], confidence: "docs", source: "in-process runtime: no argv exists by construction" },
     json: null,
     readOnly: null,
@@ -2171,10 +2171,10 @@ init_version();
 // src/mission/knowledgeSkills.ts
 init_id();
 
-// src/vouch/engine/bridge.ts
+// src/selfimpulse/engine/bridge.ts
 init_version();
 
-// src/vouch/engine/providers.ts
+// src/selfimpulse/engine/providers.ts
 init_client();
 init_localDb();
 var REGISTRY_KEY = "vh.providers";
@@ -2218,7 +2218,7 @@ function modelPrefs(store2 = defaultStore()) {
 }
 var tierFor = (mode) => mode === "deep" ? "big" : "cheap";
 var ipcCaller = (req) => ipc.llmChat(req);
-var PLANNER_SYSTEM = "You are the planner inside 11Handle's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
+var PLANNER_SYSTEM = "You are the planner inside SelfImpulse's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
 async function chatStep(prompt, tier, opts) {
   const prefs = opts?.prefs ?? modelPrefs(opts?.store);
   if (!prefs.enabled) {
@@ -22002,7 +22002,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// src/vouch/engine/toolSchema.ts
+// src/selfimpulse/engine/toolSchema.ts
 var WorkspaceWriteSchema = external_exports.object({
   name: external_exports.string().min(1).max(255).regex(/^[^/\\<>:"|?*\x00-\x1F]+$/, "filename must be a plain local name, no path separators or control chars"),
   content: external_exports.string().max(1e6, "content exceeds 1 MB workspace-file limit")
@@ -22020,10 +22020,10 @@ var WebSearchSchema = external_exports.object({
   depth: external_exports.enum(["1", "2", "3"]).optional().default("1")
 });
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 init_guardrail();
 
-// src/vouch/engine/agui.ts
+// src/selfimpulse/engine/agui.ts
 var AguiBus = class extends EventTarget {
   emit(ev) {
     this.dispatchEvent(new CustomEvent(ev.type, { detail: ev }));
@@ -22036,7 +22036,7 @@ var AguiBus = class extends EventTarget {
 };
 var agui = new AguiBus();
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 var hasLS = typeof globalThis.localStorage !== "undefined";
 var mem = /* @__PURE__ */ new Map();
 var store = {
@@ -22062,8 +22062,8 @@ var store = {
     }
   }
 };
-var SESSION_KEY = "vouch.session.v1";
-var BOT_NAME = "Vouch";
+var SESSION_KEY = "selfimpulse.session.v1";
+var BOT_NAME = "SelfImpulse";
 function mainThread(messages) {
   const now = (/* @__PURE__ */ new Date()).toISOString();
   return { id: "t-main", title: "Main thread", createdAt: now, lastActivityAt: now, status: "open", messages };
@@ -22088,7 +22088,7 @@ function freshSession() {
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-function loadVouchSession() {
+function loadSelfImpulseSession() {
   const raw = store.get(SESSION_KEY);
   if (!raw) return freshSession();
   try {
@@ -22122,7 +22122,7 @@ function loadVouchSession() {
   }
   return freshSession();
 }
-var session = loadVouchSession();
+var session = loadSelfImpulseSession();
 function safeCalculate(input2) {
   const s = input2.replace(/\s+/g, "").replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-").replace(/\((?=[+-])/, "$1");
   let i = 0;
@@ -22355,14 +22355,14 @@ Start one and I'll hold it: \u201Ccontinue <thread name>\u201D picks it back up.
       if (!args) continue;
       const isDispatch = sk.tool === "dispatch_mission";
       return {
-        thoughts: [`Slow\u2192fast: executing my vouched skill "${sk.name}" v${sk.version} \u2014 test-gated, ${sk.wins} proven win(s), distilled from a vouched run. The procedure is proven, so no re-planning.`],
-        plan: [`${sk.name} v${sk.version} \u2014 single vouched step`],
+        thoughts: [`Slow\u2192fast: executing my selfimpulseed skill "${sk.name}" v${sk.version} \u2014 test-gated, ${sk.wins} proven win(s), distilled from a selfimpulseed run. The procedure is proven, so no re-planning.`],
+        plan: [`${sk.name} v${sk.version} \u2014 single selfimpulseed step`],
         actions: isDispatch ? [{ kind: "dispatch", objective: String(args.objective ?? "") }] : [{ kind: "tool", tool: sk.tool, args }],
         confidence: "high",
         skillId: sk.id,
         skillVersion: sk.version,
         final: (r) => tone(
-          r[0]?.ok ? `Done \u2014 via my vouched skill **${sk.name}** v${sk.version} (slow\u2192fast; test-gated, ${sk.wins} proven win${sk.wins === 1 ? "" : "s"}). The receipt binds the skill and verifies offline like every other job.` : `My vouched skill **${sk.name}** FAILED on live replay \u2014 I've flagged it, filed the failure to memory, and here is the honest record: ${r[0]?.output ?? ""}`,
+          r[0]?.ok ? `Done \u2014 via my selfimpulseed skill **${sk.name}** v${sk.version} (slow\u2192fast; test-gated, ${sk.wins} proven win${sk.wins === 1 ? "" : "s"}). The receipt binds the skill and verifies offline like every other job.` : `My selfimpulseed skill **${sk.name}** FAILED on live replay \u2014 I've flagged it, filed the failure to memory, and here is the honest record: ${r[0]?.output ?? ""}`,
           ctx.persona
         )
       };
@@ -22375,7 +22375,7 @@ Start one and I'll hold it: \u201Ccontinue <thread name>\u201D picks it back up.
         final: () => tone(
           `Hey. I'm **${BOT_NAME}** \u2014 the accountable colleague on this machine. ${ctx.mode === "deep" ? `Deep mode on:${factLine}` : factLine}
 
-I run a cycle on everything: **recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 vouch \u2192 learn**. Fast tasks take the fast path; risky ones are simulated and paused at your gate \u2014 and every finished run mints a signed receipt.
+I run a cycle on everything: **recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 selfimpulse \u2192 learn**. Fast tasks take the fast path; risky ones are simulated and paused at your gate \u2014 and every finished run mints a signed receipt.
 
 Three ways to use me:
 - **Ask** \u2014 math, time, local knowledge, live web evidence
@@ -22388,16 +22388,16 @@ Brain: **${brain.label}**. The real-model planning seam ships in this runtime \u
       };
       return plan;
     }
-    if (/who are you|what are you|your name|what can you do|about (you|vouch)|\bhelp\b/i.test(lower)) {
+    if (/who are you|what are you|your name|what can you do|about (you|selfimpulse)|\bhelp\b/i.test(lower)) {
       return {
         thoughts: ["Identity question. Answer with the full card \u2014 what, how, and the honest brain status."],
         plan: ctx.mode === "deep" ? ["State the role", "List the tools", "State the brain honestly"] : [],
         actions: [],
         final: () => tone(
-          `I'm **${BOT_NAME}** \u2014 a standalone, persistent, named colleague on this machine, running the **Vouch Cycle**: recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 vouch \u2192 learn.
+          `I'm **${BOT_NAME}** \u2014 a standalone, persistent, named colleague on this machine, running the **SelfImpulse Cycle**: recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 selfimpulse \u2192 learn.
 
 - **Tools:** calculator (real parser), clock, local knowledge base, live web evidence (keyless providers), memory + preferences (yours to inspect/delete), a local workspace (writes are simulated + approval-gated), system info
-- **Dispatch:** \u201Cdispatch a mission: \u2026\u201D \u2014 hands the objective to the real execution core (the mission loop) under one mission ID; the whole trail lands in one vouched chain
+- **Dispatch:** \u201Cdispatch a mission: \u2026\u201D \u2014 hands the objective to the real execution core (the mission loop) under one mission ID; the whole trail lands in one selfimpulseed chain
 - **Learning:** successful runs become test-gated skills you can inspect; your feedback binds to receipts
 - **Proof:** every completed run mints a ${`mj-proof-receipt/2`} \u2014 SHA-256 chain, HMAC seal, Ed25519 issuer signature when this runtime can sign \u2014 verifiable offline, zero runtime state
 
@@ -22611,7 +22611,7 @@ The brain seam is live: flip it from simulated to auto and an installed agent CL
 brain = wrapModelBrain(wrapRealModelBrain(simulatedBrain));
 
 // probe/brainSeam.test.ts
-var root = globalThis.HANDLE_ROOT ?? process.cwd();
+var root = globalThis.SI_ROOT ?? process.cwd();
 var AUTO = "auto";
 var execFileP = promisify(execFile);
 var fakeDeps = (behavior) => ({
@@ -22684,18 +22684,18 @@ test("brainSeam \u2014 real model, honest refusal, or labeled simulated: never f
   assert2.ok(none.refused.includes("not installed"), "the registry walk reports the honest absence");
   assert2.ok(plannerPrompt("build a barn").includes("build a barn") && plannerPrompt("build a barn").includes("human gate"), "the prompt carries the objective and the governance");
   assert2.equal(planFromModelText("a\n\nbb bb\n- ccc ccc\ndddd dddd\neeee eeee\nffff ffff\ngggg gggg\nhhhh hhhh").length, 6, "steps bounded");
-  const src = fs2.readFileSync(path.join(root, "src", "vouch", "engine", "brainSeam.ts"), "utf8");
+  const src = fs2.readFileSync(path.join(root, "src", "selfimpulse", "engine", "brainSeam.ts"), "utf8");
   assert2.ok(!/from "node:child_process"/.test(src), "the seam NEVER imports node:child_process \u2014 the stub is untouchable");
   assert2.ok(
     /external agent CLIs are removed/.test(src),
     "the Tauri path refuses in words too, not just the web path"
   );
   assert2.ok(/BrainHostError/.test(src), "the web path refuses via a typed host error, before any spawn");
-  const vouchSrc = fs2.readFileSync(path.join(root, "src", "vouch", "engine", "vouch.ts"), "utf8");
-  assert2.ok(/await brainNow\.decide/.test(vouchSrc), "the governed pipeline awaits the (possibly async) plan");
-  assert2.ok(/VouchPlan \| Promise<VouchPlan>/.test(vouchSrc), "the brain interface admits async plans");
-  assert2.ok(/wrapRealModelBrain\(simulatedBrain\)/.test(vouchSrc), "the simulated brain ships wrapped");
-  assert2.ok(!/no host app|no mission engine|until the merge/i.test(vouchSrc), "no stale header narrative survives");
+  const selfimpulseSrc = fs2.readFileSync(path.join(root, "src", "selfimpulse", "engine", "selfimpulse.ts"), "utf8");
+  assert2.ok(/await brainNow\.decide/.test(selfimpulseSrc), "the governed pipeline awaits the (possibly async) plan");
+  assert2.ok(/SelfImpulsePlan \| Promise<SelfImpulsePlan>/.test(selfimpulseSrc), "the brain interface admits async plans");
+  assert2.ok(/wrapRealModelBrain\(simulatedBrain\)/.test(selfimpulseSrc), "the simulated brain ships wrapped");
+  assert2.ok(!/no host app|no mission engine|until the merge/i.test(selfimpulseSrc), "no stale header narrative survives");
   const offBrain = wrapRealModelBrain(simulatedBrain, fakeDeps({ installed: true }), "simulated");
   assert2.equal(offBrain.id, "simulated", "off \u2192 the base identity stands");
   const wb = wrapRealModelBrain(simulatedBrain, fakeDeps({ installed: true }), AUTO);
@@ -22704,7 +22704,7 @@ test("brainSeam \u2014 real model, honest refusal, or labeled simulated: never f
 });
 test("brainSeam \u2014 19.7.15: the native boundary has no spawn to get wrong", async () => {
   const rustSrc = fs2.readFileSync(path.join(root, "src-tauri", "src", "commands.rs"), "utf8");
-  const seamSrc = fs2.readFileSync(path.join(root, "src", "vouch", "engine", "brainSeam.ts"), "utf8");
+  const seamSrc = fs2.readFileSync(path.join(root, "src", "selfimpulse", "engine", "brainSeam.ts"), "utf8");
   assert2.ok(!/\bcli_invoke\b/.test(rustSrc), "there is no command that can execute an external agent CLI");
   assert2.ok(!/ALLOWED_CLI_BINS/.test(rustSrc), "the external agent allowlist is gone");
   const allow = /SHELL_ALLOWED_PROGRAMS: &\[&str\] = &\[([\s\S]*?)\];/.exec(rustSrc);

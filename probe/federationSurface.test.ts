@@ -15,7 +15,7 @@ import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 let passed = 0;
@@ -94,8 +94,8 @@ section("3. mounting uses OUR OWN bundle through an existing allowlist");
 
   // The host is OUR bundle, and its launcher verifies the engine by SHA-256
   // before listening. That property is the reason bundling it is safe.
-  const entry = read("tools/vh-host.mjs");
-  ok("the host launcher still verifies its engine pin", /vh-host-engine\.sha256/.test(entry) && /sha256/.test(entry));
+  const entry = read("tools/si-host.mjs");
+  ok("the host launcher still verifies its engine pin", /si-host-engine\.sha256/.test(entry) && /sha256/.test(entry));
   ok("it fails closed rather than listening on a mismatch", /throw|fail|exit/i.test(entry));
 
   /* The supervisor itself — the part that makes "mounted" mean something. */
@@ -104,7 +104,7 @@ section("3. mounting uses OUR OWN bundle through an existing allowlist");
   const supCode = sup.split("\n").filter((l) => !/^\s*(\/\/|\/\/|\*)/.test(l)).join("\n");
   ok("it never calls the timeout wrapper (outside the comment that explains it)", !/run_timeout/.test(supCode));
   ok("it waits for the host to ANNOUNCE itself, then releases the lock",
-    /VH-A2A-READY/.test(sup) && /recv_timeout/.test(sup) && /supervisor\(\)\.lock\(\);/.test(sup));
+    /SI-A2A-READY/.test(sup) && /recv_timeout/.test(sup) && /supervisor\(\)\.lock\(\);/.test(sup));
   ok("a host that never announces itself is killed rather than orphaned",
     /did not report ready/.test(sup) && /child\.kill\(\)/.test(sup));
   ok("`running` is answered by asking the OS, not by a stored flag", /try_wait/.test(sup) && /alive\(&mut m\.child\)/.test(sup));
@@ -117,10 +117,10 @@ section("3. mounting uses OUR OWN bundle through an existing allowlist");
 
   const conf = JSON.parse(read("src-tauri/tauri.conf.json"));
   const res: Record<string, string> = conf.bundle.resources;
-  ok("the host is still declared as a bundled resource", Boolean(res["../tools/vh-host.mjs"]));
-  ok("it lands under a2a/ so app_info's path matches", res["../tools/vh-host.mjs"] === "a2a/vh-host.mjs", res["../tools/vh-host.mjs"]);
-  ok("the byte-pinned engine is bundled too", Boolean(res["../tools/vh-host-engine.mjs"]));
-  ok("and its pin", Boolean(res["../tools/vh-host-engine.sha256"]));
+  ok("the host is still declared as a bundled resource", Boolean(res["../tools/si-host.mjs"]));
+  ok("it lands under a2a/ so app_info's path matches", res["../tools/si-host.mjs"] === "a2a/si-host.mjs", res["../tools/si-host.mjs"]);
+  ok("the byte-pinned engine is bundled too", Boolean(res["../tools/si-host-engine.mjs"]));
+  ok("and its pin", Boolean(res["../tools/si-host-engine.sha256"]));
 }
 
 section("4. it refuses in words rather than pretending");

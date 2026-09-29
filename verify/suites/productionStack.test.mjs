@@ -301,8 +301,8 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
@@ -371,7 +371,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -401,7 +401,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY = "vouch.v3.db";
+    KEY = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -931,7 +931,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -961,7 +961,7 @@ var init_client = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -980,7 +980,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1003,7 +1003,7 @@ var init_client = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -1026,7 +1026,7 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -1449,7 +1449,7 @@ var init_client = __esm({
   }
 });
 
-// src/vouch/engine/providers.ts
+// src/selfimpulse/engine/providers.ts
 var providers_exports = {};
 __export(providers_exports, {
   PLANNER_SYSTEM: () => PLANNER_SYSTEM,
@@ -1536,7 +1536,7 @@ function setProviderKey(providerId, apiKey, kind) {
   if (!useTauri() && kind !== "ollama") {
     return {
       ok: false,
-      refused: "the web edition cannot hold cloud keys \u2014 browser storage is readable by anything in this origin. The DESKTOP build stores your key in the OS keychain and runs every provider; on the web, 11Handle is Ollama/local-only. Refused in words, nothing stored."
+      refused: "the web edition cannot hold cloud keys \u2014 browser storage is readable by anything in this origin. The DESKTOP build stores your key in the OS keychain and runs every provider; on the web, SelfImpulse is Ollama/local-only. Refused in words, nothing stored."
     };
   }
   localDb.secretSet(keyRef(providerId), apiKey.trim());
@@ -1730,7 +1730,7 @@ function wrapModelBrain(base, opts) {
 }
 var REGISTRY_KEY, defaultStore, keyRef, PREFS_KEY, defaultModelPrefs, tierFor, ipcCaller, PLANNER_SYSTEM, USAGE_KEY, USAGE_CAP, PRICE_TABLE;
 var init_providers = __esm({
-  "src/vouch/engine/providers.ts"() {
+  "src/selfimpulse/engine/providers.ts"() {
     "use strict";
     init_client();
     init_localDb();
@@ -1741,7 +1741,7 @@ var init_providers = __esm({
     defaultModelPrefs = () => ({ enabled: false });
     tierFor = (mode) => mode === "deep" ? "big" : "cheap";
     ipcCaller = (req) => ipc.llmChat(req);
-    PLANNER_SYSTEM = "You are the planner inside 11Handle's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
+    PLANNER_SYSTEM = "You are the planner inside SelfImpulse's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
     USAGE_KEY = "vh.provider.usage";
     USAGE_CAP = 400;
     PRICE_TABLE = [
@@ -1760,7 +1760,7 @@ var init_providers = __esm({
   }
 });
 
-// src/vouch/ipc/client.ts
+// src/selfimpulse/ipc/client.ts
 var client_exports = {};
 __export(client_exports, {
   ipc: () => ipc2,
@@ -1771,7 +1771,7 @@ function isNativeHost() {
 }
 var invoke2, ipc2;
 var init_client2 = __esm({
-  "src/vouch/ipc/client.ts"() {
+  "src/selfimpulse/ipc/client.ts"() {
     "use strict";
     invoke2 = (cmd, args) => {
       const internals = window.__TAURI_INTERNALS__;
@@ -1795,7 +1795,7 @@ var init_client2 = __esm({
   }
 });
 
-// src/vouch/engine/signing.ts
+// src/selfimpulse/engine/signing.ts
 async function keychainBridge() {
   if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return null;
   try {
@@ -1848,7 +1848,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vouch-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `selfimpulse-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -1863,7 +1863,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex2(rawPub);
     const identity = {
-      keyId: `vouch-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `selfimpulse-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -1904,15 +1904,15 @@ async function verifyIssuerSignature(chainHashHex, sigHex, publicKeyHex) {
 }
 var STORAGE_KEY, KEYCHAIN_REF, cached;
 var init_signing = __esm({
-  "src/vouch/engine/signing.ts"() {
+  "src/selfimpulse/engine/signing.ts"() {
     "use strict";
-    STORAGE_KEY = "vouch.issuerkey.v1";
-    KEYCHAIN_REF = "vouch.issuerkey.v1";
+    STORAGE_KEY = "selfimpulse.issuerkey.v1";
+    KEYCHAIN_REF = "selfimpulse.issuerkey.v1";
     cached = null;
   }
 });
 
-// src/vouch/engine/genome.ts
+// src/selfimpulse/engine/genome.ts
 function keyOf(id, version) {
   return `${id}@${version}`;
 }
@@ -1944,7 +1944,7 @@ function registerGenome(reg, genome) {
 }
 var TERMINAL_STATES;
 var init_genome = __esm({
-  "src/vouch/engine/genome.ts"() {
+  "src/selfimpulse/engine/genome.ts"() {
     "use strict";
     init_signing();
     TERMINAL_STATES = /* @__PURE__ */ new Set([
@@ -1956,7 +1956,7 @@ var init_genome = __esm({
   }
 });
 
-// src/vouch/engine/skillStore.ts
+// src/selfimpulse/engine/skillStore.ts
 var skillStore_exports = {};
 __export(skillStore_exports, {
   buildCatalog: () => buildCatalog,
@@ -1976,7 +1976,7 @@ async function buildCatalog(skills) {
   } catch {
     signature = null;
   }
-  return { format: "vh-skill-catalog/1", issuedAt: (/* @__PURE__ */ new Date()).toISOString(), skills, digest, signature };
+  return { format: "si-skill-catalog/1", issuedAt: (/* @__PURE__ */ new Date()).toISOString(), skills, digest, signature };
 }
 function importedGenomeRegistry() {
   const reg = { genomes: /* @__PURE__ */ new Map() };
@@ -1995,7 +1995,7 @@ function persistGenomeRegistry(reg) {
   localDb.importedGenomesSave(rows);
 }
 async function importFromCatalog(catalog, skillId, publicKeyHex, genome) {
-  if (catalog.format !== "vh-skill-catalog/1") return { ok: false, refused: `unknown catalog format "${catalog.format}" \u2014 refused.` };
+  if (catalog.format !== "si-skill-catalog/1") return { ok: false, refused: `unknown catalog format "${catalog.format}" \u2014 refused.` };
   const digest = await sha256hex(JSON.stringify(catalog.skills));
   if (digest !== catalog.digest) return { ok: false, refused: "catalog digest mismatch \u2014 it was modified after issuance; refused in words." };
   if (catalog.signature) {
@@ -2003,7 +2003,7 @@ async function importFromCatalog(catalog, skillId, publicKeyHex, genome) {
     const okSig = await verifyIssuerSignature(catalog.digest, catalog.signature.sigHex, publicKeyHex);
     if (!okSig) return { ok: false, refused: "catalog signature does NOT verify \u2014 refused." };
   } else {
-    return { ok: false, refused: "catalog is UNSIGNED \u2014 an import nobody vouches for is refused; the issuer must sign or state why." };
+    return { ok: false, refused: "catalog is UNSIGNED \u2014 an import nobody selfimpulsees for is refused; the issuer must sign or state why." };
   }
   const skill = catalog.skills.find((s) => s.id === skillId);
   if (!skill) return { ok: false, refused: `skill "${skillId}" is not in this catalog.` };
@@ -2036,12 +2036,12 @@ async function importFromCatalog(catalog, skillId, publicKeyHex, genome) {
     ok: true,
     skill,
     landedAs: landedStatus,
-    note: `imported "${skill.title}" from mission ${skill.provenance.missionId} (${skill.provenance.verifiedSeats.length} verified seat(s), v${skill.provenance.version}) \u2014 landed UNDER_EVALUATION: it re-proves itself on THIS machine before shadow, canary, active. 11Handle ${ENGINE_VERSION}.`
+    note: `imported "${skill.title}" from mission ${skill.provenance.missionId} (${skill.provenance.verifiedSeats.length} verified seat(s), v${skill.provenance.version}) \u2014 landed UNDER_EVALUATION: it re-proves itself on THIS machine before shadow, canary, active. SelfImpulse ${ENGINE_VERSION}.`
   };
 }
 var te;
 var init_skillStore = __esm({
-  "src/vouch/engine/skillStore.ts"() {
+  "src/selfimpulse/engine/skillStore.ts"() {
     "use strict";
     init_signing();
     init_genome();
@@ -2058,7 +2058,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-// src/vh19/pureHash.ts
+// src/engine/pureHash.ts
 var K = [
   1116352408,
   1899447441,
@@ -2211,7 +2211,7 @@ var key = (missionId) => `vh.durable.${missionId}`;
 function durableSave(runtime, store2 = defaultDurableKV()) {
   const state = runtime.persist();
   const envelope = {
-    format: "vh-durable-mission/1",
+    format: "si-durable-mission/1",
     missionId: state.missionId,
     savedAt: (/* @__PURE__ */ new Date()).toISOString(),
     digest: digestOf(JSON.stringify(state)),
@@ -2229,7 +2229,7 @@ function durableResume(runtime, store2 = defaultDurableKV()) {
   } catch {
     return { ok: false, refused: "durable snapshot is corrupt (unparseable) \u2014 refused in words; work is NOT resumed into half-state." };
   }
-  if (env.format !== "vh-durable-mission/1") return { ok: false, refused: `unknown durable format "${env.format}" \u2014 refused.` };
+  if (env.format !== "si-durable-mission/1") return { ok: false, refused: `unknown durable format "${env.format}" \u2014 refused.` };
   if (digestOf(JSON.stringify(env.state)) !== env.digest) return { ok: false, refused: "durable snapshot failed its digest \u2014 it was modified after save; refused rather than resumed." };
   const r = runtime.restore(env.state);
   if (!r.ok) return { ok: false, refused: `runtime restore refused: ${r.errors.join("; ")}` };
@@ -2442,7 +2442,7 @@ var fetchModeDeps = (fetchImpl = fetch) => ({
       }
       return { ok: true, detail: `${finalUrl} \u2192 HTTP ${res.status}, ${html.length} bytes, ${ms}ms, title: ${title}`, title };
     }
-    return { ok: false, detail: `${a.kind} is an INTERACTIVE action \u2014 it needs the native computer-use boundary; this host refuses in words instead of pretending (see docs/history/VH-16.10-UPGRADE.md).`, title: a.kind };
+    return { ok: false, detail: `${a.kind} is an INTERACTIVE action \u2014 it needs the native computer-use boundary; this host refuses in words instead of pretending (see docs/history/SI-16.10-UPGRADE.md).`, title: a.kind };
   }
 });
 
@@ -2458,7 +2458,7 @@ if (typeof globalThis.localStorage === "undefined") {
     clear: () => __mem.clear()
   };
 }
-var fakeCaller = (answer = "1. read the state\n2. act under the gate\n3. vouch the receipt", fail = false) => async (req) => {
+var fakeCaller = (answer = "1. read the state\n2. act under the gate\n3. selfimpulse the receipt", fail = false) => async (req) => {
   if (fail) throw new Error("connection refused \u2014 the endpoint is down");
   assert.ok(req.secret_ref.startsWith("vh.providerkey."), "the call carries the keyRef (the key itself NEVER travels in the registry)");
   return { content: answer, model: req.model, usage: { input_tokens: 100, output_tokens: 40 }, duration_ms: 123 };
@@ -2517,7 +2517,7 @@ describe("productionStack \u2014 the six production features", () => {
       restore: (st) => st.missionId === "m1" ? { ok: true, errors: [] } : { ok: false, errors: [`state belongs to ${st.missionId}, not m1`] }
     };
     const env = durableSave(rt, s);
-    assert.equal(env.format, "vh-durable-mission/1");
+    assert.equal(env.format, "si-durable-mission/1");
     const r = durableResume(rt, s);
     assert.equal(r.ok, true);
     assert.ok(r.ok && r.completedNodeIds.includes("n1"), "finished nodes are known \u2014 their work is not repeated");
@@ -2580,7 +2580,7 @@ describe("productionStack \u2014 the six production features", () => {
     const stripped = { ...cat, signature: null };
     const unsigned = await importFromCatalog(stripped, "s1");
     assert.equal(unsigned.ok, false);
-    assert.ok(!unsigned.ok && unsigned.refused.includes("UNSIGNED"), "an import nobody vouches for is refused");
+    assert.ok(!unsigned.ok && unsigned.refused.includes("UNSIGNED"), "an import nobody selfimpulsees for is refused");
     const tampered = { ...cat, skills: [{ ...cat.skills[0], title: "EVIL" }] };
     const t = await importFromCatalog(tampered, "s1");
     assert.equal(t.ok, false);
@@ -2609,8 +2609,8 @@ describe("productionStack \u2014 the six production features", () => {
     assert.equal(r.ok, false);
     assert.match(r.detail, /refused/);
     const root2 = process.cwd();
-    const vouchSrc = fs.readFileSync(path.join(root2, "src", "vouch", "engine", "vouch.ts"), "utf8");
-    assert.ok(vouchSrc.includes("wrapModelBrain(wrapRealModelBrain(simulatedBrain))"), "model brain wraps the harness seam wraps the labeled core");
+    const selfimpulseSrc = fs.readFileSync(path.join(root2, "src", "selfimpulse", "engine", "selfimpulse.ts"), "utf8");
+    assert.ok(selfimpulseSrc.includes("wrapModelBrain(wrapRealModelBrain(simulatedBrain))"), "model brain wraps the harness seam wraps the labeled core");
     assert.ok(!fs.existsSync(path.join(root2, "src", "pages")), "the retired pages tree is gone (19.7.12 UI)");
     const rb = fs.readFileSync(path.join(root2, "src", "browser", "receipted.ts"), "utf8");
     assert.ok(rb.includes("class ReceiptedBrowser") && /prev/.test(rb), "the receipted browser mints hash-chained receipts at the seam");
@@ -2618,9 +2618,9 @@ describe("productionStack \u2014 the six production features", () => {
   it("16.10.1 integration hardening \u2014 engine, UI, and boundary ride as ONE product", async () => {
     const rustSrc = fs.readFileSync(path.join(root, "src-tauri", "src", "commands.rs"), "utf8");
     const runtimeSrc = fs.readFileSync(path.join(root, "src", "mission", "missionRuntime.ts"), "utf8");
-    const opsSrc = fs.readFileSync(path.join(root, "src", "vouch", "engine", "vouch.ts"), "utf8") + fs.readFileSync(path.join(root, "src", "vouch", "engine", "skillStore.ts"), "utf8");
+    const opsSrc = fs.readFileSync(path.join(root, "src", "selfimpulse", "engine", "selfimpulse.ts"), "utf8") + fs.readFileSync(path.join(root, "src", "selfimpulse", "engine", "skillStore.ts"), "utf8");
     const browserSrc = fs.readFileSync(path.join(root, "src", "browser", "receipted.ts"), "utf8") + fs.readFileSync(path.join(root, "src", "ipc", "client.ts"), "utf8");
-    const providersSrc = fs.readFileSync(path.join(root, "src", "vouch", "engine", "providers.ts"), "utf8");
+    const providersSrc = fs.readFileSync(path.join(root, "src", "selfimpulse", "engine", "providers.ts"), "utf8");
     const backing = /* @__PURE__ */ new Map();
     const storageShim = {
       getItem: (k) => backing.has(k) ? backing.get(k) : null,

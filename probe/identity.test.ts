@@ -41,11 +41,11 @@ import {
   type IdentityProvider,
 } from "../src/security/identity";
 
-/* Source pins resolve through HANDLE_ROOT, not import.meta.url. The offline
+/* Source pins resolve through SI_ROOT, not import.meta.url. The offline
  * pack bundles each suite into verify/suites/ and runs it with cwd = the tree
  * root, so `new URL("../src/...", import.meta.url)` resolves to verify/src/... and
  * throws ENOENT. probe/buildRoot.ts is the convention every other suite uses. */
-const ROOT = process.env.HANDLE_ROOT ? path.resolve(process.env.HANDLE_ROOT) : process.cwd();
+const ROOT = process.env.SI_ROOT ? path.resolve(process.env.SI_ROOT) : process.cwd();
 const readSrc = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 let passed = 0;
@@ -70,10 +70,10 @@ console.log("== 1. no hardcoded USER constant remains");
 const storeSrc = readSrc("src/ui/store.ts");
 const settingsSrc = readSrc("src/ui/screens/Settings.tsx");
 ok("the store no longer exports a USER constant", !/export const USER\s*=/.test(storeSrc));
-ok("no call site passes a hardcoded 'vh-owner' as a userId", !/userId:\s*"vh-owner"/.test(storeSrc));
+ok("no call site passes a hardcoded 'si-owner' as a userId", !/userId:\s*"si-owner"/.test(storeSrc));
 ok("the store asks the identity seam for the subject", /identityProvider\(\)\.subject\(\)/.test(storeSrc), "the seam is imported but not used for attribution");
 ok("a run with no subject is refused before the engine is called", /if \(!subject\)[\s\S]{0,400}?return;/.test(storeSrc),
-  "the send() path must gate on a subject before askVH19");
+  "the send() path must gate on a subject before askSelfImpulse19");
 
 console.log("== 2. the local provider mints ONE stable subject");
 setIdentityProvider(new LocalIdentityProvider());
@@ -82,8 +82,8 @@ const a = p1.current();
 const b = p1.current();
 ok("a subject exists", !!a?.subject);
 ok("the subject is stable across calls", a?.subject === b?.subject);
-ok("the subject is namespaced to this product", /^vh-owner-[0-9a-f]{16}$/.test(a?.subject ?? ""), a?.subject);
-ok("it is not a bare random number", !/^vh-owner-\d{1,6}$/.test(a?.subject ?? ""));
+ok("the subject is namespaced to this product", /^si-owner-[0-9a-f]{16}$/.test(a?.subject ?? ""), a?.subject);
+ok("it is not a bare random number", !/^si-owner-\d{1,6}$/.test(a?.subject ?? ""));
 ok("the provider reports ready", p1.ready());
 ok("the subject accessor agrees with current()", p1.subject() === a?.subject);
 
@@ -191,7 +191,7 @@ ok("when it comes back, the seam grants again", can("ask"), "recovering must not
 
 console.log("== 8. back to local, and the handle writes through the seam");
 setIdentityProvider(new LocalIdentityProvider());
-ok("the local provider is installed again", identityProvider().current()?.subject?.startsWith("vh-owner-"));
+ok("the local provider is installed again", identityProvider().current()?.subject?.startsWith("si-owner-"));
 const saved = setOwnerDisplay("  Ravi  ");
 ok("a handle is saved", saved.ok);
 ok("the handle is trimmed", identityProvider().current()?.display === "Ravi", identityProvider().current()?.display);
@@ -216,7 +216,7 @@ console.log("== 10. rotating the subject is an identity CHANGE, and says so");
 const before = identityProvider().current()?.subject ?? "";
 const rot = rotateSubject();
 ok("rotation produces a new subject", rot.subject !== before, `${before} -> ${rot.subject}`);
-ok("the new subject has the same shape", /^vh-owner-[0-9a-f]{16}$/.test(rot.subject), rot.subject);
+ok("the new subject has the same shape", /^si-owner-[0-9a-f]{16}$/.test(rot.subject), rot.subject);
 ok("the rotation says earlier records keep the old subject", /remain attributed to the previous subject|not undone/i.test(rot.note), rot.note);
 ok("the rotation is immediate", identityProvider().current()?.subject === rot.subject);
 ok("the handle survives a rotation", identityProvider().current()?.display === "Ravi", "re-minting the id must not wipe the owner's name");

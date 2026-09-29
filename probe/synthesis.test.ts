@@ -23,10 +23,10 @@ if (typeof globalThis.localStorage === "undefined") {
   } as Storage;
 }
 
-import { askVH19, responseCanonical } from "../src/vh19/generalist";
-import { extractClaimAtoms, findDivergences, buildSynthesisSystem, buildSynthesisUser } from "../src/vh19/synthesis";
-import { getCaptain, captainForRoute } from "../src/vh19/captains";
-import type { ProviderConfig } from "../src/vh19/types";
+import { askSelfImpulse19, responseCanonical } from "../src/engine/generalist";
+import { extractClaimAtoms, findDivergences, buildSynthesisSystem, buildSynthesisUser } from "../src/engine/synthesis";
+import { getCaptain, captainForRoute } from "../src/engine/captains";
+import type { ProviderConfig } from "../src/engine/types";
 
 const prov: ProviderConfig = { kind: "openai-compatible", baseUrl: "https://api.openai.com/v1", apiKey: "sk-test-abcdefgh123456789", model: "gpt-test" };
 const MULTI_TEXT = "write unit tests for the typescript parser and review the code changes";
@@ -79,7 +79,7 @@ test("captain synthesis — reasoned collaboration over real executions (19.3.0)
     return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
   }) as unknown as typeof fetch;
 
-  const multi = await askVH19({ text: MULTI_TEXT, userId: "synth-probe" }, { provider: prov, fetchImpl: synthFetch });
+  const multi = await askSelfImpulse19({ text: MULTI_TEXT, userId: "synth-probe" }, { provider: prov, fetchImpl: synthFetch });
   const nMem = multi.specialistIds.length;
   check("the request multi-routed", nMem > 1, nMem);
   check("synthesis exists and is its own receipted record", multi.synthesis !== undefined && /^[0-9a-f]{64}$/.test(multi.synthesis?.digest ?? ""), multi.synthesis?.digest);
@@ -102,7 +102,7 @@ test("captain synthesis — reasoned collaboration over real executions (19.3.0)
     memberNo++;
     return new Response(JSON.stringify({ choices: [{ message: { content: `member work ${memberNo}` } }] }), { status: 200 });
   }) as unknown as typeof fetch;
-  const failedSynth = await askVH19({ text: MULTI_TEXT, userId: "synth-probe" }, { provider: prov, fetchImpl: failSynthFetch });
+  const failedSynth = await askSelfImpulse19({ text: MULTI_TEXT, userId: "synth-probe" }, { provider: prov, fetchImpl: failSynthFetch });
   check("no synthesis record exists", failedSynth.synthesis === undefined);
   check("the failure is stated in words", (failedSynth.note ?? "").includes("synthesis attempted, failed honestly") && failedSynth.reply.includes("FAILED"), failedSynth.note);
   check("every member answer still stands in the reply", failedSynth.reply.includes("member work 1") && failedSynth.reply.includes("member work 2"));
@@ -120,14 +120,14 @@ test("captain synthesis — reasoned collaboration over real executions (19.3.0)
     if (memberNo > 1) return new Response(JSON.stringify({ error: "member down" }), { status: 500 });
     return new Response(JSON.stringify({ choices: [{ message: { content: `member work ${memberNo}` } }] }), { status: 200 });
   }) as unknown as typeof fetch;
-  const partial = await askVH19({ text: MULTI_TEXT, userId: "synth-probe" }, { provider: prov, fetchImpl: partialFetch });
+  const partial = await askSelfImpulse19({ text: MULTI_TEXT, userId: "synth-probe" }, { provider: prov, fetchImpl: partialFetch });
   check("with one executed member, no synthesis is attempted", partial.synthesis === undefined);
   check("the captain reads partial and the reply keeps both truths", partial.captain?.status === "partial" && partial.reply.includes("ERROR"));
 
   console.log("\n── 6. a single-member run never claims to synthesize ──");
   // "describe the tcp three way handshake" deterministically routes to
   // exactly one specialist — pinned in the routing table, not assumed.
-  const single = await askVH19(
+  const single = await askSelfImpulse19(
     { text: "describe the tcp three way handshake", userId: "synth-probe" },
     { provider: prov, fetchImpl: (async () => new Response(JSON.stringify({ choices: [{ message: { content: "SYNACK: one clean answer." } }] }), { status: 200 })) as unknown as typeof fetch, gate: async () => ({ approved: true }) },
   );

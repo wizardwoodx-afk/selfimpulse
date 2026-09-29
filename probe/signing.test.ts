@@ -7,7 +7,7 @@
  *
  * §1 the issuer identity is generated, stable, and shaped like a key id + 64-hex public key
  * §2 sign → verify roundtrip; a wrong message or a wrong key must NOT verify
- * §3 buildProofReceipt issues vh-proof-receipt/2 with a signature verifyProofReceipt accepts
+ * §3 buildProofReceipt issues si-proof-receipt/2 with a signature verifyProofReceipt accepts
  * §4 a tampered signature / swapped public key is rejected — the chain alone is not enough
  * §5 seat identity digests: sha256(seatId|role|harness) lands in-chain, deterministically
  * §6 v1 receipts (pre-11.10.1) still verify — the format upgrade is backward-compatible
@@ -41,7 +41,7 @@ describe("issuer signing — Ed25519 identity", () => {
     assert.equal(signingSupported(), true, "Node's WebCrypto must offer Ed25519 for this suite");
     const a = await ensureIssuerIdentity();
     assert.ok(a, "issuer identity must be generated");
-    assert.match(a.identity.keyId, /^vh-issuer-[0-9a-f]{12}$/);
+    assert.match(a.identity.keyId, /^si-issuer-[0-9a-f]{12}$/);
     assert.match(a.identity.publicKeyHex, /^[0-9a-f]{64}$/);
     const b = await ensureIssuerIdentity();
     assert.equal(b?.identity.keyId, a.identity.keyId, "the identity must be stable across calls");
@@ -60,11 +60,11 @@ describe("issuer signing — Ed25519 identity", () => {
 });
 
 describe("issuer signing — receipts become v2 and issuer-authentic", () => {
-  it("buildProofReceipt issues vh-proof-receipt/2 with issuer + signature that verify", async () => {
+  it("buildProofReceipt issues si-proof-receipt/2 with issuer + signature that verify", async () => {
     const rc = await buildProofReceipt({ mission: "m-11101", teamId: "t-11101", startedAt: "a", finishedAt: "b", mjVersion: "11.10.1", edition: "pro", report });
-    assert.equal(rc.format, "vh-proof-receipt/2");
+    assert.equal(rc.format, "si-proof-receipt/2");
     assert.ok(rc.issuer, "v2 receipts carry the issuer identity");
-    assert.match(rc.issuer?.keyId ?? "", /^vh-issuer-/);
+    assert.match(rc.issuer?.keyId ?? "", /^si-issuer-/);
     assert.match(rc.signature ?? "", /^[0-9a-f]{128}$/);
     const v = await verifyProofReceipt(rc);
     assert.equal(v.ok, true);
@@ -79,7 +79,7 @@ describe("issuer signing — receipts become v2 and issuer-authentic", () => {
 
     const other = await buildProofReceipt({ mission: "m-y", teamId: "t-y", startedAt: "a", finishedAt: "b", mjVersion: "11.10.1", edition: "pro", report });
     // Same machine = same issuer key here, so swap in a DIFFERENT public key explicitly.
-    const swapped = { ...rc, issuer: { keyId: other.issuer?.keyId ?? "vh-issuer-deadbeef", publicKeyHex: sha256("not-a-key").slice(0, 64) } };
+    const swapped = { ...rc, issuer: { keyId: other.issuer?.keyId ?? "si-issuer-deadbeef", publicKeyHex: sha256("not-a-key").slice(0, 64) } };
     const v2 = await verifyProofReceipt(swapped);
     assert.equal(v2.ok, false, "a forged issuer public key must not verify");
   });
@@ -109,7 +109,7 @@ describe("issuer signing — receipts become v2 and issuer-authentic", () => {
     const rc = await buildProofReceipt({ mission: "m-jsonl", teamId: "t-jsonl", startedAt: "a", finishedAt: "b", mjVersion: "11.10.1", edition: "pro", report });
     const back = receiptFromJsonl(receiptToJsonl(rc));
     assert.ok(back);
-    assert.equal(back.format, "vh-proof-receipt/2");
+    assert.equal(back.format, "si-proof-receipt/2");
     assert.equal(back.signature, rc.signature, "signature must survive the JSONL roundtrip");
     assert.equal(back.issuer?.publicKeyHex, rc.issuer?.publicKeyHex);
     const v = await verifyProofReceipt(back);

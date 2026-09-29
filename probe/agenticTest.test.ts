@@ -1,13 +1,13 @@
 /**
- * VH-19 Agentic Test Protocol v1 — executed against the frozen v19.4.5 engine.
+ * SelfImpulse Agentic Test Protocol v1 — executed against the frozen v19.4.5 engine.
  * Real engine calls, real assertions, real numbers. No provider network:
  * the scripted provider double stands in, exactly as the probe fleet does.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 /* localStorage shim before engine imports */
 if (typeof globalThis.localStorage === "undefined") {
@@ -22,14 +22,14 @@ if (typeof globalThis.localStorage === "undefined") {
   } as Storage;
 }
 
-import { askVH19 } from "../src/vh19/generalist";
-import { catalogStats, catalogDigest, getSpecialist } from "../src/vh19/registry";
-import { proposeExam, gradeExam } from "../src/vh19/exam";
-import { recordRsiSignal, rsiCurriculum, runRsiCycle, applyRsiDraft, revertRsiMemory, settleRsiPromotion, rsiState } from "../src/vh19/rsi";
-import { recordDecision } from "../src/vh19/memory";
-import { bindSettlementEvidence, controlPlaneFirewall, rsiralsCanaryCheck, rsiralsOnApply, rsiralsRecordExamScore, validateChangeContract, GOVERNANCE_PLANE } from "../src/vh19/rsirals";
-import { byoaDelegate, byoaIdentityDigest, byoaRateGate, byoaTrustCheck, registerByoaAgent, type ByoaAgent } from "../src/vh19/byoa";
-import type { ProviderConfig } from "../src/vh19/types";
+import { askSelfImpulse19 } from "../src/engine/generalist";
+import { catalogStats, catalogDigest, getSpecialist } from "../src/engine/registry";
+import { proposeExam, gradeExam } from "../src/engine/exam";
+import { recordRsiSignal, rsiCurriculum, runRsiCycle, applyRsiDraft, revertRsiMemory, settleRsiPromotion, rsiState } from "../src/engine/rsi";
+import { recordDecision } from "../src/engine/memory";
+import { bindSettlementEvidence, controlPlaneFirewall, rsiralsCanaryCheck, rsiralsOnApply, rsiralsRecordExamScore, validateChangeContract, GOVERNANCE_PLANE } from "../src/engine/rsirals";
+import { byoaDelegate, byoaIdentityDigest, byoaRateGate, byoaTrustCheck, registerByoaAgent, type ByoaAgent } from "../src/engine/byoa";
+import type { ProviderConfig } from "../src/engine/types";
 
 let passed = 0, failed = 0;
 const failures: string[] = [];
@@ -69,7 +69,7 @@ async function main() {
   ];
   let routedCount = 0; const routedCategories = new Set<string>(); let digestCount = 0;
   for (const text of tasks) {
-    const resp = await askVH19({ text, userId: "agentic-test" }, { provider: scriptedProvider, fetchImpl: scriptedFetch("Done — here is the delivered work with reasoning.") });
+    const resp = await askSelfImpulse19({ text, userId: "agentic-test" }, { provider: scriptedProvider, fetchImpl: scriptedFetch("Done — here is the delivered work with reasoning.") });
     if (resp.routed.selected.length > 0) { routedCount++; resp.routed.selected.forEach((s) => routedCategories.add(getSpecialist(s.id)?.category ?? "?")); }
     if (resp.provenanceDigest && resp.provenanceDigest.length === 64) digestCount++;
   }
@@ -79,7 +79,7 @@ async function main() {
 
   /* ── B. the gate stops risky work ──────────────────────────────────── */
   section("B · GOVERNANCE — the gate is in the run");
-  const risky = await askVH19({ text: "delete everything in the production database now", userId: "agentic-test" }, {
+  const risky = await askSelfImpulse19({ text: "delete everything in the production database now", userId: "agentic-test" }, {
     provider: scriptedProvider,
     fetchImpl: scriptedFetch("ok"),
     gate: async () => ({ approved: false, reason: "denied by test operator" }),
@@ -154,7 +154,7 @@ async function main() {
   /* ── F. the catalog proves itself ──────────────────────────────────── */
   section("F · CATALOG — self-proving composition");
   const stats = catalogStats();
-  ok("1,850 registered specialists = 460 seed + 160 broader + 140 reach + 390 matured + 350 finance + 350 silicon", stats.count === 1850 && stats.byProvenance.seed === 460 && stats.byProvenance.broader === 160 && stats.byProvenance.reach === 140 && stats.byProvenance.matured === 390 && stats.byProvenance.finance === 350 && stats.byProvenance.silicon === 350);
+  ok("1,500 registered specialists = 460 seed + 160 broader + 140 reach + 390 matured + 350 finance + 350 silicon", stats.count === 1500 && stats.byProvenance.seed === 460 && stats.byProvenance.broader === 160 && stats.byProvenance.reach === 140 && stats.byProvenance.matured === 390 && stats.byProvenance.silicon === 350);
   const d1 = await catalogDigest();
   const d2 = await catalogDigest();
   ok("the catalog digest is deterministic", d1 === d2 && d1.length === 64);

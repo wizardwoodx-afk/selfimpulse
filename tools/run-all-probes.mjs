@@ -4,7 +4,7 @@
  *
  * V11.4.1 rewrite. The V11.2 runner shelled out:
  *
- *     execSync(`./node_modules/.bin/esbuild ${fullPath} ... --define:HANDLE_ROOT="\\"${cwd}\\""`)
+ *     execSync(`./node_modules/.bin/esbuild ${fullPath} ... --define:SI_ROOT="\\"${cwd}\\""`)
  *
  * which breaks three ways, all observed in the wild:
  *   • Windows: `./node_modules/.bin/esbuild` is `esbuild.cmd` — an extensionless path with
@@ -61,7 +61,7 @@ for (const file of files) {
       banner: {
         js: 'import { createRequire as __mjCreateRequire } from "node:module"; const require = __mjCreateRequire(import.meta.url);',
       },
-      define: { HANDLE_ROOT: JSON.stringify(root) },
+      define: { SI_ROOT: JSON.stringify(root) },
       outfile: outPath,
       logLevel: "error",
     });

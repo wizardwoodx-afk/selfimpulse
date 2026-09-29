@@ -4,7 +4,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-// src/vh19/pureHash.ts
+// src/engine/pureHash.ts
 var K = [
   1116352408,
   1899447441,
@@ -134,12 +134,12 @@ function pureSha256(text) {
   return toHex(sha256Bytes(utf8(text)));
 }
 
-// src/vh19/vouchMesh.ts
+// src/engine/selfimpulseMesh.ts
 var pairKey = (a, b) => [a, b].sort().join("\u2194");
-var meshStanding = (t) => !t ? "unknown" : t.trust < 3 ? "probation" : t.trust < 10 ? "vouched" : "proven";
+var meshStanding = (t) => !t ? "unknown" : t.trust < 3 ? "probation" : t.trust < 10 ? "selfimpulseed" : "proven";
 
-// src/vh19/meshRuntime.ts
-var TRUST_KEY = "vh19.mesh.trust.v1";
+// src/engine/meshRuntime.ts
+var TRUST_KEY = "engine.mesh.trust.v1";
 function loadTrust() {
   try {
     const raw = globalThis.localStorage?.getItem(TRUST_KEY);
@@ -157,7 +157,7 @@ function standingFor(a, b) {
   return meshStanding(pairTrustFor(a, b));
 }
 
-// src/vh19/reach/delegationGrant.ts
+// src/engine/reach/delegationGrant.ts
 var DELEGATION_CAPABILITIES = [
   "repo.read",
   "data.aggregate",
@@ -173,7 +173,7 @@ var DELEGATION_CAPABILITIES = [
 var CAPABILITIES_BY_STANDING = {
   unknown: [],
   probation: ["repo.read", "data.aggregate"],
-  vouched: ["repo.read", "data.aggregate", "test.run", "net.fetch", "egress.share"],
+  selfimpulseed: ["repo.read", "data.aggregate", "test.run", "net.fetch", "egress.share"],
   proven: [
     "repo.read",
     "data.aggregate",
@@ -199,7 +199,7 @@ function grantCanonical(g) {
   return [g.id, g.pair, g.tier, g.at, String(g.humanFirst), g.granted.join(","), refusals].join("");
 }
 function tiersFor(capability) {
-  return ["probation", "vouched", "proven"].filter((t) => CAPABILITIES_BY_STANDING[t].includes(capability));
+  return ["probation", "selfimpulseed", "proven"].filter((t) => CAPABILITIES_BY_STANDING[t].includes(capability));
 }
 function narrowGrant(input) {
   const tier = input.standing ?? "unknown";
@@ -246,7 +246,7 @@ function narrowGrant(input) {
         refused.push({
           capability,
           rule: "human-first",
-          why: `${capability} changes the state of this harbor, so it needs a human decision naming it; none was attached`
+          why: `${capability} changes the state of this selfimpulse, so it needs a human decision naming it; none was attached`
         });
         continue;
       }
@@ -303,8 +303,8 @@ function grantForPair(input, deps = {}) {
 
 // probe/reachGrant.test.ts
 var AT = "2026-09-18T06:00:00.000Z";
-var A = "harbor-alpha";
-var B = "harbor-beta";
+var A = "selfimpulse-alpha";
+var B = "selfimpulse-beta";
 var refusalFor = (grant, cap) => grant.refused.find((r) => r.capability === cap);
 test("reach delegation grant \u2014 what a peer may do here, decided in words", async (t) => {
   await t.test("\xA71 standing comes from the mesh, and an unknown pair is lent nothing", () => {
@@ -323,12 +323,12 @@ test("reach delegation grant \u2014 what a peer may do here, decided in words", 
     const probation = narrowGrant({ ownerA: A, ownerB: B, requested: [...DELEGATION_CAPABILITIES], standing: "probation", at: AT });
     assert.deepEqual(probation.granted, ["data.aggregate", "repo.read"], "probation reads; it does not run or write");
     assert.equal(refusalFor(probation, "test.run")?.rule, "below-standing");
-    assert.match(refusalFor(probation, "test.run")?.why ?? "", /lent from vouched or proven/);
-    const vouched = narrowGrant({ ownerA: A, ownerB: B, requested: [...DELEGATION_CAPABILITIES], standing: "vouched", at: AT, approvals: [{ capability: "repo.write", approvalId: "appr-1", at: AT }] });
-    assert.deepEqual(vouched.granted, ["data.aggregate", "egress.share", "net.fetch", "repo.read", "test.run"], "a vouched pair may test and fetch, not write");
+    assert.match(refusalFor(probation, "test.run")?.why ?? "", /lent from selfimpulseed or proven/);
+    const selfimpulseed = narrowGrant({ ownerA: A, ownerB: B, requested: [...DELEGATION_CAPABILITIES], standing: "selfimpulseed", at: AT, approvals: [{ capability: "repo.write", approvalId: "appr-1", at: AT }] });
+    assert.deepEqual(selfimpulseed.granted, ["data.aggregate", "egress.share", "net.fetch", "repo.read", "test.run"], "a selfimpulseed pair may test and fetch, not write");
     const proven = narrowGrant({ ownerA: A, ownerB: B, requested: ["repo.read", "repo.write"], standing: "proven", at: AT });
     assert.deepEqual(proven.granted, ["repo.read"], "even a proven pair does not write without a human in the loop");
-    const ladder = ["probation", "vouched", "proven"];
+    const ladder = ["probation", "selfimpulseed", "proven"];
     for (const cap of DELEGATION_CAPABILITIES) {
       const lends = (s) => CAPABILITIES_BY_STANDING[s].includes(cap);
       assert.equal(lends("unknown"), false, `${cap} is lent to a stranger`);
@@ -340,7 +340,7 @@ test("reach delegation grant \u2014 what a peer may do here, decided in words", 
       });
     }
     assert.deepEqual(tiersFor("secrets.read"), ["proven"], "secrets are a proven-only capability");
-    assert.deepEqual(tiersFor("repo.read"), ["probation", "vouched", "proven"]);
+    assert.deepEqual(tiersFor("repo.read"), ["probation", "selfimpulseed", "proven"]);
   });
   await t.test("\xA73 human-first holds at runtime, and the irreversible set cannot be relaxed", () => {
     const bare = narrowGrant({ ownerA: A, ownerB: B, requested: ["repo.write", "shell.exec", "spend.commit"], standing: "proven", at: AT });
@@ -417,7 +417,7 @@ test("reach delegation grant \u2014 what a peer may do here, decided in words", 
       ownerA: A,
       ownerB: B,
       at: AT,
-      standing: "vouched",
+      standing: "selfimpulseed",
       requested: ["repo.read", "repo.read", "root.everything", "REPO.READ", "  test.run  "]
     });
     assert.deepEqual(grant.granted, ["repo.read", "test.run"], "duplicates collapse; surrounding space is trimmed");
@@ -435,7 +435,7 @@ test("reach delegation grant \u2014 what a peer may do here, decided in words", 
     assert.equal(g1.digest, g2.digest, "same decision, same digest");
     const { digest, ...body } = g1;
     assert.equal(digest, pureSha256(`vh.reach.delegationGrant.v1:${grantCanonical(body)}`));
-    const moved = narrowGrant({ ...input, standing: "vouched" });
+    const moved = narrowGrant({ ...input, standing: "selfimpulseed" });
     assert.notEqual(moved.digest, g1.digest, "a different tier is a different decision, and digests differently");
     assert.equal(grantAllows(moved, "repo.write"), false);
     const filed = grantRecord(g1);

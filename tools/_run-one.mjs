@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { buildSync } from "esbuild";
 
-const root = "D:\\11handle-work";
+const root = "D:\\selfimpulse-work";
 const files = process.argv.slice(2);
 
 for (const file of files) {
@@ -16,7 +16,7 @@ for (const file of files) {
     format: "esm",
     packages: "external",
     banner: { js: 'import { createRequire as __mjCreateRequire } from "node:module"; const require = __mjCreateRequire(import.meta.url);' },
-    define: { HANDLE_ROOT: JSON.stringify(root) },
+    define: { SI_ROOT: JSON.stringify(root) },
     outfile: outPath,
     logLevel: "error",
   });

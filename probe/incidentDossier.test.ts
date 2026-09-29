@@ -62,7 +62,7 @@ section("1. build → verify");
     timeline,
     receipts: [await receipt("checkout-bugfix", "merged")],
   });
-  ok("format is vh-incident-dossier/1", d.format === "vh-incident-dossier/1");
+  ok("format is si-incident-dossier/1", d.format === "si-incident-dossier/1");
   ok("the dossier verifies fresh", (await verifyIncidentDossier(d)).ok === true);
   ok("receipt carries a live ok verdict", d.receipts[0].verification.ok === true);
   ok("timeline came back chronologically sorted", d.timeline[0].kind === "arena.gate" && d.timeline[2].kind === "gate.verdict");

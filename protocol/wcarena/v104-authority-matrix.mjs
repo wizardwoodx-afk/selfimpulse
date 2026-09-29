@@ -13,10 +13,10 @@
  * Run it — one command, no setup:
  *   node protocol/wcarena/v104-authority-matrix.mjs
  */
-import { VHClient } from "../src/client/vh-sdk.js";
-import { startHarbor, give, peerOf, show, sleep } from "./_harbor.mjs";
+import { VHClient } from "../src/client/si-sdk.js";
+import { startSelfImpulse, give, peerOf, show, sleep } from "./_selfimpulse.mjs";
 
-const { url: URL, stop, operator, operatorFp } = await startHarbor({
+const { url: URL, stop, operator, operatorFp } = await startSelfImpulse({
   label: "matrix",
   declare: ["write:purchase_orders", "delegate:procurement", "approve:purchase_orders", "read:public"],
 });
@@ -73,7 +73,7 @@ let g = await approver.authorize(buyerPeer.id, "write:purchase_orders", {
 record("A1 exact action held ⇒ grant accepted", g.ok === true, `reason=${g.reason ?? "—"}`);
 await sleep(900);
 if (g.ok) {
-  const act = await buyer.vouchAction({
+  const act = await buyer.selfimpulseAction({
     action: "write:purchase_orders", tool: "record_purchase_order",
     purpose: "legitimate PO under a genuinely-held delegation",
     evidence: "AP-1001", result: "success",
@@ -131,7 +131,7 @@ record("B5 unattested stranger refused at RULE 1",
 
 /* B6 — a refused grant leaves no usable authority behind */
 await sleep(700);
-const leftover = await buyer.vouchAction({
+const leftover = await buyer.selfimpulseAction({
   action: "write:payroll", tool: "pay_payroll", purpose: "attempt after B3 was refused",
   evidence: "attacker-supplied mandate", result: "success",
 });

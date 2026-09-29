@@ -23,7 +23,7 @@ export interface Specialist {
   inputs: string;
   output: string;
   requiresApproval: boolean;
-  /** What the 11Handle receipt attests when the specialist completes. */
+  /** What the SelfImpulse receipt attests when the specialist completes. */
   receipt: string;
   status: "engine" | "workflow";
 }

@@ -1,22 +1,22 @@
 /**
- * 11Handle — the one UI store (zustand). Owns the real engine seams:
- * askVH19 · human gate · provider (session-only or vault-sealed) · memory graph.
+ * SelfImpulse — the one UI store (zustand). Owns the real engine seams:
+ * askSelfImpulse19 · human gate · provider (session-only or vault-sealed) · memory graph.
  * Screens read from here; nothing in the UI talks to the engine directly.
  */
 import { create } from "zustand";
-import { askVH19 } from "../vh19/generalist";
-import type { GeneralistDeps } from "../vh19/types";
-import type { GeneralistResponse, GateAsk, GateDecision, ProviderConfig } from "../vh19/types";
-import { recordHandoff, listHandoffs, type HandoffRecord } from "../vh19/handoffs";
-import { vaultStatus, vaultSeal, vaultDecrypt, vaultRemove, lockVault, setVaultPassphrase, purgePlain, type VaultStatusInfo } from "../vh19/vault";
-import { ingestSession, listSessions, getSession, graphView, graphStats, recall, rehydrate, memoryEnabled, setMemoryEnabled, clearGraph, deleteSession, graphSecurityStatus, type MgSession, type MgMessage } from "../vh19/memoryGraph";
-import { wireEventSeq, optimDelta, type OptimDelta } from "../vh19/tokenOptim";
-import { loadInitiative, setLevel, reportFailure, scheduleFollowUp, evaluateWake, applyWake, executeWakeActs, HEARTBEAT_DEFAULT_MS, type InitiativeState, type AutonomyLevel } from "../vh19/initiative";
-import { generalistName, setGeneralistName } from "../vh19/face";
-import { engineExecutor } from "../vh19/initiativeBridge";
-import { loadGoals } from "../vh19/goals";
-import { recordRsiSignal, rsiState, revertRsiMemory } from "../vh19/rsi";
-import { rsiralsCanaryCheck } from "../vh19/rsirals";
+import { askSelfImpulse19 } from "../engine/generalist";
+import type { GeneralistDeps } from "../engine/types";
+import type { GeneralistResponse, GateAsk, GateDecision, ProviderConfig } from "../engine/types";
+import { recordHandoff, listHandoffs, type HandoffRecord } from "../engine/handoffs";
+import { vaultStatus, vaultSeal, vaultDecrypt, vaultRemove, lockVault, setVaultPassphrase, purgePlain, type VaultStatusInfo } from "../engine/vault";
+import { ingestSession, listSessions, getSession, graphView, graphStats, recall, rehydrate, memoryEnabled, setMemoryEnabled, clearGraph, deleteSession, graphSecurityStatus, type MgSession, type MgMessage } from "../engine/memoryGraph";
+import { wireEventSeq, optimDelta, type OptimDelta } from "../engine/tokenOptim";
+import { loadInitiative, setLevel, reportFailure, scheduleFollowUp, evaluateWake, applyWake, executeWakeActs, HEARTBEAT_DEFAULT_MS, type InitiativeState, type AutonomyLevel } from "../engine/initiative";
+import { generalistName, setGeneralistName } from "../engine/face";
+import { engineExecutor } from "../engine/initiativeBridge";
+import { loadGoals } from "../engine/goals";
+import { recordRsiSignal, rsiState, revertRsiMemory } from "../engine/rsi";
+import { rsiralsCanaryCheck } from "../engine/rsirals";
 /* 19.8 — the execution workspace. The engine has carried a real act/observe
  * loop with gated, receipted tools since 19.4.0, and `runDeps` was the only
  * thing keeping it switched off: with no `workspaceRoot` on the dep set every
@@ -27,7 +27,7 @@ import { rsiralsCanaryCheck } from "../vh19/rsirals";
  * prompt, real files, real receipts) and a user-picked directory when the File
  * System Access API exists. The root still confines every path; the backing is
  * an implementation detail behind one VhFs adapter. */
-import { createMemoryWorkspace, openDirectoryWorkspace, fsAccessSupported, type BrowserWorkspace } from "../vh19/browserWorkspace";
+import { createMemoryWorkspace, openDirectoryWorkspace, fsAccessSupported, type BrowserWorkspace } from "../engine/browserWorkspace";
 /* 19.7.13 — the Docs door's engine seam. Knowledge is PROPOSED by the engine and
  * DECIDED by the human (no skill installs on its own); the store holds the
  * proposal list so the door re-renders from one source of truth. */
@@ -53,11 +53,11 @@ function ingestRsi(kind: "gate" | "failure" | "livedata", subject: string, evide
 }
 
 /* 19.8 — the identity seam. The store used to export a hardcoded
- * `USER = "vh-owner"` constant and pass it as `userId` into every engine call.
+ * `USER = "si-owner"` constant and pass it as `userId` into every engine call.
  * That constant is gone: `identityProvider().subject()` is the single source, and
  * a future server provider replaces it without any call site changing. A run with
  * no established identity is REFUSED at the boundary rather than attributed to a
- * placeholder — receipts that name a subject nobody can vouch for are worse than
+ * placeholder — receipts that name a subject nobody can selfimpulse for are worse than
  * no receipt. */
 import { identityProvider } from "../security/identity";
 
@@ -272,7 +272,7 @@ export const useVh = create<UiState>((set, get) => ({
     const gateFn = makeGate(set);
     try {
       const snap = wireEventSeq();
-      const resp = await askVH19({ text: sentText, userId: subject }, runDeps(get, set, gateFn));
+      const resp = await askSelfImpulse19({ text: sentText, userId: subject }, runDeps(get, set, gateFn));
       const delta = optimDelta(snap);
       if (resp.liveData && resp.liveData.verified === false) {
         const urls = (resp.liveData.retrieval ?? []).map((r) => r.url);
@@ -296,7 +296,7 @@ export const useVh = create<UiState>((set, get) => ({
        * It now lands in the local crash ledger as well, which is what makes the
        * failure countable after the fact. Fire-and-forget: the chat message
        * below is the user-facing path and must not wait on the write. */
-      void recordCrash({ kind: "engine", where: "askVH19", error: e }).catch(() => { /* the ledger refused; the message below still shows */ });
+      void recordCrash({ kind: "engine", where: "askSelfImpulse19", error: e }).catch(() => { /* the ledger refused; the message below still shows */ });
       seq += 1;
       set((s) => ({ msgs: [...s.msgs, { id: seq, role: "vh", text: `The run failed before it could answer — ${String(e)}`, at: nowIso() }], initiative: loadInitiative() }));
     } finally {
@@ -441,7 +441,7 @@ export const useVh = create<UiState>((set, get) => ({
     );
     set({ initiative: { ...applyWake(wake, st, Date.now()) } });
     /* THE EXECUTION BRIDGE: safe acts ride the REAL engine through the shared
-       production executor — askVH19 with the SAME dep set a typed message takes
+       production executor — askSelfImpulse19 with the SAME dep set a typed message takes
        (provider · human gate · handoff recorder · evidence fetch · userId). */
     if (wake.kind === "act" && wake.acts.length > 0) {
       const gateFn = makeGate(set);
@@ -474,7 +474,7 @@ export const useVh = create<UiState>((set, get) => ({
     let legacy: ProviderConfig | null = null;
     try {
       const raw = globalThis.localStorage?.getItem(PROVIDER_STORAGE_KEY) ?? null;
-      if (raw && !raw.includes("vh-vault/1")) { const p = purgePlain(PROVIDER_STORAGE_KEY); if (p.found && p.text) { try { legacy = JSON.parse(p.text) as ProviderConfig; } catch { legacy = null; } } }
+      if (raw && !raw.includes("si-vault/1")) { const p = purgePlain(PROVIDER_STORAGE_KEY); if (p.found && p.text) { try { legacy = JSON.parse(p.text) as ProviderConfig; } catch { legacy = null; } } }
     } catch { /* no storage */ }
     const opened = await vaultDecrypt(PROVIDER_STORAGE_KEY);
     if (opened.found && !opened.locked) { try { set({ provider: JSON.parse(opened.text) as ProviderConfig, securityNote: "the key was unsealed from the encrypted vault" }); } catch { /* ignore */ } }

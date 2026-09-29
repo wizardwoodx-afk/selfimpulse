@@ -99,14 +99,14 @@ editFile("src-tauri/tauri.conf.json", (t, rel) => {
 
 /* ── 3. the offline pack's provenance identity ────────────────────────────── */
 editFile("verify/BUILD-INFO.txt", (t, rel) => {
-  if (!require_(t, `11Handle ${OLD}`, rel)) return null;
+  if (!require_(t, `SelfImpulse ${OLD}`, rel)) return null;
   const esc = (v) => v.replace(/\./g, "\\.");
   // 19.7.14: the codename lives in version.ts, but this record names the release too —
   // renaming one without the other left the pack opening as a retired codename.
   const out = t
-    .replaceAll(`11Handle ${OLD}`, `11Handle ${NEW}`)
+    .replaceAll(`SelfImpulse ${OLD}`, `SelfImpulse ${NEW}`)
     .replace(`built: ${OLD}`, `built: ${NEW}`)
-    .replace(new RegExp(`^(11Handle ${esc(NEW)} )[^\\s(]+`), `$1${NAME}`)
+    .replace(new RegExp(`^(SelfImpulse ${esc(NEW)} )[^\\s(]+`), `$1${NAME}`)
     .replace(new RegExp(`^(built:\\s*${esc(NEW)} )[^\\s\\n]+`, "m"), `$1${NAME}`);
   if (!out.includes(`${NEW} ${NAME}`)) {
     problems.push(`${rel}: codename ${NAME} did not land in the record`);
@@ -116,7 +116,7 @@ editFile("verify/BUILD-INFO.txt", (t, rel) => {
 });
 
 /* ── 4. the MCP server's own version constant and header ──────────────────── */
-editFile("src/vh19/reachMcp.ts", (t, rel) => {
+editFile("src/engine/reachMcp.ts", (t, rel) => {
   if (!require_(t, `export const REACH_MCP_VERSION = "${OLD}";`, rel)) return null;
   return t
     .replace(`export const REACH_MCP_VERSION = "${OLD}";`, `export const REACH_MCP_VERSION = "${NEW}";`)
@@ -126,7 +126,7 @@ editFile("src/vh19/reachMcp.ts", (t, rel) => {
 /* ── 5. the operational documents whose titles the drift gate pins ────────── */
 for (const rel of ["README.md", "BUILD-NATIVE.md", "DESKTOP-NATIVE.md", "INSTALL-ON-LAPTOP.md", "DEPLOY-VERCEL.md", "docs/PLATFORM-LIMITS.md"]) {
   editFile(rel, (t) => {
-    const out = t.replaceAll(`11Handle ${OLD}`, `11Handle ${NEW}`).replaceAll(`11Handle_${OLD}`, `11Handle_${NEW}`);
+    const out = t.replaceAll(`SelfImpulse ${OLD}`, `SelfImpulse ${NEW}`).replaceAll(`SelfImpulse_${OLD}`, `SelfImpulse_${NEW}`);
     return out === t ? null : out;
   });
 }

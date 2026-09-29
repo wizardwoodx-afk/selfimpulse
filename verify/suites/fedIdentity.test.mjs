@@ -4,7 +4,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-// src/vh19/pureHash.ts
+// src/engine/pureHash.ts
 var K = [
   1116352408,
   1899447441,
@@ -134,7 +134,7 @@ function pureSha256(text) {
   return toHex(sha256Bytes(utf8(text)));
 }
 
-// src/vh19/authorityCore.ts
+// src/engine/authorityCore.ts
 function bytesToB64(bytes) {
   let s = "";
   for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
@@ -147,7 +147,7 @@ function b64ToBytes(b64) {
   return out;
 }
 
-// src/vh19/authorityWeb.ts
+// src/engine/authorityWeb.ts
 var EC = { name: "ECDSA", namedCurve: "P-256" };
 async function generateOwnerKeysWeb() {
   const pair = await crypto.subtle.generateKey(EC, true, ["sign", "verify"]);
@@ -167,8 +167,8 @@ async function importPublicKeyWeb(publicKeyPem) {
   return crypto.subtle.importKey("spki", b64ToBytes(b64).buffer, EC, false, ["verify"]);
 }
 
-// src/vh19/ownerKeyStore.ts
-var OWNER_KEY_REF = "vh19.ownerKeys";
+// src/engine/ownerKeyStore.ts
+var OWNER_KEY_REF = "engine.ownerKeys";
 async function tauriOwnerStorage() {
   const w = globalThis;
   const invoke = w.__TAURI__?.core?.invoke;
@@ -259,14 +259,14 @@ async function encryptedOwnerStorage(base, passphrase) {
   };
 }
 
-// src/vh19/missionAuthority.ts
+// src/engine/missionAuthority.ts
 var AUTHORITY_OWNER_FALLBACK = "local-owner";
 var AUTHORITY_SCHEME = "ecdsa-p256";
 var browserRawStorage = (() => {
   try {
     const ls = globalThis.localStorage;
     if (!ls) return null;
-    return { get: () => ls.getItem("vh19.ownerKeys.v1"), set: (v) => ls.setItem("vh19.ownerKeys.v1", v) };
+    return { get: () => ls.getItem("engine.ownerKeys.v1"), set: (v) => ls.setItem("engine.ownerKeys.v1", v) };
   } catch {
     return null;
   }
@@ -381,11 +381,11 @@ async function authorityOwnerIdentity(opts) {
   return ident;
 }
 
-// src/vh19/avatarEngine.ts
+// src/engine/avatarEngine.ts
 var AVATAR_INKS = ["#2d3142", "#3a3f52", "#586a66", "#46554f", "#827278", "#695c5e"];
 var AVATAR_FIELDS = ["#d8d5db", "#d5dfea", "#e2e6ed", "#c6cdd3"];
 
-// src/vh19/federation/sigil.ts
+// src/engine/federation/sigil.ts
 var PINNED_PALETTE = [
   ...AVATAR_INKS,
   ...AVATAR_FIELDS,
@@ -647,10 +647,10 @@ function sigilSvg(s, opts = {}) {
     `</g>`,
     state === "sealed" ? `<g><circle cx="82" cy="88" r="9" fill="${ground}" stroke="${tincture}" stroke-width="2.2"/><path d="M 78 88 l 2.6 2.8 l 5 -6" stroke="${tincture}" stroke-width="2.2" fill="none" stroke-linecap="round"/></g>` : ""
   ].join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}" role="img" aria-label="${label}" class="vh-sigil vh-sigil--${state}">${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}" role="img" aria-label="${label}" class="si-sigil si-sigil--${state}">${body}</svg>`;
 }
 
-// src/vh19/federation/identity.ts
+// src/engine/federation/identity.ts
 var ANCHOR_FORMAT = "vh.fed.anchor.v1";
 var KEY_FACE_PREFIX = "vh.fed.face.key.v1:";
 function canonicalKeyMaterial(publicKeyPem) {
@@ -780,7 +780,7 @@ function memStore() {
     v = x;
   } };
 }
-test("federation identity \u2014 the harbor's own authority keys, with proof of possession", async (t) => {
+test("federation identity \u2014 the selfimpulse's own authority keys, with proof of possession", async (t) => {
   await t.test("\xA71 the identity IS the authority identity, not a second one", async () => {
     const storage = memStore();
     const fed = await federationIdentity({ storage, identity: "priya" });
@@ -809,10 +809,10 @@ test("federation identity \u2014 the harbor's own authority keys, with proof of 
   await t.test("\xA73 the two kinds of mark are different strings, so neither can impersonate the other", async () => {
     const keys = await generateOwnerKeysWeb();
     const keyMark = keyHandle(keys.publicKeyPem);
-    const subjectMark = fingerprintOf("harbor:priya");
+    const subjectMark = fingerprintOf("selfimpulse:priya");
     assert.notEqual(keyMark, subjectMark, "a key handle and a subject handle are domain-separated");
     assert.match(keyMark, /^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/, "\u2026but they read the same way to a human");
-    assert.notDeepEqual(faceForKey(keys.publicKeyPem), sigilOf("harbor:priya"), "\u2026and they draw differently");
+    assert.notDeepEqual(faceForKey(keys.publicKeyPem), sigilOf("selfimpulse:priya"), "\u2026and they draw differently");
     const spki = new Uint8Array(await crypto.subtle.exportKey("spki", keys.publicKey));
     void spki;
     const jwk = await crypto.subtle.exportKey("jwk", keys.publicKey);
@@ -866,7 +866,7 @@ test("federation identity \u2014 the harbor's own authority keys, with proof of 
     assert.equal(anchorDigest(anchor).length, 64);
     assert.equal(anchorDigest(anchor), pureSha256(`vh.fed.anchor.v1:${anchorCanonical(anchor)}|${anchor.selfSignature}`));
     assert.match(anchorSummary(fed), /ana — /);
-    assert.ok(anchorFace(fed, "sealed", 40).includes("vh-sigil--sealed"));
+    assert.ok(anchorFace(fed, "sealed", 40).includes("si-sigil--sealed"));
   });
   await t.test("\xA75 a session-scoped anchor is refused when durability is required", async () => {
     const session = await federationIdentity({ identity: "session-only-owner" });

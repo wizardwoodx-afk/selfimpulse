@@ -69,7 +69,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform()) {
     return { ...base, note: "read-class task: no filesystem wrapper; credentials are still scrubbed from the child environment" };
   }
   if (platform === "linux") {
-    const canaryPath = path.posix.join("/", "vh-sandbox-canary.txt");
+    const canaryPath = path.posix.join("/", "si-sandbox-canary.txt");
     const wrapper = [
       "bwrap",
       "--ro-bind",
@@ -94,7 +94,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform()) {
       canaries: [
         {
           name: "write outside the workspace must fail",
-          argv: [...wrapper, "sh", "-c", `echo vh-canary > ${canaryPath}`],
+          argv: [...wrapper, "sh", "-c", `echo si-canary > ${canaryPath}`],
           mustFail: true
         },
         ...tier === "fs+net" ? [{ name: "network must be unreachable", argv: [...wrapper, "sh", "-c", "command -v curl >/dev/null && curl -m 2 -s https://example.com >/dev/null || false"], mustFail: true }] : []
@@ -103,7 +103,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform()) {
     };
   }
   if (platform === "macos") {
-    const canaryPath = path.posix.join("/", "vh-sandbox-canary.txt");
+    const canaryPath = path.posix.join("/", "si-sandbox-canary.txt");
     const profile = tier === "fs+net" ? `(version 1)(deny default)(allow process*)(allow file-read*)(allow file-write* (subpath "${workspace}") (subpath "${os.tmpdir()}"))(deny network*)` : `(version 1)(deny default)(allow process*)(allow file-read*)(allow file-write* (subpath "${workspace}") (subpath "${os.tmpdir()}"))`;
     return {
       ...base,
@@ -111,7 +111,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform()) {
       canaries: [
         {
           name: "write outside the workspace must fail",
-          argv: ["sandbox-exec", "-p", profile, "sh", "-c", `echo vh-canary > ${canaryPath}`],
+          argv: ["sandbox-exec", "-p", profile, "sh", "-c", `echo si-canary > ${canaryPath}`],
           mustFail: true
         }
       ],

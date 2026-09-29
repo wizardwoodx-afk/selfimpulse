@@ -65,7 +65,7 @@ export function draftCustomNode(instruction: string): CustomNodeDraft {
   return {
     title,
     purpose: text || "Accomplish the stated job.",
-    identity: `You are ${title}, a specialist custom agent for 11Handle.`,
+    identity: `You are ${title}, a specialist custom agent for SelfImpulse.`,
     mission: text || "Complete the assigned job without leaving this identity.",
     procedures: [
       "1. Restate the job as a testable outcome.",
@@ -115,7 +115,7 @@ export function parseNodeSpec(reply: string): NodeSpec | null {
 /** The system prompt Assist sends when a model is available. Deliberately strict about shape. */
 export function assistSystemPrompt(): string {
   return [
-    "You design ONE agent node for 11Handle, a visual agent orchestration workstation.",
+    "You design ONE agent node for SelfImpulse, a visual agent orchestration workstation.",
     "Reply with ONLY a JSON object, no prose, no markdown fence:",
     '{"title": string (2-5 words, Title Case, the job in a name), "purpose": string (one sentence, testable), "procedures": string[] (3-6 imperative steps)}',
     "The purpose is the job for THIS run, not an identity. Never invent tools, MCP servers, or secrets.",
@@ -135,7 +135,7 @@ export function generateCustomNodeFromSpec(spec: NodeSpec, x = 280, y = 180): No
     version: 1,
     sections: {
       ...node.rolePrompt.sections,
-      identity: `You are ${spec.title}, a specialist custom agent for 11Handle.`,
+      identity: `You are ${spec.title}, a specialist custom agent for SelfImpulse.`,
       mission: spec.purpose,
       procedures,
       invariants: `You are ${spec.title}. You never act outside this identity. You do not fabricate results or expose secrets.`,

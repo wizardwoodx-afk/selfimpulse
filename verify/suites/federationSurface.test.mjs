@@ -4,7 +4,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-var ROOT = process.env.HANDLE_ROOT ?? process.cwd();
+var ROOT = process.env.SI_ROOT ?? process.cwd();
 var read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 var passed = 0;
 var failed = 0;
@@ -75,8 +75,8 @@ section("3. mounting uses OUR OWN bundle through an existing allowlist");
   ok("it does not reintroduce a CLI-spawn command", liveCli.length === 0, liveCli.join(" | ").slice(0, 120));
   const rust = read("src-tauri/src/commands.rs");
   ok("no agent-spawn command came back with it", !/cli_invoke|ALLOWED_CLI_BINS/.test(rust));
-  const entry = read("tools/vh-host.mjs");
-  ok("the host launcher still verifies its engine pin", /vh-host-engine\.sha256/.test(entry) && /sha256/.test(entry));
+  const entry = read("tools/si-host.mjs");
+  ok("the host launcher still verifies its engine pin", /si-host-engine\.sha256/.test(entry) && /sha256/.test(entry));
   ok("it fails closed rather than listening on a mismatch", /throw|fail|exit/i.test(entry));
   const sup = read("src-tauri/src/a2a_host.rs");
   ok("the supervisor keeps the child instead of waiting on it", /Child/.test(sup) && /\.spawn\(\)/.test(sup));
@@ -84,7 +84,7 @@ section("3. mounting uses OUR OWN bundle through an existing allowlist");
   ok("it never calls the timeout wrapper (outside the comment that explains it)", !/run_timeout/.test(supCode));
   ok(
     "it waits for the host to ANNOUNCE itself, then releases the lock",
-    /VH-A2A-READY/.test(sup) && /recv_timeout/.test(sup) && /supervisor\(\)\.lock\(\);/.test(sup)
+    /SI-A2A-READY/.test(sup) && /recv_timeout/.test(sup) && /supervisor\(\)\.lock\(\);/.test(sup)
   );
   ok(
     "a host that never announces itself is killed rather than orphaned",
@@ -99,10 +99,10 @@ section("3. mounting uses OUR OWN bundle through an existing allowlist");
   ok("all three commands are registered", (read("src-tauri/src/lib.rs").match(/a2a_host::a2a_host_\w+/g) ?? []).length >= 3);
   const conf = JSON.parse(read("src-tauri/tauri.conf.json"));
   const res = conf.bundle.resources;
-  ok("the host is still declared as a bundled resource", Boolean(res["../tools/vh-host.mjs"]));
-  ok("it lands under a2a/ so app_info's path matches", res["../tools/vh-host.mjs"] === "a2a/vh-host.mjs", res["../tools/vh-host.mjs"]);
-  ok("the byte-pinned engine is bundled too", Boolean(res["../tools/vh-host-engine.mjs"]));
-  ok("and its pin", Boolean(res["../tools/vh-host-engine.sha256"]));
+  ok("the host is still declared as a bundled resource", Boolean(res["../tools/si-host.mjs"]));
+  ok("it lands under a2a/ so app_info's path matches", res["../tools/si-host.mjs"] === "a2a/si-host.mjs", res["../tools/si-host.mjs"]);
+  ok("the byte-pinned engine is bundled too", Boolean(res["../tools/si-host-engine.mjs"]));
+  ok("and its pin", Boolean(res["../tools/si-host-engine.sha256"]));
 }
 section("4. it refuses in words rather than pretending");
 {

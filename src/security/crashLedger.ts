@@ -1,5 +1,5 @@
 /**
- * 11Handle — the crash ledger.
+ * SelfImpulse — the crash ledger.
  *
  * WHY THIS EXISTS
  * ---------------
@@ -22,8 +22,8 @@
  * WHAT MAKES THIS AUDITABLE
  * -------------------------
  * Each entry is hash-chained: `digest = sha256(prevDigest + canonical(entry))`.
- * That is the same construction the product already uses for finance receipts
- * (`src/vh19/finance/financeEngine.ts:240-252`) and it buys the property an
+ * It is the same construction the product already uses for its signed receipts,
+ * and it buys the property an
  * auditor asks for first — **the record cannot be quietly edited**. Remove an
  * entry from the middle and every later digest fails to verify, and
  * `verifyCrashChain` says exactly where it broke.
@@ -429,7 +429,7 @@ export async function exportCrashReport(store?: Store | null): Promise<{
 }> {
   const chain = await verifyCrashChain(store);
   return {
-    product: "11Handle",
+    product: "SelfImpulse",
     engine: "MJ",
     exportedAt: new Date().toISOString(),
     chain,

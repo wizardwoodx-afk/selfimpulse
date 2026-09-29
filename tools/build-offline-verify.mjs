@@ -15,7 +15,7 @@
  * Design notes:
  *  - The suite list comes from tools/probe-list.mjs, the SAME module `npm test` uses —
  *    the pack and the dev gate cannot drift apart.
- *  - HANDLE_ROOT is defined as "." and verify/run.mjs runs each bundle with cwd = the tree
+ *  - SI_ROOT is defined as "." and verify/run.mjs runs each bundle with cwd = the tree
  *    root, so the pack works from any extraction path (the dev runner instead bakes the
  *    absolute checkout path at build time).
  *  - Packages are bundled IN (the dev runner keeps them external for react); the one
@@ -48,7 +48,7 @@ export function offlineBundleOptions(entryPath, outfile) {
     bundle: true,
     platform: "node",
     format: "esm",
-    define: { HANDLE_ROOT: '"."' },
+    define: { SI_ROOT: '"."' },
     banner: {
       js: 'import { createRequire as __mjCreateRequire } from "node:module"; const require = __mjCreateRequire(import.meta.url);',
     },
@@ -96,9 +96,9 @@ export function buildOfflinePack({ root, outDir }) {
     if (f.endsWith(".mjs")) fs.rmSync(path.join(specsDir, f));
   }
   const specSources = {
-    reach: path.join(root, "src", "vh19", "reach", "batchSpec.ts"),
-    federation: path.join(root, "src", "vh19", "federation", "federationSpec.ts"),
-    regulated: path.join(root, "src", "vh19", "federation", "regulatedSpec.ts"),
+    reach: path.join(root, "src", "engine", "reach", "batchSpec.ts"),
+    federation: path.join(root, "src", "engine", "federation", "federationSpec.ts"),
+    regulated: path.join(root, "src", "engine", "federation", "regulatedSpec.ts"),
     /* The two command-line entries that used to refuse without esbuild. Compiling
        them here is what lets a no-node_modules tree run them for real. */
     "drill-benchmark": path.join(root, "tools", "drill-benchmark.entry.ts"),

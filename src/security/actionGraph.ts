@@ -28,7 +28,7 @@
  * THE HONESTY RULES (inherited from the rest of the codebase)
  *  - Nothing is recorded that did not happen. A refused step records the REFUSAL
  *    as the outcome; it does not record the effect the step would have had.
- *  - A node the graph cannot vouch for is marked `unverified`, never dropped and
+ *  - A node the graph cannot selfimpulse for is marked `unverified`, never dropped and
  *    never upgraded. A missing edge is reported as missing, not inferred.
  *  - Every authorization decision names the envelope it was measured against. A
  *    decision that cannot name one is not made.

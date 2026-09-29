@@ -67,7 +67,7 @@ async function post(root: string, body: unknown, authorization?: string): Promis
 
 let nextRpcId = 1;
 async function rpc(root: string, method: string, params: Record<string, unknown>, authorization?: string): Promise<unknown> {
-  const env = await post(root, { jsonrpc: "2.0", id: `vh-${nextRpcId++}`, method, params }, authorization);
+  const env = await post(root, { jsonrpc: "2.0", id: `si-${nextRpcId++}`, method, params }, authorization);
   if (env.error !== undefined) {
     const e = env.error as { code?: number; message?: string };
     throw new A2AClientError(e.code ?? -32000, e.message ?? "json-rpc error");
@@ -140,7 +140,7 @@ export async function streamMessage(root: string, message: MessageV10, onEvent: 
     const resp = await fetch(root + "/", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "text/event-stream" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: `vh-${nextRpcId++}`, method: "message/stream", params: { message } }),
+      body: JSON.stringify({ jsonrpc: "2.0", id: `si-${nextRpcId++}`, method: "message/stream", params: { message } }),
       signal: ctrl.signal,
     });
     if (!resp.ok || !resp.body) throw new A2AClientError(-32000, `stream refused: HTTP ${resp.status}`);
@@ -196,7 +196,7 @@ export async function claimPairing(args: {
   peerName: string;
   timeoutMs?: number;
 }): Promise<
-  | { ok: true; credential: { token: string; harbor: string; hostFp: string; peerFp: string; issuedAt: number; expiresAt: number; scope: string[] } }
+  | { ok: true; credential: { token: string; selfimpulse: string; hostFp: string; peerFp: string; issuedAt: number; expiresAt: number; scope: string[] } }
   | { ok: false; reason: string }
 > {
   const base = args.hostRoot.replace(/\/+$/, "");
@@ -211,11 +211,68 @@ export async function claimPairing(args: {
     });
     const body = (await res.json().catch(() => ({}))) as {
       ok?: boolean; reason?: string;
-      credential?: { token: string; harbor: string; hostFp: string; peerFp: string; issuedAt: number; expiresAt: number; scope: string[] };
+      credential?: { token: string; selfimpulse: string; hostFp: string; peerFp: string; issuedAt: number; expiresAt: number; scope: string[] };
     };
     if (res.ok && body.ok && body.credential) return { ok: true, credential: body.credential };
     return { ok: false, reason: body.reason ?? `the host refused the pairing (HTTP ${res.status})` };
   } catch (e) {
     return { ok: false, reason: `could not reach the host to pair: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+/* ── AlterSend ─────────────────────────────────────────────────────────────
+ * A peer that wants a file asks for it through this. The sender's name and
+ * size are checked here too, because a client that silently accepts whatever
+ * arrives is how a sender ends up convincing a machine it should not have. */
+export async function sendFileToPeer(opts: {
+  baseUrl: string;
+  token: string;
+  name: string;
+  bytes: Buffer;
+  timeoutMs?: number;
+}): Promise<
+  { ok: true; offer: { id: string; name: string; size: number; digest: string } } |
+  { ok: false; reason: string }
+> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 30_000);
+  try {
+    const res = await fetch(`${opts.baseUrl.replace(/\/+$/, "")}/vh/altersend`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${opts.token}` },
+      body: JSON.stringify({ name: opts.name, data: opts.bytes.toString("base64") }),
+      signal: ctl.signal,
+    });
+    const body = (await res.json()) as Record<string, unknown>;
+    if (!res.ok) return { ok: false, reason: String(body.reason ?? body.error ?? res.status) };
+    return { ok: true, offer: body.offer as { id: string; name: string; size: number; digest: string } };
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? e.message : String(e) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function fetchFileFromPeer(opts: {
+  baseUrl: string;
+  token: string;
+  id: string;
+  timeoutMs?: number;
+}): Promise<{ ok: true; name: string; bytes: Buffer; digest: string } | { ok: false; reason: string }> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 30_000);
+  try {
+    const res = await fetch(`${opts.baseUrl.replace(/\/+$/, "")}/vh/altersend/${encodeURIComponent(opts.id)}`, {
+      headers: { authorization: `Bearer ${opts.token}` },
+      signal: ctl.signal,
+    });
+    const body = (await res.json()) as Record<string, unknown>;
+    if (!res.ok) return { ok: false, reason: String(body.reason ?? body.error ?? res.status) };
+    const offer = body.offer as { name: string; digest: string };
+    return { ok: true, name: offer.name, bytes: Buffer.from(String(body.bytes ?? ""), "base64"), digest: offer.digest };
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? e.message : String(e) };
+  } finally {
+    clearTimeout(timer);
   }
 }

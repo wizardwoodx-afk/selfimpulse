@@ -2,7 +2,7 @@
  * probe/agentTools.test.ts — the specialist tool runtime + member agent loop (19.3.0 "Vanguard").
  *
  * Pins the release's core claim: specialists are executors now, not prompt
- * personas — and execution carries the 11Handle identity: every tool
+ * personas — and execution carries the SelfImpulse identity: every tool
  * call is risk-tiered, rides the human gate, and lands a receipt. Nothing
  * here may fake an effect: a gated tool without a gate is refused, a path
  * outside the workspace is refused, and the model is told the real reason.
@@ -25,11 +25,11 @@ if (typeof globalThis.localStorage === "undefined") {
   } as Storage;
 }
 
-import { TOOLS, executeTool, executeToolReceipted, getTool, parseToolBlocks, resolveWorkspacePath, stripToolBlocks, toolProtocolText, toolsForCategory } from "../src/vh19/tools";
-import { runMemberAgent, MAX_AGENT_STEPS } from "../src/vh19/agentLoop";
-import { askVH19 } from "../src/vh19/generalist";
-import { getSpecialist } from "../src/vh19/registry";
-import type { ProviderConfig } from "../src/vh19/types";
+import { TOOLS, executeTool, executeToolReceipted, getTool, parseToolBlocks, resolveWorkspacePath, stripToolBlocks, toolProtocolText, toolsForCategory } from "../src/engine/tools";
+import { runMemberAgent, MAX_AGENT_STEPS } from "../src/engine/agentLoop";
+import { askSelfImpulse19 } from "../src/engine/generalist";
+import { getSpecialist } from "../src/engine/registry";
+import type { ProviderConfig } from "../src/engine/types";
 
 const prov: ProviderConfig = { kind: "openai-compatible", baseUrl: "https://api.openai.com/v1", apiKey: "sk-test-abcdefgh123456789", model: "gpt-test" };
 
@@ -40,7 +40,7 @@ test("specialist tools — real execution, gated and receipted (19.3.0)", async 
     console.log(`  ${cond ? "ok  " : "FAIL"} ${name}${cond || detail === undefined ? "" : ` — ${JSON.stringify(detail)}`}`);
   };
 
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "vh19-tools-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "engine-tools-"));
   fs.writeFileSync(path.join(root, "notes.txt"), "the parser is on version 3.2\n", "utf8");
   fs.mkdirSync(path.join(root, "sub"), { recursive: true });
   fs.writeFileSync(path.join(root, "sub", "deep.txt"), "deep file", "utf8");
@@ -200,7 +200,7 @@ test("specialist tools — real execution, gated and receipted (19.3.0)", async 
     else content = 'I will read the notes first.\n\u0060\u0060\u0060tool\n{"tool":"fs.read","input":{"path":"notes.txt"}}\n\u0060\u0060\u0060';
     return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
   }) as unknown as typeof fetch;
-  const resp = await askVH19(
+  const resp = await askSelfImpulse19(
     { text: "read the notes and tell me which typescript parser version we run", userId: "tools-probe" },
     // The route may include a risky specialist — the approving gate stands in
     // for the human; tool-level gating is tested separately above.

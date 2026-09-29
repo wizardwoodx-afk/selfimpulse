@@ -1,7 +1,7 @@
 /**
  * Browser stand-in for `node:readline` — v11.9.
  *
- * The A2A host launcher (`tools/vh-host.mjs`) uses `createInterface` to read the
+ * The A2A host launcher (`tools/si-host.mjs`) uses `createInterface` to read the
  * bundled host engine's stdout line by line. There is no child process in a
  * WebView to read from, so there is nothing to line-buffer.
  *

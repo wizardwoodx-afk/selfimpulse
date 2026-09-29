@@ -26,7 +26,7 @@
 
 const unavailable = (fn: string): never => {
   throw new Error(
-    `node:fs.${fn} is not available in the 11Handle web build — the WebView has no filesystem. ` +
+    `node:fs.${fn} is not available in the SelfImpulse web build — the WebView has no filesystem. ` +
       `Use the Tauri desktop build, or route this call through the fs_* IPC commands.`,
   );
 };

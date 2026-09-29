@@ -9,20 +9,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { reachMcpServerInfo, reachMcpCall } from "../src/vh19/reachMcp";
+import { reachMcpServerInfo, reachMcpCall } from "../src/engine/reachMcp";
 import {
   issueMissionMandate, attestMissionRun, recordMissionAuthority,
   verifyMissionAuthorityRecord, authorityOwnerIdentity, AUTHORITY_OWNER_FALLBACK,
-} from "../src/vh19/missionAuthority";
-import { mandateCanonical, type Mandate } from "../src/vh19/authorityCore";
-import { sha256HexWeb, verifyMandateWeb } from "../src/vh19/authorityWeb";
+} from "../src/engine/missionAuthority";
+import { mandateCanonical, type Mandate } from "../src/engine/authorityCore";
+import { sha256HexWeb, verifyMandateWeb } from "../src/engine/authorityWeb";
 import { createHash } from "node:crypto";
-import { missionBrowser, endMissionBrowser, type BrowserTransport } from "../src/vh19/computerUse";
-import { encryptedOwnerStorage } from "../src/vh19/ownerKeyStore";
-import { memberToolIds } from "../src/vh19/agentLoop";
-import { TOOLS, executeTool, toolsForCategory } from "../src/vh19/tools";
-import { askVH19 } from "../src/vh19/generalist";
-import { getSpecialist } from "../src/vh19/registry";
+import { missionBrowser, endMissionBrowser, type BrowserTransport } from "../src/engine/computerUse";
+import { encryptedOwnerStorage } from "../src/engine/ownerKeyStore";
+import { memberToolIds } from "../src/engine/agentLoop";
+import { TOOLS, executeTool, toolsForCategory } from "../src/engine/tools";
+import { askSelfImpulse19 } from "../src/engine/generalist";
+import { getSpecialist } from "../src/engine/registry";
 
 const sha256 = (t: string) => createHash("sha256").update(t).digest("hex");
 const GATE_OK = async () => ({ approved: true, reason: "probe approves" });
@@ -236,7 +236,7 @@ test("portable authority — owner-granted, attested runs, durable identity", as
   });
 });
 
-test("VH-19 pipeline — the plane is wired, not an island", async (t) => {
+test("SelfImpulse pipeline — the plane is wired, not an island", async (t) => {
   await t.test("the eight-tool surface lists pc.exec + pc.browser + mcp.call as risky", () => {
     assert.equal(TOOLS.length, 8);
     assert.equal(TOOLS.some((t) => t.id === "mcp.call" && t.riskTier === "risky"), true);
@@ -279,10 +279,10 @@ test("VH-19 pipeline — the plane is wired, not an island", async (t) => {
     endMissionBrowser("m-other");
   });
 
-  await t.test("a toolless VH-19 run carries NO authority — attestation, not permission", async () => {
+  await t.test("a toolless SelfImpulse run carries NO authority — attestation, not permission", async () => {
     const specialist = getSpecialist("code.typescript");
     assert.ok(specialist, "registry has code.typescript");
-    const res = await askVH19({ text: "review the diff for regressions", userId: "reach-probe" });
+    const res = await askSelfImpulse19({ text: "review the diff for regressions", userId: "reach-probe" });
     assert.equal(res.authority, null, "no tools executed ⇒ no mandate minted; broad self-grants are gone");
     assert.match(res.provenanceDigest, /^[0-9a-f]{64}$/, "provenance stands on its own");
   });

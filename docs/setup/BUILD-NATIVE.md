@@ -1,6 +1,6 @@
-# 11Handle — BUILD NATIVE (Windows 11)
+# SelfImpulse — BUILD NATIVE (Windows 11)
 
-11Handle is a **Tauri v2 desktop application for Windows 11**. It is not a website and it does not need a server.
+SelfImpulse is a **Tauri v2 desktop application for Windows 11**. It is not a website and it does not need a server.
 macOS/Linux bundles were removed — nobody validates them, so this tree no longer pretends to ship them
 (see `.github/workflows/release.yml`: windows-only; `tauri.conf.json` targets: nsis only).
 
@@ -10,7 +10,7 @@ only way anyone can show you the UI from inside a sandbox. The artifact you ship
 
 | Platform | Output |
 |---|---|
-| Windows | `src-tauri/target/release/bundle/nsis/11Handle_x64-setup.exe` |
+| Windows | `src-tauri/target/release/bundle/nsis/SelfImpulse_x64-setup.exe` |
 
 Double-click the installer. There is no port, no `npm run dev`, no browser.
 
@@ -47,8 +47,8 @@ node --version     # 22.12 or newer (package.json engines floor)
 
 ## 2. Build
 
-> **Identity:** the active native namespace is 11Handle —
-> `vh.sqlite`, the `vh-desktop` keychain service and `vh://event` events.
+> **Identity:** the active native namespace is SelfImpulse —
+> `vh.sqlite`, the `si-desktop` keychain service and `vh://event` events.
 > Earlier builds used `mj.sqlite` / `mj-desktop`: the app migrates the
 > database file on first run and still READS legacy keychain entries, so no
 > stored secret is lost; all new writes use the VH names.
@@ -72,7 +72,7 @@ Verified on Windows 11, with the command that verified it:
 | `tsc --noEmit` | 0 errors |
 | `vite build` (the exact `beforeBuildCommand`) | ok — this is what gets bundled into the app |
 | `cargo test` (full Tauri crate, real deps) | **40 passed, 0 failed** (29 unit + 11 store-integration) |
-| `tauri build` → NSIS installer | ok — `11Handle_x64-setup.exe`, installs per-user |
+| `tauri build` → NSIS installer | ok — `SelfImpulse_x64-setup.exe`, installs per-user |
 | Launch smoke | exe stays alive, main window titled "VH", SQLite store created |
 | Bundle icons | `32x32.png`, `128x128.png`, `128x128@2x.png`, `512x512.png`, `icon.png`, `icon.ico` |
 | `tauri.conf.json` | valid JSON, `frontendDist: ../dist`, `identifier: com.elevenhandle.app`, bundle target nsis |

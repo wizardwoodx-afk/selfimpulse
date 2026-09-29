@@ -1,6 +1,6 @@
 import { createRequire as __mjCreateRequire } from "node:module"; const require = __mjCreateRequire(import.meta.url);
 
-// src/vh19/modes.ts
+// src/engine/modes.ts
 var CREW_MODES = ["manual", "semi", "full"];
 var CREW_MODE_LABELS = {
   manual: "Manual",

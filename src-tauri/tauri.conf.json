@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "11Handle",
+  "productName": "SelfImpulse",
   "version": "1.0.0",
   "identifier": "com.elevenhandle.app",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "11Handle",
+        "title": "SelfImpulse",
         "width": 1440,
         "height": 900,
         "minWidth": 960,
@@ -36,7 +36,7 @@
       "id": "main",
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true,
-      "tooltip": "11Handle - governed multi-agent workspace",
+      "tooltip": "SelfImpulse - governed multi-agent workspace",
       "menuOnLeftClick": false
     }
   },
@@ -57,13 +57,13 @@
     },
     "category": "DeveloperTool",
     "shortDescription": "Native visual AI agent orchestration workstation",
-    "longDescription": "11Handle (built on the MJ engine) is a local-first desktop workstation for governing, executing, verifying, and learning from multi-agent missions. Secrets stay in the OS keychain. One mission, one receipted chain.",
+    "longDescription": "SelfImpulse (built on the MJ engine) is a local-first desktop workstation for governing, executing, verifying, and learning from multi-agent missions. Secrets stay in the OS keychain. One mission, one receipted chain.",
     "createUpdaterArtifacts": false,
     "resources": {
       "../vendor": "vendor",
-      "../tools/vh-host.mjs": "a2a/vh-host.mjs",
-      "../tools/vh-host-engine.mjs": "a2a/vh-host-engine.mjs",
-      "../tools/vh-host-engine.sha256": "a2a/vh-host-engine.sha256"
+      "../tools/si-host.mjs": "a2a/si-host.mjs",
+      "../tools/si-host-engine.mjs": "a2a/si-host-engine.mjs",
+      "../tools/si-host-engine.sha256": "a2a/si-host-engine.sha256"
     }
   }
 }

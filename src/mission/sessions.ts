@@ -160,11 +160,11 @@ export type TurnKind = "first" | "follow-up";
 /**
  * Who owns the session id.
  *
- *   vh-chosen    VH generated it and the CLI will create a session under it (Claude's --session-id).
+ *   si-chosen    VH generated it and the CLI will create a session under it (Claude's --session-id).
  *   cli-chosen   The CLI invents its own id (OpenCode's `ses_...`). VH must NOT pass one on turn one;
  *                passing an unknown id is a hard error, not a no-op.
  */
-export type SessionIdKind = "vh-chosen" | "cli-chosen";
+export type SessionIdKind = "si-chosen" | "cli-chosen";
 
 /**
  * The flags that give a turn conversational continuity.
@@ -231,7 +231,7 @@ export function sessionIdKind(harness: HarnessId | string): SessionIdKind {
   // V11.6.3: through the resolver — a custom harness never names its own session id.
   const rc = resolveCaps(harness);
   if (rc.custom) return "cli-chosen";
-  return rc.caps.sessionStart?.argv ? "vh-chosen" : "cli-chosen";
+  return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 
 /* ------------------------------------------------------------------ reading the id back */

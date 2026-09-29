@@ -15,7 +15,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { test } from "node:test";
 
-const ROOT = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT = process.env.SI_ROOT ?? process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 /** Every permitted legacy identifier, with the reason it survives. */
@@ -30,8 +30,8 @@ const LEGACY_ALLOWLIST: { pattern: RegExp; reason: string }[] = [
   // MJ_ACP_BIN / MJ_ACP_ARGS are deliberately ABSENT: they fed the ACP bridge to
   // an external agent CLI, and that bridge is removed. A back-compat shim that
   // parses an env var nothing reads any more is not compatibility, it is a lie.
-  // 19.7.15 removed them deliberately; docs/history/LEGACY-COMPAT.md says so.
-  { pattern: /MJ_BROWSER_DIR|MJ_BROWSER_NODE|MJ_BROWSER_URL/g, reason: "legacy env-var fallbacks — VH_* names are primary; old environments keep working" },
+  // 19.7.15 removed them deliberately; docs/LEGACY-COMPAT.md says so.
+  { pattern: /MJ_BROWSER_DIR|MJ_BROWSER_NODE|MJ_BROWSER_URL/g, reason: "legacy env-var fallbacks — SI_* names are primary; old environments keep working" },
   { pattern: /"mj\.|`mj\.|'mj\./g, reason: "the one-time storage-key migration in main.tsx must name the old prefix" },
   { pattern: /mj\.sqlite/g, reason: "on-disk database filename — renaming orphans the user's data; migration is a documented roadmap item" },
   { pattern: new RegExp(["mj-brow", "ser|mj-bridge|mj-con", "trol-mcp|mj-desk", "top|mj:\\/\\/event|join\\(\"mj\"\\)"].join(""), "g"), reason: "native-layer process/pipe/event names and on-disk data directory segments kept stable for installed builds; HANDLE_* is used for all new surfaces" },
@@ -62,7 +62,7 @@ test("the active product surface carries no UNDOCUMENTED retired-product identif
       const stripped = stripAllowed(fs.readFileSync(abs, "utf8"));
       // MJ is the live engine name. Retired product names must not linger.
       /* assembled at runtime — the literal retired spellings never appear here */
-      const RETIRED = new RegExp(["Vel", "vet Hand|velvet", "hand|Vo", "uch Harbor|(?<![/.])vo", "uchharbor|RO", "GUE|\\bro", "gue\\b"].join(""), "i");
+      const RETIRED = new RegExp(["Vel", "vet Hand|selfimpulse", "hand|Vo", "uch SelfImpulse|(?<![/.])vo", "uchselfimpulse|RO", "GUE|\\bro", "gue\\b"].join(""), "i");
       if (RETIRED.test(stripped)) offenders.push(rel);
     }
   }
@@ -73,7 +73,7 @@ test("every allowlisted legacy shim still exists in the tree (tested, not dead)"
   const tree = [
     ...["src", "src-tauri/src"].flatMap((d) => [...walk(path.join(ROOT, d))].filter((f) => /\.(ts|tsx|rs|css)$/.test(f))),
   ].map((f) => fs.readFileSync(f, "utf8")).join("\n");
-  const docs = read("docs/history/LEGACY-COMPAT.md");
+  const docs = read("docs/LEGACY-COMPAT.md");
   const mustExist = ["mj-proof-receipt", "mj-commercial-v1-offline", "mj_evolution", "mj-mission-record", "mjVersion", "mj.sqlite"];
   for (const token of mustExist) {
     assert.ok(tree.includes(token), `allowlisted shim vanished from the tree: ${token} (update the allowlist AND the docs together)`);
@@ -81,12 +81,12 @@ test("every allowlisted legacy shim still exists in the tree (tested, not dead)"
   }
 });
 
-test("the primary identity is 11Handle everywhere it is user-visible (MJ is the engine credit)", () => {
+test("the primary identity is SelfImpulse everywhere it is user-visible (MJ is the engine credit)", () => {
   const pkg = JSON.parse(read("package.json"));
-  assert.equal(pkg.name, "eleven-handle");
-  assert.match(read("index.html"), /<title>\s*11Handle/);
+  assert.equal(pkg.name, "selfimpulse");
+  assert.match(read("index.html"), /<title>\s*SelfImpulse/);
   const conf = JSON.parse(read("src-tauri/tauri.conf.json"));
-  assert.equal(conf.productName, "11Handle");
+  assert.equal(conf.productName, "SelfImpulse");
   // The forbidden personal-name pattern is assembled at runtime so the
   // literal names never appear in the shipped tree — not even in the detector.
   const personalNames = new RegExp(["S", "ree"].join("") + "|" + ["Har", "shen"].join(""), "i");

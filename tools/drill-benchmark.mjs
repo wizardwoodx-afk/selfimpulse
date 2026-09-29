@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 11Handle — reproducible drill benchmark (16.6.0).
+ * SelfImpulse — reproducible drill benchmark (16.6.0).
  *
  * Customer-facing evidence: a machine-readable report of the full drill
  * catalog run through the REAL Mission Loop, with a single stable
@@ -48,7 +48,7 @@ let tmp = null;
 let out = precompiled;
 try {
   if (buildSync) {
-    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "vh-drill-bench-"));
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "si-drill-bench-"));
     out = path.join(tmp, "drill-benchmark.mjs");
     buildSync({
       entryPoints: [entry],

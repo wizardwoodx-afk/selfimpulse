@@ -1,13 +1,13 @@
 /**
- * VH 16.8.0 — probe #91: the Capability Genome (VH-COLOR Phase 1).
+ * SelfImpulse 16.8.0 — probe #91: the Capability Genome (SI-COLOR Phase 1).
  *
- * Pins the engine that implements the VH-COLOR protocol's core unit:
+ * Pins the engine that implements the SI-COLOR protocol's core unit:
  * the genome shape (§11), the §31 state machine, the §41/42 promotion
  * chain with its four hard gates and quarantine, the §32-33 central
  * invariant ("evolution may change capability / may not control its own
  * safety authority"), the §40 signed capability package, the §70 trust
  * grades C0-C5, §45 auto-rollback, and the M4 bridge that turns existing
- * VouchSkills into genomes with their lineage intact.
+ * SelfImpulseSkills into genomes with their lineage intact.
  *
  * Everything here is deterministic: no network, no clock reads (times are
  * injected), and the signing path uses the same Ed25519 keychain the
@@ -19,7 +19,7 @@ import {
   currentFor,
   deriveChild,
   exportGenomeLedger,
-  genomeFromVouchSkill,
+  genomeFromSelfImpulseSkill,
   governorReopen,
   GENOME_TRANSITIONS,
   importGenomeLedger,
@@ -37,9 +37,9 @@ import {
   type CapabilityGenome,
   type GenomeRegistry,
   type PromotionEvidence,
-} from "../src/vouch/engine/genome";
-import { signingSupported } from "../src/vouch/engine/signing";
-import type { VouchSkill } from "../src/vouch/engine/vouch";
+} from "../src/selfimpulse/engine/genome";
+import { signingSupported } from "../src/selfimpulse/engine/signing";
+import type { SelfImpulseSkill } from "../src/selfimpulse/engine/selfimpulse";
 
 let passed = 0;
 let failed = 0;
@@ -295,13 +295,13 @@ async function main(): Promise<void> {
     const genome = latestVersion(reg, "cap.pkg")!;
 
     const pkg = await buildCapabilityPackage(genome, now());
-    ok("package is digest-sealed over the canonical genome", /^[0-9a-f]{64}$/.test(pkg.digest) && pkg.format === "vh-capability-package/1");
+    ok("package is digest-sealed over the canonical genome", /^[0-9a-f]{64}$/.test(pkg.digest) && pkg.format === "si-capability-package/1");
 
     const v = await verifyCapabilityPackage(pkg);
     ok("a sealed package verifies" + (v.signed ? " WITH the issuer signature" : " (unsigned: signing unsupported here)"), v.ok, v.reasons.join("; "));
     if (signingSupported()) {
       ok("on this host the package carries a real Ed25519 signature from the receipt keychain",
-        v.signed && !!pkg.signature && pkg.signature.alg === "EdDSA" && pkg.signature.keyId.startsWith("vouch-issuer-"));
+        v.signed && !!pkg.signature && pkg.signature.alg === "EdDSA" && pkg.signature.keyId.startsWith("selfimpulse-issuer-"));
     }
 
     const tampered = { ...pkg, genome: { ...pkg.genome, procedure: [...pkg.genome.procedure, "steal the budget"] } };
@@ -331,9 +331,9 @@ async function main(): Promise<void> {
   }
 
   /* ---------------- the M4 bridge ---------------- */
-  section("M4 bridge — a VouchSkill is a genome, with its lineage intact");
+  section("M4 bridge — a SelfImpulseSkill is a genome, with its lineage intact");
   {
-    const skill: VouchSkill = {
+    const skill: SelfImpulseSkill = {
       id: "s42", name: "kitchen sink", version: 3,
       when: "dispatching a mission like: repaint the hallway",
       steps: ["verify the seats", "dispatch the team", "check the receipts"],
@@ -341,7 +341,7 @@ async function main(): Promise<void> {
       bornReceiptId: "rcpt-m4-42", runs: 7, wins: 6, avgScore: 4.3, flagged: false,
       updatedAt: T0, mission: { missionId: "m9", team: "t1", verifiedSeats: 2, seatCount: 3, cycleNo: 4 },
     };
-    const g = genomeFromVouchSkill(skill, now());
+    const g = genomeFromSelfImpulseSkill(skill, now());
     ok("trigger/steps/tool map to the genome shape", g.trigger === skill.when && g.procedure.length === 3 && g.safety.permissionClass === "write-local");
     ok("bornReceiptId becomes the origin receipt (provenance is NOT lost in the bridge)",
       g.provenance.originType === "distilled" && g.provenance.originReceiptId === "rcpt-m4-42");
@@ -354,7 +354,7 @@ async function main(): Promise<void> {
         return latestVersion(reg, g.id)?.status === "ACTIVE" && trustGrade(reg, g.id).grade === "C4";
       })());
 
-    const flagged = genomeFromVouchSkill({ ...skill, id: "s43", flagged: true }, now());
+    const flagged = genomeFromSelfImpulseSkill({ ...skill, id: "s43", flagged: true }, now());
     ok("a flagged skill arrives with the flag in its declared failure modes — it cannot quietly arrive clean",
       flagged.failureModes.some((f) => f.includes("flagged for review")));
   }

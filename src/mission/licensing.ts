@@ -36,13 +36,13 @@ export interface LicensePayload {
 export type VerifyResult = { ok: true; payload: LicensePayload } | { ok: false; reason: string };
 
 /** Embedded offline-verification secret (see honesty rule 1). */
-export const VERIFY_SECRET = "vh-commercial-v1-offline";
+export const VERIFY_SECRET = "si-commercial-v1-offline";
 /* Legacy wire secret — receipts sealed before 16.1.0 (formats mj-proof-receipt/1|2).
    NEVER rename: already-issued receipts must stay verifiable forever. */
 export const LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 /* Each wire format is sealed with the constant published when that wire shipped. */
 export const SEAL_SECRET_BY_FORMAT = {
-  "vh-proof-receipt/2": VERIFY_SECRET,
+  "si-proof-receipt/2": VERIFY_SECRET,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET,
 } as const;

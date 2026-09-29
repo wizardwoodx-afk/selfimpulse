@@ -5,7 +5,7 @@
  * were written once, used forever, and every run re-measured the same mistakes.
  *
  * WHAT EVOLVES
- *   The only VH-authored text in a seat is its `instructions` (plus role/harness config). The
+ *   The only SI-authored text in a seat is its `instructions` (plus role/harness config). The
  *   harness binary's behaviour is the vendor's, not ours to mutate — so the loop evolves exactly
  *   one artifact per seat: the instruction text.
  *

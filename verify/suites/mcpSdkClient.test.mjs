@@ -17618,7 +17618,7 @@ before(async () => {
     cwd: ROOT
   });
   client = new Client(
-    { name: "vh-sdk-conformance", version: "1.0.0" },
+    { name: "si-sdk-conformance", version: "1.0.0" },
     { capabilities: {} }
   );
   await client.connect(transport);
@@ -17632,7 +17632,7 @@ after(async () => {
 describe2("E1 the official client speaks to the real server", () => {
   it("the official SDK connects: the 2025-11-25 handshake is answered with 2025-11-25", () => {
     const v = client.getServerVersion();
-    assert2.equal(v.name, "11handle");
+    assert2.equal(v.name, "selfimpulse");
     assert2.ok(v.version.length > 0);
   });
   it("the server's capabilities and instructions reach the official client", () => {

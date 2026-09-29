@@ -1,6 +1,6 @@
 # Versioning — the policy of record
 
-11Handle ships with **two** release numbers, on purpose. They are defined here so no
+SelfImpulse ships with **two** release numbers, on purpose. They are defined here so no
 installer, manifest or diligence review has to guess which is which.
 
 Version of record: product 1.0.0 · engine MJ 19.7.15 ("Handle")
@@ -16,6 +16,6 @@ Rules:
    the product number. `probe/versionDrift.test.ts` fails the build on any drift.
 2. Current-facing documents show **no** version numbers at all, except lines labelled
    `Version of record:` (this file, the release note, `VERSION.txt`) — `probe/docIdentity.test.ts`.
-3. The archive a user is given is named after the product release (`11Handle-v1.0.0.zip`).
+3. The archive a user is given is named after the product release (`SelfImpulse-v1.0.0.zip`).
 4. Engine identity is what receipts sign and manifests attest; the product number is
    what a person reads. Nothing else mixes them.

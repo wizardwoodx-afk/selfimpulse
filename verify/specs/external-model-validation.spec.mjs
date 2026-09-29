@@ -16,12 +16,12 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
-// src/vouch/ipc/client.ts
+// src/selfimpulse/ipc/client.ts
 var client_exports = {};
 __export(client_exports, {
   ipc: () => ipc,
@@ -32,7 +32,7 @@ function isNativeHost() {
 }
 var invoke, ipc;
 var init_client = __esm({
-  "src/vouch/ipc/client.ts"() {
+  "src/selfimpulse/ipc/client.ts"() {
     "use strict";
     invoke = (cmd, args) => {
       const internals = window.__TAURI_INTERNALS__;
@@ -463,7 +463,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -493,7 +493,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY2 = "vouch.v3.db";
+    KEY2 = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -1032,7 +1032,7 @@ var init_client2 = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1062,7 +1062,7 @@ var init_client2 = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -1081,7 +1081,7 @@ var init_client2 = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1104,7 +1104,7 @@ var init_client2 = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -1127,7 +1127,7 @@ var init_client2 = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -1590,7 +1590,7 @@ var HARNESSES = [
     name: "Native agent (in-process)",
     bins: [],
     argv: [],
-    install: "Nothing to install \u2014 the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+    install: "Nothing to install \u2014 the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
     notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
     source: "src/engine/hermesRuntime.ts"
   },
@@ -1612,19 +1612,19 @@ function getCustomHarness(_id) {
   return void 0;
 }
 
-// src/vouch/engine/drill.ts
+// src/selfimpulse/engine/drill.ts
 import { execFileSync } from "node:child_process";
 import * as fs2 from "node:fs";
 import * as os from "node:os";
 import * as path2 from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 init_version();
 
-// src/vouch/engine/signing.ts
-var STORAGE_KEY = "vouch.issuerkey.v1";
-var KEYCHAIN_REF = "vouch.issuerkey.v1";
+// src/selfimpulse/engine/signing.ts
+var STORAGE_KEY = "selfimpulse.issuerkey.v1";
+var KEYCHAIN_REF = "selfimpulse.issuerkey.v1";
 async function keychainBridge() {
   if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return null;
   try {
@@ -1678,7 +1678,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vouch-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `selfimpulse-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -1693,7 +1693,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vouch-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `selfimpulse-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -1727,8 +1727,8 @@ async function signChainHash(chainHashHex) {
   return signHexDigest(chainHashHex);
 }
 
-// src/vouch/engine/proof.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+// src/selfimpulse/engine/proof.ts
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var enc = new TextEncoder();
 function sortDeep(v) {
   if (Array.isArray(v)) return v.map(sortDeep);
@@ -1774,7 +1774,7 @@ async function buildChainedReceipt(args) {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -1783,7 +1783,7 @@ async function buildChainedReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -1793,7 +1793,7 @@ async function buildChainedReceipt(args) {
   };
 }
 
-// src/vouch/engine/webSearch.ts
+// src/selfimpulse/engine/webSearch.ts
 init_guardrail();
 var WEB_PROVIDERS = [
   {
@@ -1978,7 +1978,7 @@ var AGENT_CAPABILITIES = {
     // does not exist; every caller that read them was reasoning about a seat
     // that could not run.
     bins: [],
-    install: "bundled with 11Handle; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
+    install: "bundled with SelfImpulse; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
     prompt: { argv: [], confidence: "docs", source: "in-process runtime: no argv exists by construction" },
     json: null,
     readOnly: null,
@@ -2235,7 +2235,7 @@ function sessionArgv(harness, opts) {
 function sessionIdKind(harness) {
   const rc = resolveCaps(harness);
   if (rc.custom) return "cli-chosen";
-  return rc.caps.sessionStart?.argv ? "vh-chosen" : "cli-chosen";
+  return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 function parseSessionId(harness, raw) {
   if (!raw.trim()) return null;
@@ -2421,8 +2421,8 @@ function composeSeatArgv(teamSeat, ctx) {
     $CWD: ctx.cwd,
     $SECS: String(teamSeat.timeoutSecs),
     $SESSION: ctx.sessionId ?? "",
-    $REVIEWER: "vh-readonly",
-    $NAME: `vh-${teamSeat.id}`
+    $REVIEWER: "si-readonly",
+    $NAME: `si-${teamSeat.id}`
   };
   const argv2 = [];
   const flags = [];
@@ -3014,10 +3014,10 @@ function saveAutonomy(next) {
 init_id();
 
 // src/mission/licensing.ts
-var VERIFY_SECRET2 = "vh-commercial-v1-offline";
+var VERIFY_SECRET2 = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT = {
-  "vh-proof-receipt/2": VERIFY_SECRET2,
+  "si-proof-receipt/2": VERIFY_SECRET2,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET
 };
@@ -3397,7 +3397,7 @@ async function ensureIssuerIdentity2() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vh-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `si-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -3412,7 +3412,7 @@ async function ensureIssuerIdentity2() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex2(rawPub);
     const identity = {
-      keyId: `vh-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `si-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -3496,7 +3496,7 @@ async function issueRootEnvelope(args) {
   }
   seq += 1;
   return seal({
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: args.principal,
     delegationChain: [args.principal],
@@ -3529,7 +3529,7 @@ async function attenuate(parent, agentId, subScope, opts) {
   seq += 1;
   const envelope = await seal({
     budgetUsd: budget,
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: parent.principal,
     delegationChain: [...parent.delegationChain, agentId],
@@ -3831,7 +3831,7 @@ function evaluateVerifyGate(input2) {
     if (snap && countingVerifiers.length < ranVerifiers.length) {
       const off = ranVerifiers.filter((v) => !(snap.built && snap.sha !== null && (v.reviewedSha ?? null) === snap.sha));
       for (const o of off) {
-        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot vouch for the writers' work.`);
+        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot selfimpulse for the writers' work.`);
       }
     }
     const selfVerified = writerHarnesses.filter(
@@ -4631,7 +4631,7 @@ function planWorktrees(team, opts) {
   for (const seat3 of team.seats) {
     if (!seat3.mayWrite) {
       if (opts.deferReview && hasWriter) {
-        const path4 = `${root}-vh-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat3.id)}`;
+        const path4 = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat3.id)}`;
         plans.push({
           seatId: seat3.id,
           branch: "",
@@ -4657,7 +4657,7 @@ function planWorktrees(team, opts) {
       continue;
     }
     const branch = `vh/${opts.missionSlug}/${branchSafe(seat3.id)}`;
-    const path3 = `${root}-vh-${branchSafe(opts.missionSlug)}-${branchSafe(seat3.id)}`;
+    const path3 = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat3.id)}`;
     plans.push({
       seatId: seat3.id,
       branch,
@@ -5235,7 +5235,7 @@ var INITIAL_REPUTATIONS = Object.fromEntries(
 
 // src/mission/teamExecutor.ts
 var OUTPUT_TAIL_CHARS = 4e3;
-var BRIEF_DIR = ".vh-brief";
+var BRIEF_DIR = ".si-brief";
 async function git(deps, args, cwd) {
   if (!deps.git) return { ok: false, stdout: "", stderr: "", exitCode: null };
   const r = await deps.git(args, cwd);
@@ -5439,7 +5439,7 @@ Spent: $${(spentUsd2 || 0).toFixed(4)}`, "orchestrator", "finding");
   const learnedMarkdown = globalMemoryCortex.compileBriefing().generatedBriefingMarkdown;
   for (const seat3 of req.team.seats) {
     briefingsByHarness.push({
-      path: ".vh-brief/LEARNED_INVARIANTS.md",
+      path: ".si-brief/LEARNED_INVARIANTS.md",
       contents: learnedMarkdown,
       forHarness: seat3.harness
     });
@@ -5452,7 +5452,7 @@ ${lessonLines.map((l) => `- ${l}`).join("\n")}
 `;
     for (const seat3 of req.team.seats) {
       briefingsByHarness.push({
-        path: ".vh-brief/ORG_LESSONS.md",
+        path: ".si-brief/ORG_LESSONS.md",
         contents: lessonsMd,
         forHarness: seat3.harness
       });
@@ -5994,7 +5994,7 @@ async function runSeat(req, deps, a, sessions, wt, binaryExists, resolvedBin, se
   let commitDetail = readOnly ? "Read-only seat; nothing to commit." : "No git runner, so the work could not be committed.";
   if (deps.git && !readOnly) {
     await git(deps, ["add", "-A"], cwd);
-    const commit2 = await git(deps, ["-c", "user.email=vh@vouch.harbor", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
+    const commit2 = await git(deps, ["-c", "user.email=vh@selfimpulse.selfimpulse", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
     commitDetail = commit2.ok ? `Committed on ${branch}.` : commit2.exitCode === null ? "Could not run git commit." : /nothing to commit|no changes added/i.test(commit2.stderr + commit2.stdout) ? "Nothing to commit \u2014 this seat changed no files." : `git commit exited ${commit2.exitCode}: ${(commit2.stderr || commit2.stdout).trim().slice(0, 200)}`;
   }
   const finalRecord = {
@@ -6337,7 +6337,7 @@ async function buildProofReceipt(args) {
   const sig = await signChainHash2(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -6346,7 +6346,7 @@ async function buildProofReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -6356,7 +6356,7 @@ async function buildProofReceipt(args) {
   };
 }
 async function verifyProofReceipt(rc) {
-  if (rc.format !== "vh-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
+  if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
   let prev = "0".repeat(64);
   for (const e of rc.events) {
     if (e.prev !== prev) return { ok: false, reason: `chain broken at seq ${e.seq}` };
@@ -6368,7 +6368,7 @@ async function verifyProofReceipt(rc) {
   const sealSecret = SEAL_SECRET_BY_FORMAT[rc.format] ?? VERIFY_SECRET2;
   const seal2 = await hmacHex2(prev, sealSecret);
   if (seal2 !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "vh-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok = await verifyIssuerSignature2(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
@@ -6727,7 +6727,7 @@ function loopHostDeps(opts) {
   return hostRunnerDeps(opts);
 }
 
-// src/vouch/engine/bridge.ts
+// src/selfimpulse/engine/bridge.ts
 init_version();
 var MissionNotConfiguredError = class extends Error {
 };
@@ -6735,7 +6735,7 @@ function mintMissionId() {
   return `mission_${Math.random().toString(36).slice(2, 6)}`;
 }
 var bridgeDeps = null;
-async function runHarborMission(objective, missionId, opts = {}) {
+async function runSelfImpulseMission(objective, missionId, opts = {}) {
   const crews = loadCrews();
   const team = opts.team ?? crews[crews.length - 1];
   if (!team) {
@@ -6777,7 +6777,7 @@ async function runHarborMission(objective, missionId, opts = {}) {
     gateStatus: res.record.gate?.status ?? null,
     receiptOk: res.record.receipt?.ok ?? false,
     engine: `MJ execution core ${ENGINE_VERSION}`,
-    controlPlane: `11Handle control plane ${ENGINE_VERSION}`,
+    controlPlane: `SelfImpulse control plane ${ENGINE_VERSION}`,
     teamId: team.id,
     teamName: team.name,
     notes,
@@ -6786,7 +6786,7 @@ async function runHarborMission(objective, missionId, opts = {}) {
   };
 }
 
-// src/vouch/engine/brainSeam.ts
+// src/selfimpulse/engine/brainSeam.ts
 import fs from "node:fs";
 var PREF_KEY = "vh.brain.pref";
 function brainPref() {
@@ -6856,7 +6856,7 @@ function planFromModelText(text, max = 6) {
 }
 function plannerPrompt(objective) {
   return [
-    "You are the planner inside 11Handle's governed brain. Produce 3 to 6 concrete steps for the objective below.",
+    "You are the planner inside SelfImpulse's governed brain. Produce 3 to 6 concrete steps for the objective below.",
     "One step per line. No preamble, no markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.",
     `Objective: ${objective}`
   ].join("\n");
@@ -6908,7 +6908,7 @@ function wrapRealModelBrain(base, deps = realBrainDeps, prefOverride) {
   };
 }
 
-// src/vouch/engine/providers.ts
+// src/selfimpulse/engine/providers.ts
 init_client2();
 init_localDb();
 var REGISTRY_KEY = "vh.providers";
@@ -6952,7 +6952,7 @@ function modelPrefs(store2 = defaultStore()) {
 }
 var tierFor = (mode) => mode === "deep" ? "big" : "cheap";
 var ipcCaller = (req) => ipc2.llmChat(req);
-var PLANNER_SYSTEM = "You are the planner inside 11Handle's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
+var PLANNER_SYSTEM = "You are the planner inside SelfImpulse's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
 async function chatStep(prompt, tier, opts) {
   const prefs = opts?.prefs ?? modelPrefs(opts?.store);
   if (!prefs.enabled) {
@@ -7061,7 +7061,7 @@ function wrapModelBrain(base, opts) {
   };
 }
 
-// src/vouch/engine/policyGateway.ts
+// src/selfimpulse/engine/policyGateway.ts
 var riskyTools = /* @__PURE__ */ new Set(["workspace_write", "dispatch_mission", "shell_exec"]);
 
 // node_modules/zod/v4/classic/external.js
@@ -26739,7 +26739,7 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
-// src/vouch/engine/toolSchema.ts
+// src/selfimpulse/engine/toolSchema.ts
 var WorkspaceWriteSchema = external_exports.object({
   name: external_exports.string().min(1).max(255).regex(/^[^/\\<>:"|?*\x00-\x1F]+$/, "filename must be a plain local name, no path separators or control chars"),
   content: external_exports.string().max(1e6, "content exceeds 1 MB workspace-file limit")
@@ -26757,10 +26757,10 @@ var WebSearchSchema = external_exports.object({
   depth: external_exports.enum(["1", "2", "3"]).optional().default("1")
 });
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 init_guardrail();
 
-// src/vouch/engine/agui.ts
+// src/selfimpulse/engine/agui.ts
 var AguiBus = class extends EventTarget {
   emit(ev) {
     this.dispatchEvent(new CustomEvent(ev.type, { detail: ev }));
@@ -26773,7 +26773,7 @@ var AguiBus = class extends EventTarget {
 };
 var agui = new AguiBus();
 
-// src/vouch/engine/vouch.ts
+// src/selfimpulse/engine/selfimpulse.ts
 var hasLS2 = typeof globalThis.localStorage !== "undefined";
 var mem2 = /* @__PURE__ */ new Map();
 var store = {
@@ -26799,9 +26799,9 @@ var store = {
     }
   }
 };
-var SESSION_KEY = "vouch.session.v1";
-var WORKSPACE_KEY = "vouch.workspace.v1";
-var BOT_NAME = "Vouch";
+var SESSION_KEY = "selfimpulse.session.v1";
+var WORKSPACE_KEY = "selfimpulse.workspace.v1";
+var BOT_NAME = "SelfImpulse";
 function mainThread(messages) {
   const now = (/* @__PURE__ */ new Date()).toISOString();
   return { id: "t-main", title: "Main thread", createdAt: now, lastActivityAt: now, status: "open", messages };
@@ -26826,7 +26826,7 @@ function freshSession() {
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-function loadVouchSession() {
+function loadSelfImpulseSession() {
   const raw = store.get(SESSION_KEY);
   if (!raw) return freshSession();
   try {
@@ -26860,13 +26860,13 @@ function loadVouchSession() {
   }
   return freshSession();
 }
-var session = loadVouchSession();
+var session = loadSelfImpulseSession();
 var listeners = /* @__PURE__ */ new Set();
 function commit() {
   store.set(SESSION_KEY, JSON.stringify(session));
   for (const cb of listeners) cb();
 }
-function addVouchFact(text) {
+function addSelfImpulseFact(text) {
   const t = sanitizeText(text, 300);
   if (!t) return;
   if (detectInjection(t).length > 0) return;
@@ -26874,7 +26874,7 @@ function addVouchFact(text) {
   session = { ...session, facts: [...session.facts, { id: secureId("f"), text: t, ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
 }
-function addVouchPreference(text) {
+function addSelfImpulsePreference(text) {
   const t = sanitizeText(text, 300);
   if (!t) return;
   if (detectInjection(t).length > 0) return;
@@ -26882,7 +26882,7 @@ function addVouchPreference(text) {
   session = { ...session, preferences: [...session.preferences, { id: secureId("p"), text: t, ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
 }
-var MISSIONS_KEY = "vouch.missions.v1";
+var MISSIONS_KEY = "selfimpulse.missions.v1";
 function loadMissions() {
   const raw = store.get(MISSIONS_KEY);
   if (!raw) return [];
@@ -26927,7 +26927,7 @@ function loadWorkspace() {
 function saveWorkspace(ws) {
   store.set(WORKSPACE_KEY, JSON.stringify(ws));
 }
-function vouchWorkspaceFiles() {
+function selfimpulseWorkspaceFiles() {
   return Object.values(loadWorkspace()).map((f) => ({ name: f.name, chars: f.content.length, updated: f.updated })).sort((a, b) => a.name.localeCompare(b.name));
 }
 function workspaceWrite(name, content) {
@@ -26942,15 +26942,15 @@ function workspaceWrite(name, content) {
   return { name: safeName, chars: safeContent.length };
 }
 var KB = [
-  { title: "Grok Bot (xAI, Aug 11 2026)", snippet: "Always-on AI vouchs on a vendor cloud computer that sign into your apps; multi-bot group chats; watch-and-learn routines; gated behind SuperGrok/Cursor top tiers. The critique: your credentials live on their VM.", source: "local knowledge base" },
+  { title: "Grok Bot (xAI, Aug 11 2026)", snippet: "Always-on AI selfimpulses on a vendor cloud computer that sign into your apps; multi-bot group chats; watch-and-learn routines; gated behind SuperGrok/Cursor top tiers. The critique: your credentials live on their VM.", source: "local knowledge base" },
   { title: "Grok 4.6 (xAI, Aug 2026)", snippet: "Flagship model for long-running agents; 500k context; reasoning effort tiers; $2/$0.50/$6 per 1M tokens under 200k prompt.", source: "local knowledge base" },
   { title: "EU AI Act enforcement (Aug 2 2026)", snippet: "High-risk obligations enforced: tamper-evident logging (Art. 12), human oversight (Art. 14); penalties to 7% of global revenue. Agents need receipts, not logs.", source: "local knowledge base" },
-  { title: "The execution core (mission loop)", snippet: "One loop \u2014 COMPOSE \u2192 DISPATCH \u2192 COMMUNICATE \u2192 EXECUTE \u2192 GATE \u2192 ADAPT \u2014 with an allowlisted set of agent CLIs, adversarial arena, budget ledger, Ed25519-signed hash-chained receipts, Assurance Score, FinOps chargeback. The Vouch door dispatches real missions to it.", source: "local knowledge base" },
+  { title: "The execution core (mission loop)", snippet: "One loop \u2014 COMPOSE \u2192 DISPATCH \u2192 COMMUNICATE \u2192 EXECUTE \u2192 GATE \u2192 ADAPT \u2014 with an allowlisted set of agent CLIs, adversarial arena, budget ledger, Ed25519-signed hash-chained receipts, Assurance Score, FinOps chargeback. The SelfImpulse door dispatches real missions to it.", source: "local knowledge base" },
   { title: "The receipt protocol", snippet: "mj-proof-receipt/2: SHA-256 hash-chained events, HMAC seal over the chain head, Ed25519 issuer signature when the runtime can sign. Verifiable with zero VH state (tools/verify-receipt.mjs).", source: "local knowledge base" },
   { title: "Tauri 2 (desktop shell)", snippet: "Rust core + system webview; small binaries, real OS keychain and stdio child processes; the same frontend runs as a browser edition.", source: "local knowledge base" },
   { title: "Agent funding, H1 2026", snippet: "The 'agent governance' theme is the clearest funded theme of H1 2026: JetStream $34M seed, Guild.ai $30M A, Geordie $30M A, WitnessAI $85M+. The verifiable, local-first quadrant is the empty one.", source: "local knowledge base" },
   { title: "Chennai, Tamil Nadu", snippet: "India's fourth-largest city; the IT and aerospace hub of the south (Omi Vedu, Navi Kempegowda's southern twin in reputation). IST = UTC+5:30.", source: "local knowledge base" },
-  { title: "11Handle (this product)", snippet: "One product: the Vouch door (the accountable colleague) + the execution core (the mission loop) + one proof standard. Every job vouched \u2014 signed receipts on every run, on your machine.", source: "local knowledge base" },
+  { title: "SelfImpulse (this product)", snippet: "One product: the SelfImpulse door (the accountable colleague) + the execution core (the mission loop) + one proof standard. Every job selfimpulseed \u2014 signed receipts on every run, on your machine.", source: "local knowledge base" },
   { title: "DeepSearch (Grok feature)", snippet: "Iterative retrieval loop: split query into sub-queries, parallel web + X search, summarize batches in a scratchpad, repeat to a step limit, cross-check before drafting.", source: "local knowledge base" }
 ];
 function searchKnowledge(query) {
@@ -27056,9 +27056,9 @@ function systemInfo() {
   const ua = typeof globalThis.navigator !== "undefined" ? globalThis.navigator.userAgent : "node-runtime";
   return `runtime: ${inTauri ? "Tauri (native desktop)" : "browser/webview"}
 os/arch: ${typeof globalThis.navigator !== "undefined" ? `${globalThis.navigator.platform ?? "n/a"} \xB7 ${globalThis.navigator.language ?? "n/a"}` : "node " + (globalThis.process?.versions?.node ?? "?")} \xB7 ${ua.slice(0, 80)}
-version: ${ENGINE_VERSION} \xB7 brain: ${vouchBrain().id}`;
+version: ${ENGINE_VERSION} \xB7 brain: ${selfimpulseBrain().id}`;
 }
-var VOUCH_TOOLS = {
+var SELFIMPULSE_TOOLS = {
   calculator: {
     name: "calculator",
     risky: false,
@@ -27126,7 +27126,7 @@ No network reachable from here \u2014 nothing is faked. The local knowledge base
     run: async (a) => {
       const t = String(a.fact ?? "").trim();
       if (!t) return "nothing to save";
-      addVouchFact(t);
+      addSelfImpulseFact(t);
       return `saved: ${t.slice(0, 120)}`;
     }
   },
@@ -27150,7 +27150,7 @@ ${p}`;
     run: async (a) => {
       const t = String(a.text ?? "").trim();
       if (!t) return "nothing to save";
-      addVouchPreference(t);
+      addSelfImpulsePreference(t);
       return `preference learned: ${t.slice(0, 120)}`;
     }
   },
@@ -27168,7 +27168,7 @@ ${p}`;
     risky: false,
     description: "List files in the local workspace.",
     run: async () => {
-      const fs3 = vouchWorkspaceFiles();
+      const fs3 = selfimpulseWorkspaceFiles();
       return fs3.length === 0 ? "workspace is empty" : fs3.map((f) => `\u2022 ${f.name} (${f.chars} chars, ${f.updated.slice(0, 16).replace("T", " ")})`).join("\n");
     }
   },
@@ -27183,7 +27183,7 @@ var RISKY_TOOLS = riskyTools;
 var APPROVAL_TTL_MS = 10 * 60 * 1e3;
 var badApprovalProbeGate = new RateGate(10, 6e4);
 var brain;
-function vouchBrain() {
+function selfimpulseBrain() {
   return brain;
 }
 var JOKES = [
@@ -27326,14 +27326,14 @@ Start one and I'll hold it: \u201Ccontinue <thread name>\u201D picks it back up.
       if (!args) continue;
       const isDispatch = sk.tool === "dispatch_mission";
       return {
-        thoughts: [`Slow\u2192fast: executing my vouched skill "${sk.name}" v${sk.version} \u2014 test-gated, ${sk.wins} proven win(s), distilled from a vouched run. The procedure is proven, so no re-planning.`],
-        plan: [`${sk.name} v${sk.version} \u2014 single vouched step`],
+        thoughts: [`Slow\u2192fast: executing my selfimpulseed skill "${sk.name}" v${sk.version} \u2014 test-gated, ${sk.wins} proven win(s), distilled from a selfimpulseed run. The procedure is proven, so no re-planning.`],
+        plan: [`${sk.name} v${sk.version} \u2014 single selfimpulseed step`],
         actions: isDispatch ? [{ kind: "dispatch", objective: String(args.objective ?? "") }] : [{ kind: "tool", tool: sk.tool, args }],
         confidence: "high",
         skillId: sk.id,
         skillVersion: sk.version,
         final: (r) => tone(
-          r[0]?.ok ? `Done \u2014 via my vouched skill **${sk.name}** v${sk.version} (slow\u2192fast; test-gated, ${sk.wins} proven win${sk.wins === 1 ? "" : "s"}). The receipt binds the skill and verifies offline like every other job.` : `My vouched skill **${sk.name}** FAILED on live replay \u2014 I've flagged it, filed the failure to memory, and here is the honest record: ${r[0]?.output ?? ""}`,
+          r[0]?.ok ? `Done \u2014 via my selfimpulseed skill **${sk.name}** v${sk.version} (slow\u2192fast; test-gated, ${sk.wins} proven win${sk.wins === 1 ? "" : "s"}). The receipt binds the skill and verifies offline like every other job.` : `My selfimpulseed skill **${sk.name}** FAILED on live replay \u2014 I've flagged it, filed the failure to memory, and here is the honest record: ${r[0]?.output ?? ""}`,
           ctx.persona
         )
       };
@@ -27346,7 +27346,7 @@ Start one and I'll hold it: \u201Ccontinue <thread name>\u201D picks it back up.
         final: () => tone(
           `Hey. I'm **${BOT_NAME}** \u2014 the accountable colleague on this machine. ${ctx.mode === "deep" ? `Deep mode on:${factLine}` : factLine}
 
-I run a cycle on everything: **recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 vouch \u2192 learn**. Fast tasks take the fast path; risky ones are simulated and paused at your gate \u2014 and every finished run mints a signed receipt.
+I run a cycle on everything: **recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 selfimpulse \u2192 learn**. Fast tasks take the fast path; risky ones are simulated and paused at your gate \u2014 and every finished run mints a signed receipt.
 
 Three ways to use me:
 - **Ask** \u2014 math, time, local knowledge, live web evidence
@@ -27359,16 +27359,16 @@ Brain: **${brain.label}**. The real-model planning seam ships in this runtime \u
       };
       return plan;
     }
-    if (/who are you|what are you|your name|what can you do|about (you|vouch)|\bhelp\b/i.test(lower)) {
+    if (/who are you|what are you|your name|what can you do|about (you|selfimpulse)|\bhelp\b/i.test(lower)) {
       return {
         thoughts: ["Identity question. Answer with the full card \u2014 what, how, and the honest brain status."],
         plan: ctx.mode === "deep" ? ["State the role", "List the tools", "State the brain honestly"] : [],
         actions: [],
         final: () => tone(
-          `I'm **${BOT_NAME}** \u2014 a standalone, persistent, named colleague on this machine, running the **Vouch Cycle**: recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 vouch \u2192 learn.
+          `I'm **${BOT_NAME}** \u2014 a standalone, persistent, named colleague on this machine, running the **SelfImpulse Cycle**: recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 selfimpulse \u2192 learn.
 
 - **Tools:** calculator (real parser), clock, local knowledge base, live web evidence (keyless providers), memory + preferences (yours to inspect/delete), a local workspace (writes are simulated + approval-gated), system info
-- **Dispatch:** \u201Cdispatch a mission: \u2026\u201D \u2014 hands the objective to the real execution core (the mission loop) under one mission ID; the whole trail lands in one vouched chain
+- **Dispatch:** \u201Cdispatch a mission: \u2026\u201D \u2014 hands the objective to the real execution core (the mission loop) under one mission ID; the whole trail lands in one selfimpulseed chain
 - **Learning:** successful runs become test-gated skills you can inspect; your feedback binds to receipts
 - **Proof:** every completed run mints a ${`mj-proof-receipt/2`} \u2014 SHA-256 chain, HMAC seal, Ed25519 issuer signature when this runtime can sign \u2014 verifiable offline, zero runtime state
 
@@ -27580,12 +27580,12 @@ The brain seam is live: flip it from simulated to auto and an installed agent CL
   }
 };
 brain = wrapModelBrain(wrapRealModelBrain(simulatedBrain));
-function appendVouchReceiptRef(ref) {
+function appendSelfImpulseReceiptRef(ref) {
   session = { ...session, receipts: [...session.receipts.slice(-19), ref] };
   commit();
 }
 
-// src/vouch/engine/drill.ts
+// src/selfimpulse/engine/drill.ts
 init_version();
 function sh(args, cwd) {
   try {
@@ -27783,7 +27783,7 @@ function drillDeps(sc, verifyLog, canonicalTest) {
   };
 }
 var HAS_LS = typeof localStorage !== "undefined" && localStorage !== null;
-var DRILL_KEY = "vouch.drill.reports.v1";
+var DRILL_KEY = "selfimpulse.drill.reports.v1";
 var REPORT_CAP = 20;
 function loadReports() {
   if (!HAS_LS) return [];
@@ -27812,7 +27812,7 @@ function scenarioTestFile(sc) {
   return Object.keys(sc.files).find((f) => f.endsWith("test.js") || f.endsWith(".test.js")) ?? null;
 }
 function makeRepo(sc) {
-  const repo = fs2.mkdtempSync(path2.join(os.tmpdir(), `vh-drill-${sc.id}-`));
+  const repo = fs2.mkdtempSync(path2.join(os.tmpdir(), `si-drill-${sc.id}-`));
   const testFile = scenarioTestFile(sc);
   const seal2 = randomBytes(16).toString("hex");
   let canonicalTest = null;
@@ -27827,7 +27827,7 @@ function makeRepo(sc) {
   }
   sh(["git", "init", "-q", "-b", "main", "."], repo);
   sh(["git", "config", "user.email", "drill@elevenhandle.local"], repo);
-  sh(["git", "config", "user.name", "Vouch Drill"], repo);
+  sh(["git", "config", "user.name", "SelfImpulse Drill"], repo);
   sh(["git", "add", "-A"], repo);
   sh(["git", "commit", "-qm", "drill baseline"], repo);
   if (canonicalTest) fs2.writeFileSync(path2.join(repo, "canonical-test.js"), canonicalTest);
@@ -27912,7 +27912,7 @@ async function runDrill(scenarioId, opts) {
   const missionId = mintMissionId();
   const verifyLog = [];
   try {
-    const outcome = await runHarborMission(sc.objective, missionId, {
+    const outcome = await runSelfImpulseMission(sc.objective, missionId, {
       repoRoot: repo,
       team: drillCrew(sc, realSeat ? opts.harness : void 0),
       deps: realSeat ? realSeatDeps(sc, opts.harness, verifyLog, canonicalTest) : drillDeps(sc, verifyLog, canonicalTest)
@@ -27943,13 +27943,13 @@ async function runDrill(scenarioId, opts) {
     try {
       const finishedAt = (/* @__PURE__ */ new Date()).toISOString();
       const events = [
-        { kind: "vouch.session", seatId: "vouch-core", data: { origin: "drill", tool: "run_drill", args: { scenario: sc.id, missionId } } },
-        { kind: "vouch.drill", seatId: "vouch-core", data: { scenario: sc.id, label: sc.label, status, loopStatus, verifiedSeats: outcome.verifiedSeats, seatCount: outcome.seatCount, cycleNo: outcome.cycleNo, testTail: testTail.slice(-160), missionId, engine: realSeat ? `REAL seat: ${realSeat.name} (bin "${realSeat.bin}") + real git + the repo's own ${sc.testCommand.join(" ")} (canonical test, seat-invisible)` : `built-in deterministic seat (labeled) + real git + the repo's own ${sc.testCommand.join(" ")} (canonical test, seat-invisible)` } },
-        { kind: "vouch.verdict", seatId: "vouch-core", data: { status: status === "passed" ? "done" : status, actions: 1, origin: "drill", missionId } }
+        { kind: "selfimpulse.session", seatId: "selfimpulse-core", data: { origin: "drill", tool: "run_drill", args: { scenario: sc.id, missionId } } },
+        { kind: "selfimpulse.drill", seatId: "selfimpulse-core", data: { scenario: sc.id, label: sc.label, status, loopStatus, verifiedSeats: outcome.verifiedSeats, seatCount: outcome.seatCount, cycleNo: outcome.cycleNo, testTail: testTail.slice(-160), missionId, engine: realSeat ? `REAL seat: ${realSeat.name} (bin "${realSeat.bin}") + real git + the repo's own ${sc.testCommand.join(" ")} (canonical test, seat-invisible)` : `built-in deterministic seat (labeled) + real git + the repo's own ${sc.testCommand.join(" ")} (canonical test, seat-invisible)` } },
+        { kind: "selfimpulse.verdict", seatId: "selfimpulse-core", data: { status: status === "passed" ? "done" : status, actions: 1, origin: "drill", missionId } }
       ];
       const receipt = await buildChainedReceipt({
-        mission: `vouch:drill:${sc.id}:${missionId}`,
-        teamId: "vouch",
+        mission: `selfimpulse:drill:${sc.id}:${missionId}`,
+        teamId: "selfimpulse",
         startedAt: new Date(t0).toISOString(),
         finishedAt,
         version: ENGINE_VERSION,
@@ -27971,7 +27971,7 @@ async function runDrill(scenarioId, opts) {
         feedback: [],
         receipt
       };
-      appendVouchReceiptRef(ref);
+      appendSelfImpulseReceiptRef(ref);
       receiptId = ref.id;
     } catch {
       receiptId = null;
@@ -28015,7 +28015,7 @@ function registerDrillTool() {
   if (registered) return;
   registered = true;
   RISKY_TOOLS.add("run_drill");
-  VOUCH_TOOLS["run_drill"] = {
+  SELFIMPULSE_TOOLS["run_drill"] = {
     name: "run_drill",
     risky: true,
     description: `Run a standard real-mission drill (fresh real git repo + the repo's own tests + the real mission loop). Scenarios: ${DRILL_SCENARIOS.map((s) => s.id).join(", ")}. Risky \u2014 it is a mission; it pauses at the human gate.`,
@@ -28087,10 +28087,10 @@ if (seat2.kind === "real-cli" && seat2.harness && seat2.bin) {
   }
 }
 var stableKey = (s) => [s.scenarioId, s.seat.kind, s.seat.harness, s.status, s.verifiedSeats, s.seatCount, s.cycleNo, s.engine, s.attestation].join("|");
-var overallDigest = crypto2.createHash("sha256").update(scenarios.length > 0 ? scenarios.map(stableKey).join("\n") : "11handle:external-model-validation:no-scenarios(no agent CLI on this host)").digest("hex");
+var overallDigest = crypto2.createHash("sha256").update(scenarios.length > 0 ? scenarios.map(stableKey).join("\n") : "selfimpulse:external-model-validation:no-scenarios(no agent CLI on this host)").digest("hex");
 var report = {
-  suite: "11handle-external-model-validation",
-  scope: "External-model validation: the drill catalog through the REAL mission loop, seats run by a REAL agent CLI when one is on this host's PATH (the 16.7 runDrill harness seam \u2014 the loop spawns the real bin; the seat is labeled REAL in the report and the vouch receipt). When no agent CLI is present, this report says so \u2014 it never fakes a real-model run. The deterministic benchmark (tools/drill-benchmark.mjs) separately validates the machinery; the two are complementary, not interchangeable.",
+  suite: "selfimpulse-external-model-validation",
+  scope: "External-model validation: the drill catalog through the REAL mission loop, seats run by a REAL agent CLI when one is on this host's PATH (the 16.7 runDrill harness seam \u2014 the loop spawns the real bin; the seat is labeled REAL in the report and the selfimpulse receipt). When no agent CLI is present, this report says so \u2014 it never fakes a real-model run. The deterministic benchmark (tools/drill-benchmark.mjs) separately validates the machinery; the two are complementary, not interchangeable.",
   requestedHarness,
   harnessInventory: inventory,
   realModelAvailable: seat2.kind === "real-cli",

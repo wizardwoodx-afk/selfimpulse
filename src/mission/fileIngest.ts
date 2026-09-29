@@ -1,5 +1,5 @@
 /**
- * 11Handle §13 — the file door. One function, `ingestFile`, and one rule:
+ * SelfImpulse §13 — the file door. One function, `ingestFile`, and one rule:
  * everything that could stop a bad file happens HERE, on the call path.
  *
  * Law L12 is the reason this module exists as a module. A cap that lives in
@@ -221,13 +221,13 @@ export async function ingestFile(
   if (format === "unknown") {
     const isOle = OLE_MAGIC.every((b, i) => file.bytes[i] === b);
     return blocked("unrecognised-binary", isOle
-      ? `${name} is a pre-2007 binary Office file (an OLE compound document). 11Handle reads the XML-era formats — .docx, .xlsx, .pptx — not the legacy binary ones. Save it in the modern format and drop that.`
+      ? `${name} is a pre-2007 binary Office file (an OLE compound document). SelfImpulse reads the XML-era formats — .docx, .xlsx, .pptx — not the legacy binary ones. Save it in the modern format and drop that.`
       : `${name} is not a format this door reads. It takes PDF, DOCX, XLSX/XLSM, PPTX, JSON, ZIP, Markdown and plain text — and says so rather than returning an empty document for it.`, "unknown");
   }
   /* A `.zip` whose bytes are not a zip would otherwise fall through the
      container branch and into a dispatcher that has no case for it. */
   if (format === "zip" && !looksLikeZip(file.bytes)) {
-    return blocked("not-an-archive", `${name} is labelled .zip but does not open as one. 11Handle does not rename a file to make a format fit.`, format);
+    return blocked("not-an-archive", `${name} is labelled .zip but does not open as one. SelfImpulse does not rename a file to make a format fit.`, format);
   }
 
   const fileDeadline = started + limits.perFileDeadlineMs;

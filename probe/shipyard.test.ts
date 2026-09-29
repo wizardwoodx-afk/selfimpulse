@@ -28,8 +28,8 @@ if (typeof globalThis.localStorage === "undefined") {
 import {
   advanceBuild, buildSummary, clearBuilds, createBuild, getBuild, listBuilds, MAX_ORDERS, runAllOrders, settleBuild,
   type RunResult,
-} from "../src/vh19/shipyard";
-import { captainForDomain } from "../src/vh19/captains";
+} from "../src/engine/shipyard";
+import { captainForDomain } from "../src/engine/captains";
 
 let pass = 0;
 let fail = 0;

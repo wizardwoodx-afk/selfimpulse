@@ -29,8 +29,8 @@ import { after, before, describe, it } from "node:test";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 let client: Client;
 let transport: StdioClientTransport;
@@ -49,7 +49,7 @@ before(async () => {
     cwd: ROOT,
   });
   client = new Client(
-    { name: "vh-sdk-v2-conformance", version: "1.0.0" },
+    { name: "si-sdk-v2-conformance", version: "1.0.0" },
     {
       // the whole point: pin the 2026-07-28 era — no probe-and-fallback,
       // a server that cannot serve it fails loudly.
@@ -177,7 +177,7 @@ describe("M3 honesty over the official v2 client", () => {
 
   it("a drill on a missing harness refuses in words (never a fake real-model run)", async () => {
     decision = "accept"; // the gate is approved — the REFUSAL is what is pinned
-    const first = await client.callTool({ name: "run_drill", arguments: { scenario: "guard", harness: "vh-missing-harness" } });
+    const first = await client.callTool({ name: "run_drill", arguments: { scenario: "guard", harness: "si-missing-harness" } });
     let out = textOf(first);
     const callId = out.match(/call_status "(c[0-9a-z]+)"/)?.[1];
     if (callId) {
@@ -195,7 +195,7 @@ describe("M3 honesty over the official v2 client", () => {
 describe("M4 dual-era from ONE official client library", () => {
   it("the same v2 SDK, default (legacy) posture, still drives the 2025-11-25 handshake", async () => {
     const legacyTransport = new StdioClientTransport({ command: process.execPath, args: ["tools/mcp.mjs"], cwd: ROOT });
-    const legacy = new Client({ name: "vh-sdk-v2-legacy-posture", version: "1.0.0" }); // no versionNegotiation → 'legacy'
+    const legacy = new Client({ name: "si-sdk-v2-legacy-posture", version: "1.0.0" }); // no versionNegotiation → 'legacy'
     try {
       await legacy.connect(legacyTransport);
       const v = legacy.getNegotiatedProtocolVersion();

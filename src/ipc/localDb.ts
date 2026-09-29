@@ -2,7 +2,7 @@ import { uid, nowIso } from "../app/id";
 import type { SecretStatus } from "./client";
 import { GRAPH_SCHEMA_VERSION, type ApprovalRecord, type DlqRecord, type EvolutionCandidateRecord, type ExecutionEventRecord, type ExecutionRecord, type ExecutionStats, type FeedbackRecord, type McpServerEntry, type MemoryRecord, type SkillRecord, type WorkflowGraph, type WorkflowRecord } from "../domain/types";
 
-const KEY = "vouch.v3.db";
+const KEY = "selfimpulse.v3.db";
 
 interface DbShape {
   workflows: WorkflowRecord[];
@@ -56,7 +56,7 @@ function seedMcp(): McpServerEntry[] {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]],
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]],
   ];
   return rows.map(([id, name, command, args]) => ({
     id,

@@ -116,8 +116,8 @@ export function dateTerms(v: Values): ToolResult {
 const PII: Array<{ name: string; re: RegExp; note: string }> = [
   { name: "email address", re: /[\w.+-]+@[\w-]+\.[\w.-]{2,}/g, note: "pattern" },
   { name: "phone (international)", re: /\+\d[\d\s\-()]{7,}\d/g, note: "pattern" },
-  { name: "PAN (India)", re: /\b[A-Z]{5}\d{4}[A-Z]\b/g, note: "pattern + 4th-character holder type" },
-  { name: "Aadhaar-shaped 12 digits", re: /\b\d{4}\s?\d{4}\s?\d{4}\b/g, note: "shape only — not checksum-verified" },
+  { name: "national tax id (5 letters, 4 digits, 1 letter)", re: /\b[A-Z]{5}\d{4}[A-Z]\b/g, note: "pattern + 4th-character holder type" },
+  { name: "national-id-shaped 12 digits", re: /\b\d{4}\s?\d{4}\s?\d{4}\b/g, note: "shape only — not checksum-verified" },
   { name: "card-shaped number", re: /\b(?:\d[ -]?){13,19}\b/g, note: "shape + Luhn checked below" },
   { name: "IPv4 address", re: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g, note: "pattern" },
   { name: "date of birth (ISO)", re: /\b(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])\b/g, note: "pattern — a date is PII only in context" },

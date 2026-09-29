@@ -231,8 +231,8 @@ export function composeSeatArgv(
     $CWD: ctx.cwd,
     $SECS: String(teamSeat.timeoutSecs),
     $SESSION: ctx.sessionId ?? "",
-    $REVIEWER: "vh-readonly",
-    $NAME: `vh-${teamSeat.id}`,
+    $REVIEWER: "si-readonly",
+    $NAME: `si-${teamSeat.id}`,
   };
 
   const argv: string[] = [];

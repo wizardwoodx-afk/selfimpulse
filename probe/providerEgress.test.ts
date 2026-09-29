@@ -5,7 +5,7 @@
  * but NOT at `ipc.llmChat` — the one function every provider call funnels
  * through on the way to Rust `llm_chat`. The Hermes autonomous loop
  * (engine/hermesRuntime.ts) calls `ipc.llmChat` with a caller-supplied
- * `base_url` and never passed through vh19/providers.ts, so two things rode an
+ * `base_url` and never passed through engine/providers.ts, so two things rode an
  * unguarded path:
  *
  *   1. SSRF — a hostile base_url aimed at link-local, RFC1918 or the cloud
@@ -26,7 +26,7 @@ import * as path from "node:path";
 // (docIdentity / legacyCompat / shellAffordances / versionDrift) so this file
 // still works when it is bundled into verify/suites/ for the zero-install pack —
 // where import.meta.url points at verify/, not the repo.
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 const readSrc = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 let passed = 0;

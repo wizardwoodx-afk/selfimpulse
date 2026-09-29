@@ -1,5 +1,5 @@
 /**
- * 11Handle's own evolution engine (TypeScript) — fitness, constraints and gating for
+ * SelfImpulse's own evolution engine (TypeScript) — fitness, constraints and gating for
  * self-improving SKILL.md procedures. No weight updates; skills are plain text.
  *
  * Accept requires:

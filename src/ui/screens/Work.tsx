@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useVh } from "../store";
 import { ForceGraph, type FgNode, type FgLink } from "../graph/ForceGraph";
 import { GateCard } from "./GateCard";
-import { getSpecialist } from "../../vh19/registry";
+import { getSpecialist } from "../../engine/registry";
 
 /**
  * WORK — the user watches the crew work as a top→bottom flow.

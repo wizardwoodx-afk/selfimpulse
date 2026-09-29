@@ -66,7 +66,7 @@ export interface ChargebackTotals {
 }
 
 export interface Chargeback {
-  format: "vh-chargeback/1";
+  format: "si-chargeback/1";
   issuedAt: string;
   rows: ChargebackRow[];
   totals: ChargebackTotals;
@@ -135,7 +135,7 @@ export async function computeChargeback(inputs: FinOpsMissionInput[], issuedAt?:
     simulatedSeatsTotal: rows.reduce((a, r) => a + r.simulatedSeats, 0),
   };
   const digest = await sha256hex(canon({ rows, totals }));
-  return { format: "vh-chargeback/1", issuedAt: issuedAt ?? new Date().toISOString(), rows, totals, digest };
+  return { format: "si-chargeback/1", issuedAt: issuedAt ?? new Date().toISOString(), rows, totals, digest };
 }
 
 export async function verifyChargebackDigest(cb: Chargeback): Promise<boolean> {

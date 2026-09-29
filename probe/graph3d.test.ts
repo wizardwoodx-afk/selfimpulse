@@ -10,8 +10,8 @@
 import assert from "node:assert/strict";
 import * as path from "node:path";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 let passed = 0; let failed = 0; const failures: string[] = [];
 function ok(label: string, cond: boolean, detail = ""): void {
@@ -19,11 +19,11 @@ function ok(label: string, cond: boolean, detail = ""): void {
   else { failed++; failures.push(`${label}${detail ? ` — ${detail}` : ""}`); console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`); }
 }
 
-import { seedPositions, simulate, simulateStep, project, makeNode, Graph3D, type G3Node, type G3Edge } from "../src/vh19/graph3d";
+import { seedPositions, simulate, simulateStep, project, makeNode, Graph3D, type G3Node, type G3Edge } from "../src/engine/graph3d";
 
 const fs = await import("node:fs");
 /* 19.7.12 (UI): the product renders its graphs with 3d-force-graph (WebGL) in
-   src/ui/graph/ForceGraph.tsx; the zero-dependency vh19/graph3d engine stays as the
+   src/ui/graph/ForceGraph.tsx; the zero-dependency engine/graph3d engine stays as the
    deterministic layout/projection library (used by the offline pack and receipts). */
 const consoleSrc = fs.readFileSync(path.join(ROOT, "src/ui/graph/ForceGraph.tsx"), "utf8");
 const css = fs.readFileSync(path.join(ROOT, "src/ui/vh.css"), "utf8");
@@ -74,13 +74,13 @@ function main(): void {
   ok("the product mounts a live WebGL graph (3d-force-graph), not a static SVG", consoleSrc.includes('import("3d-force-graph")') && !consoleSrc.includes("svg viewBox=\"0 0 660 340\""));
   ok("the graph library is loaded lazily inside the mount effect (SSR/node-safe)", !/^import (?!type )[^;]*3d-force-graph/m.test(consoleSrc));
   ok("canvas carries the interaction contract (drag/zoom handlers in the engine)",
-    (() => { const src = fs.readFileSync(path.join(ROOT, "src/vh19/graph3d.ts"), "utf8"); return src.includes("pointerdown") && src.includes("pointermove") && src.includes("wheel") && src.includes("idleUntil"); })());
+    (() => { const src = fs.readFileSync(path.join(ROOT, "src/engine/graph3d.ts"), "utf8"); return src.includes("pointerdown") && src.includes("pointermove") && src.includes("wheel") && src.includes("idleUntil"); })());
   ok("the house finish is pinned: silver specular → graphite → glossy black stops",
-    (() => { const src = fs.readFileSync(path.join(ROOT, "src/vh19/graph3d.ts"), "utf8"); return src.includes("236, 239, 244") && src.includes("52, 56, 66") && src.includes("8, 9, 12"); })());
-  ok("edge styling is depth-faded silver", (() => { const src = fs.readFileSync(path.join(ROOT, "src/vh19/graph3d.ts"), "utf8"); return src.includes("rgba(200, 205, 214,"); })());
+    (() => { const src = fs.readFileSync(path.join(ROOT, "src/engine/graph3d.ts"), "utf8"); return src.includes("236, 239, 244") && src.includes("52, 56, 66") && src.includes("8, 9, 12"); })());
+  ok("edge styling is depth-faded silver", (() => { const src = fs.readFileSync(path.join(ROOT, "src/engine/graph3d.ts"), "utf8"); return src.includes("rgba(200, 205, 214,"); })());
   ok("the graph is genuinely interactive — orbit controls, drag, zoom and rotation are wired", /enableNodeDrag|onNodeDrag|controls\(\)/.test(consoleSrc) && /autoRotate|rot/.test(consoleSrc));
   ok("zero-dependency engine (no three.js, no d3 import/require)", (() => {
-    const src = fs.readFileSync(path.join(ROOT, "src/vh19/graph3d.ts"), "utf8");
+    const src = fs.readFileSync(path.join(ROOT, "src/engine/graph3d.ts"), "utf8");
     const imports = src.match(/^import[^;]*;/gm)?.join("\n") ?? "";
     return !imports.includes("three") && !imports.includes("d3") && !src.includes('require("three")') && !src.includes('require("d3');
   })());

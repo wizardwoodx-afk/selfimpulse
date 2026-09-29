@@ -34,10 +34,10 @@ if (typeof (globalThis as Record<string, unknown>).localStorage === "undefined")
 }
 
 const NOW = 1_760_000_000_000;
-// Same resolution discipline as palette/versionDrift: packed bundles get HANDLE_ROOT
+// Same resolution discipline as palette/versionDrift: packed bundles get SI_ROOT
 // injected by esbuild (the runner's cwd = tree root); live runs derive it.
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : path.resolve(import.meta.dirname ?? ".", "..");
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : path.resolve(import.meta.dirname ?? ".", "..");
 
 section("1. budget authority — spend caps are carried by the envelope and enforced");
 {
@@ -83,7 +83,7 @@ section("1. budget authority — spend caps are carried by the envelope and enfo
 section("2. proof dossier — policy-to-proof in one digest-stamped file");
 {
   const d = await buildProofDossier(NOW);
-  ok("the dossier names its format, product version, and carries a digest", d.format === "vh-dossier/1" && d.mjVersion.length > 0 && d.digest.length === 64);
+  ok("the dossier names its format, product version, and carries a digest", d.format === "si-dossier/1" && d.mjVersion.length > 0 && d.digest.length === 64);
   ok("the untouched dossier verifies against its own digest", (await verifyProofDossier(d)).ok === true);
   {
     // Back-compat: a pre-16.1 export (format mj-dossier/1) must still verify.

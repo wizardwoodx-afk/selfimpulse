@@ -1,5 +1,5 @@
 /**
- * 11Handle — the two 3D graphs.
+ * SelfImpulse — the two 3D graphs.
  *
  * Renderer: 3d-force-graph (MIT, vasturiano) over three.js / WebGL / d3-force-3d.
  * That is the maintained OSS 3D force-graph. Cosmograph is GPU-faster at 50k+

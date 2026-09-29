@@ -54,7 +54,7 @@ function makePage(allowed, opts = {}) {
         this.name = name ?? "Error";
       }
     },
-    __11handleGuardReport: report,
+    __selfimpulseGuardReport: report,
     location: { href: "https://allowed.test/page" },
     // A real WebRTC surface, so "blocked" is observable. Absent on a real page
     // it is a no-op, which is also correct — there is nothing to block.
@@ -96,12 +96,12 @@ function makePage(allowed, opts = {}) {
   if (opts.noFetch) delete sandbox.fetch;
   vm.createContext(sandbox);
   vm.runInContext(guardSrc, sandbox, { filename: "browser-guard.script.mjs" });
-  vm.runInContext(`__install11HandleNetworkGuard(${JSON.stringify(allowed)})`, sandbox);
+  vm.runInContext(`__installSelfImpulseNetworkGuard(${JSON.stringify(allowed)})`, sandbox);
   return { g: sandbox, report, calls, blobUrls };
 }
 console.log("== 0. the adopted shim is present and parseable");
 ok("the guard file is non-trivial", guardSrc.length > 2e3, String(guardSrc.length));
-ok("it defines the install entry point", guardSrc.includes("function __install11HandleNetworkGuard"));
+ok("it defines the install entry point", guardSrc.includes("function __installSelfImpulseNetworkGuard"));
 ok("it is JavaScript node can parse", (() => {
   try {
     new vm.Script(guardSrc);

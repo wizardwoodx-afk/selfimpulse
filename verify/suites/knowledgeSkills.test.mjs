@@ -33,8 +33,8 @@ var init_version = __esm({
   "src/version.ts"() {
     "use strict";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
@@ -208,7 +208,7 @@ function saveSkills(memory2, writer = "human") {
 }
 
 // src/mission/knowledgeSkills.ts
-var KNOWLEDGE_TOOL = "vh-knowledge-forge/mechanical-v1";
+var KNOWLEDGE_TOOL = "si-knowledge-forge/mechanical-v1";
 var LS_KEY4 = "vh.knowledgeSkills.v1";
 var RULE_HINTS = /\b(must|never|always|only|when|if|avoid|prefer|before|after)\b/i;
 var ARROW = /→|=>|->|⇒/;
@@ -675,7 +675,7 @@ async function main() {
   const prop = p1.proposal;
   const expectSha = await sha256(DOC.trim());
   ok("provenance carries the REAL SHA-256 of the content (64 hex)", prop.provenance.sourceSha256 === expectSha && /^[0-9a-f]{64}$/.test(prop.provenance.sourceSha256), prop.provenance.sourceSha256);
-  ok("provenance carries source name, byte length, tool and time", prop.provenance.sourceName === "authorize-rulebook.md" && prop.provenance.byteLength === Buffer.byteLength(DOC.trim(), "utf8") && prop.provenance.tool === "vh-knowledge-forge/mechanical-v1" && prop.provenance.distilledAt.length > 0);
+  ok("provenance carries source name, byte length, tool and time", prop.provenance.sourceName === "authorize-rulebook.md" && prop.provenance.byteLength === Buffer.byteLength(DOC.trim(), "utf8") && prop.provenance.tool === "si-knowledge-forge/mechanical-v1" && prop.provenance.distilledAt.length > 0);
   ok("a mechanical proposal says so, with no model credit", prop.distiller.kind === "mechanical");
   ok("the proposal records it claims NO measured effect", prop.claimsMeasuredEffect === false);
   ok("the distilled procedure carries the extracted rules", prop.procedure.includes("Never check") && prop.procedure.includes("capability"), prop.procedure.slice(0, 120));

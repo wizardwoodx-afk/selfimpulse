@@ -3,7 +3,7 @@
  *
  * 19.6.4 shipped standing.ts, ledger.ts and regulatedPolicy.ts probed as
  * subsystems. 19.6.6 puts them ON the path the console actually runs:
- * src/vh19/federation/live.ts is the seam — issue the grant once, spend it
+ * src/engine/federation/live.ts is the seam — issue the grant once, spend it
  * per crossing, compare both stores into one common ledger, and keep the
  * regulated bench unrouted until a signed activation exists.
  *
@@ -25,8 +25,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as path from "node:path";
 
-declare const HANDLE_ROOT: string | undefined;
-const ROOT = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const ROOT = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 /* localStorage shim — call-time reads only, so order is safe */
 const shimStore = new Map<string, string>();
@@ -41,14 +41,14 @@ import {
   liveOwnerKeys, liveOwnerIdentity, loadRegulatedActivation, enableRegulatedBench,
   regulatedRoutingVerdict, liveStandingFor, DELEGATION_CAPABILITIES,
   FED_LIVE_GRANT, FED_LIVE_USAGE, REGULATED_ACTIVATION_KEY,
-} from "../src/vh19/federation/live";
-import { verifyStandingGrant, standingDigest, STANDING_NOT_ATTESTED } from "../src/vh19/federation/standing";
-import { REGULATED_REGISTERED } from "../src/vh19/federation/fleet";
-import { REGULATED_BATCH_DOMAINS } from "../src/vh19/federation/regulatedSpec";
-import { pairKey } from "../src/vh19/vouchMesh";
+} from "../src/engine/federation/live";
+import { verifyStandingGrant, standingDigest, STANDING_NOT_ATTESTED } from "../src/engine/federation/standing";
+import { REGULATED_REGISTERED } from "../src/engine/federation/fleet";
+import { REGULATED_BATCH_DOMAINS } from "../src/engine/federation/regulatedSpec";
+import { pairKey } from "../src/engine/selfimpulseMesh";
 
-const OWNER_A = "Harbor Alpha Owner";
-const OWNER_B = "Harbor Beta Owner";
+const OWNER_A = "SelfImpulse Alpha Owner";
+const OWNER_B = "SelfImpulse Beta Owner";
 const PAIR = pairKey(OWNER_A, OWNER_B);
 
 test("1 · a standing grant is issued once and signed by both owners", async () => {
@@ -84,7 +84,7 @@ test("2b · the owner key rides the HARDENED authority seam, never raw storage",
   const ident = await liveOwnerIdentity();
   assert.equal(ident.security, "session",
     "no keychain and no passphrase in this runtime ⇒ honestly session-scoped, never raw-at-rest");
-  const src = readFileSync(path.join(ROOT, "src", "vh19", "federation", "live.ts"), "utf8");
+  const src = readFileSync(path.join(ROOT, "src", "engine", "federation", "live.ts"), "utf8");
   assert.ok(src.includes("authorityOwnerIdentity"), "the seam must resolve keys through the hardened owner-key service");
   assert.ok(!/exportKey\(["']jwk["']\)/.test(src), "no private key is exported to storage by this module");
   assert.ok(!src.includes("vh.fed.live.keys"), "no raw-key localStorage record survives");
@@ -129,12 +129,12 @@ test("5 · usage advances and is persisted where the next crossing reads it", ()
 test("6 · jointly-held rows compound the pair's standing up the mesh ladder", async () => {
   const second = await runLiveCrossing({ capability: "repo.read", task: "read back the joint rows", ownerA: OWNER_A, ownerB: OWNER_B });
   assert.equal(second.outcome.status, "crossed", second.outcome.detail);
-  assert.equal(liveStandingFor(PAIR, OWNER_A, OWNER_B), "vouched",
-    "grant unit + two jointly-held crossed rows = three trust units = vouched");
+  assert.equal(liveStandingFor(PAIR, OWNER_A, OWNER_B), "selfimpulseed",
+    "grant unit + two jointly-held crossed rows = three trust units = selfimpulseed");
 });
 
 test("7 · a capability the grant omits escalates to a human and spends nothing", async () => {
-  // re-issue a narrow grant; the pair keeps its earned vouched standing
+  // re-issue a narrow grant; the pair keeps its earned selfimpulseed standing
   const narrow = await issueLiveGrant({
     capabilities: ["data.aggregate"],
     maxCrossings: 6,
@@ -145,9 +145,9 @@ test("7 · a capability the grant omits escalates to a human and spends nothing"
     responderHuman: OWNER_B,
   });
   assert.equal(narrow.ok, true);
-  assert.equal(liveStandingFor(PAIR, OWNER_A, OWNER_B), "vouched", "earned standing survives a re-issued grant");
+  assert.equal(liveStandingFor(PAIR, OWNER_A, OWNER_B), "selfimpulseed", "earned standing survives a re-issued grant");
   const before = liveUsage(liveGrant())!.initiator.crossings;
-  // net.fetch is lent at vouched, but this grant does not name it
+  // net.fetch is lent at selfimpulseed, but this grant does not name it
   const r = await runLiveCrossing({ capability: "net.fetch", task: "fetch outside the grant", ownerA: OWNER_A, ownerB: OWNER_B });
   const o = r.outcome;
   assert.equal(o.status, "refused");
@@ -161,8 +161,8 @@ test("7 · a capability the grant omits escalates to a human and spends nothing"
 });
 
 test("8 · a grant never overrides earned pair standing", async () => {
-  // repo.write is ON this grant, but the pair is vouched, not proven —
-  // the local trust floor decides what the harbor lends, not the grant.
+  // repo.write is ON this grant, but the pair is selfimpulseed, not proven —
+  // the local trust floor decides what the selfimpulse lends, not the grant.
   const wide = await issueLiveGrant({
     capabilities: ["data.aggregate", "repo.write"],
     maxCrossings: 6,
@@ -258,7 +258,7 @@ test("14 · tampering with the activation is named, not tolerated", async () => 
 });
 
 test("15 · the routing path is wired to the regulated gate", () => {
-  const src = readFileSync(path.join(ROOT, "src", "vh19", "generalist.ts"), "utf8");
+  const src = readFileSync(path.join(ROOT, "src", "engine", "generalist.ts"), "utf8");
   assert.ok(src.includes("regulatedRoutingVerdict(specialists.map((s) => s.id))"), "the generalist must consult the gate over its selected specialists");
   assert.ok(src.includes("regulated activation incomplete"), "the refusal must name the gap");
 });

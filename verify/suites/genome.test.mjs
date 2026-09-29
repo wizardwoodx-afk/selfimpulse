@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/vouch/ipc/client.ts
+// src/selfimpulse/ipc/client.ts
 var client_exports = {};
 __export(client_exports, {
   ipc: () => ipc,
@@ -20,7 +20,7 @@ function isNativeHost() {
 }
 var invoke, ipc;
 var init_client = __esm({
-  "src/vouch/ipc/client.ts"() {
+  "src/selfimpulse/ipc/client.ts"() {
     "use strict";
     invoke = (cmd, args) => {
       const internals = window.__TAURI_INTERNALS__;
@@ -44,9 +44,9 @@ var init_client = __esm({
   }
 });
 
-// src/vouch/engine/signing.ts
-var STORAGE_KEY = "vouch.issuerkey.v1";
-var KEYCHAIN_REF = "vouch.issuerkey.v1";
+// src/selfimpulse/engine/signing.ts
+var STORAGE_KEY = "selfimpulse.issuerkey.v1";
+var KEYCHAIN_REF = "selfimpulse.issuerkey.v1";
 async function keychainBridge() {
   if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return null;
   try {
@@ -100,7 +100,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vouch-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `selfimpulse-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -115,7 +115,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vouch-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `selfimpulse-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -158,7 +158,7 @@ function signingSupported() {
   return ed25519Available();
 }
 
-// src/vouch/engine/genome.ts
+// src/selfimpulse/engine/genome.ts
 var DEFAULT_HOST_POLICY = {
   permittedClasses: ["read-local", "write-local"]
 };
@@ -415,11 +415,11 @@ async function sha256hex(s) {
 async function buildCapabilityPackage(genome, now2 = (/* @__PURE__ */ new Date()).toISOString()) {
   const digest = await sha256hex(canonicalJson(genome));
   const signature = await signHexDigest(digest);
-  return { format: "vh-capability-package/1", genome, digest, signature, issuedAt: now2 };
+  return { format: "si-capability-package/1", genome, digest, signature, issuedAt: now2 };
 }
 async function verifyCapabilityPackage(pkg) {
   const reasons = [];
-  if (pkg.format !== "vh-capability-package/1") reasons.push(`unknown format "${pkg.format}"`);
+  if (pkg.format !== "si-capability-package/1") reasons.push(`unknown format "${pkg.format}"`);
   const recomputed = await sha256hex(canonicalJson(pkg.genome));
   if (recomputed !== pkg.digest) reasons.push("digest mismatch \u2014 the genome was modified after sealing");
   let signed = false;
@@ -453,7 +453,7 @@ async function importPackage(reg, pkg, now2 = (/* @__PURE__ */ new Date()).toISO
 }
 function exportGenomeLedger(reg, now2 = (/* @__PURE__ */ new Date()).toISOString()) {
   const snapshot = {
-    format: "vh-genome-ledger/1",
+    format: "si-genome-ledger/1",
     exportedAt: now2,
     genomes: Array.from(reg.genomes.values()).sort((a, b) => a.id === b.id ? a.version - b.version : a.id < b.id ? -1 : 1)
   };
@@ -462,11 +462,11 @@ function exportGenomeLedger(reg, now2 = (/* @__PURE__ */ new Date()).toISOString
 function importGenomeLedger(text) {
   const reg = createGenomeRegistry();
   const parsed = JSON.parse(text);
-  if (parsed?.format !== "vh-genome-ledger/1") throw new Error("not a vh-genome-ledger/1 document");
+  if (parsed?.format !== "si-genome-ledger/1") throw new Error("not a si-genome-ledger/1 document");
   for (const g of parsed.genomes ?? []) reg.genomes.set(keyOf(g.id, g.version), g);
   return reg;
 }
-function genomeFromVouchSkill(skill, now2 = (/* @__PURE__ */ new Date()).toISOString()) {
+function genomeFromSelfImpulseSkill(skill, now2 = (/* @__PURE__ */ new Date()).toISOString()) {
   const failureModes = [`failure in the wrapped tool "${skill.tool}"`];
   if (skill.flagged) failureModes.push("flagged for review by feedback before genome conversion (avg score <= 2 or an unsafe report)");
   return newGenome(
@@ -757,13 +757,13 @@ async function main() {
     for (let i = 0; i < 5; i++) promote(reg, "cap.pkg", goodEvidence(), { now: now() });
     const genome = latestVersion(reg, "cap.pkg");
     const pkg = await buildCapabilityPackage(genome, now());
-    ok("package is digest-sealed over the canonical genome", /^[0-9a-f]{64}$/.test(pkg.digest) && pkg.format === "vh-capability-package/1");
+    ok("package is digest-sealed over the canonical genome", /^[0-9a-f]{64}$/.test(pkg.digest) && pkg.format === "si-capability-package/1");
     const v = await verifyCapabilityPackage(pkg);
     ok("a sealed package verifies" + (v.signed ? " WITH the issuer signature" : " (unsigned: signing unsupported here)"), v.ok, v.reasons.join("; "));
     if (signingSupported()) {
       ok(
         "on this host the package carries a real Ed25519 signature from the receipt keychain",
-        v.signed && !!pkg.signature && pkg.signature.alg === "EdDSA" && pkg.signature.keyId.startsWith("vouch-issuer-")
+        v.signed && !!pkg.signature && pkg.signature.alg === "EdDSA" && pkg.signature.keyId.startsWith("selfimpulse-issuer-")
       );
     }
     const tampered = { ...pkg, genome: { ...pkg.genome, procedure: [...pkg.genome.procedure, "steal the budget"] } };
@@ -793,7 +793,7 @@ async function main() {
     const rb = await importPackage(mine, bogus, now());
     ok("a corrupted package is refused at import", !rb.ok && (rb.reason ?? "").includes("digest mismatch"), rb.reason ?? "");
   }
-  section("M4 bridge \u2014 a VouchSkill is a genome, with its lineage intact");
+  section("M4 bridge \u2014 a SelfImpulseSkill is a genome, with its lineage intact");
   {
     const skill = {
       id: "s42",
@@ -810,7 +810,7 @@ async function main() {
       updatedAt: T0,
       mission: { missionId: "m9", team: "t1", verifiedSeats: 2, seatCount: 3, cycleNo: 4 }
     };
-    const g = genomeFromVouchSkill(skill, now());
+    const g = genomeFromSelfImpulseSkill(skill, now());
     ok("trigger/steps/tool map to the genome shape", g.trigger === skill.when && g.procedure.length === 3 && g.safety.permissionClass === "write-local");
     ok(
       "bornReceiptId becomes the origin receipt (provenance is NOT lost in the bridge)",
@@ -826,7 +826,7 @@ async function main() {
         return latestVersion(reg, g.id)?.status === "ACTIVE" && trustGrade(reg, g.id).grade === "C4";
       })()
     );
-    const flagged = genomeFromVouchSkill({ ...skill, id: "s43", flagged: true }, now());
+    const flagged = genomeFromSelfImpulseSkill({ ...skill, id: "s43", flagged: true }, now());
     ok(
       "a flagged skill arrives with the flag in its declared failure modes \u2014 it cannot quietly arrive clean",
       flagged.failureModes.some((f) => f.includes("flagged for review"))

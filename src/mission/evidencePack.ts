@@ -40,7 +40,7 @@ export const EVIDENCE_CONTROL_MAPPINGS: ControlMapping[] = [
   {
     control: "EU AI Act — Art. 13 (transparency to deployers)",
     whatItAsksFor: "Instructions and capability information so deployers can interpret outputs.",
-    whatVhProvides: "The one-pager and this pack's manifest: what 11Handle records, how it is verified externally, and what VH does not claim.",
+    whatVhProvides: "The one-pager and this pack's manifest: what SelfImpulse records, how it is verified externally, and what VH does not claim.",
     artifact: "onePager, manifest",
   },
   {
@@ -70,13 +70,13 @@ export const EVIDENCE_CONTROL_MAPPINGS: ControlMapping[] = [
   {
     control: "NIST SP 800-218A / SLSA v1.2 (AI code provenance gap)",
     whatItAsksFor: "Provenance distinguishing AI-authored from human-authored source, captured in the layer that runs the agent — a category the current standards do not yet define.",
-    whatVhProvides: "vh-provenance-statement/1: in-toto-shaped statements with a 11Handle predicate (builder, materials, verification, merge), signed with the issuer key — plus the AIBOM inventory of every AI component observed in receipts.",
+    whatVhProvides: "si-provenance-statement/1: in-toto-shaped statements with a SelfImpulse predicate (builder, materials, verification, merge), signed with the issuer key — plus the AIBOM inventory of every AI component observed in receipts.",
     artifact: "provenanceStatements[], aibom",
   },
 ];
 
 export interface EvidencePack {
-  format: "vh-evidence-pack/1";
+  format: "si-evidence-pack/1";
   generatedAt: string;
   mjVersion: string;
   manifest: {
@@ -156,7 +156,7 @@ export async function buildEvidencePack(args: { vault: ReceiptVault; mjVersion: 
   const issuerDoc = await exportIssuerPublicKeyDocument(args.mjVersion);
 
   return {
-    format: "vh-evidence-pack/1",
+    format: "si-evidence-pack/1",
     generatedAt: new Date().toISOString(),
     mjVersion: args.mjVersion,
     manifest: {
@@ -183,7 +183,7 @@ export async function buildEvidencePack(args: { vault: ReceiptVault; mjVersion: 
     issuerPublicKeyDocument: issuerDoc,
     controlMappings: EVIDENCE_CONTROL_MAPPINGS,
     disclaimer:
-      "This pack is machine-verifiable evidence produced by VH on the user's own machine. The control mappings are a convenience crosswalk prepared by the VH project to help reviewers locate relevant artifacts; they are NOT a legal opinion, NOT an audit, and NOT a claim that VH or its outputs satisfy any regulation or standard. VH is not 'EU AI Act compliant' and is not a compliance product — it is a logging, provenance and evidence mechanism that can SUPPORT compliance work; applicability of any regulation depends on the system and use case. The enclosed provenance statements are VH-specific provenance (vh-provenance-statement/1), shaped on in-toto conventions — they are NOT SLSA certification. Verification of the enclosed receipts requires no VH software — see the one-pager's external-verification steps.",
+      "This pack is machine-verifiable evidence produced by VH on the user's own machine. The control mappings are a convenience crosswalk prepared by the VH project to help reviewers locate relevant artifacts; they are NOT a legal opinion, NOT an audit, and NOT a claim that VH or its outputs satisfy any regulation or standard. VH is not 'EU AI Act compliant' and is not a compliance product — it is a logging, provenance and evidence mechanism that can SUPPORT compliance work; applicability of any regulation depends on the system and use case. The enclosed provenance statements are SI-specific provenance (si-provenance-statement/1), shaped on in-toto conventions — they are NOT SLSA certification. Verification of the enclosed receipts requires no VH software — see the one-pager's external-verification steps.",
   };
 }
 

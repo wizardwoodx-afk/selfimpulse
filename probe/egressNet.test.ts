@@ -27,7 +27,7 @@ import * as path from "node:path";
 // Source-tree root, resolved the way the other disk-reading probes do it
 // (docIdentity / legacyCompat / shellAffordances / versionDrift) so this file
 // still works when bundled into verify/suites/ for the zero-install pack.
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 const readSrc = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 let passed = 0;

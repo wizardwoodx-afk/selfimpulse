@@ -14,9 +14,9 @@
  * the encrypted private key). The terminus remains native secure storage;
  * this module is the step that makes the binding structural today. The
  * module is dependency-free (localStorage + WebCrypto digest) so both the
- * mission layer and the VH-19 door can read it.
+ * mission layer and the SelfImpulse door can read it.
  */
-const A2A_PEERS_KEY = "vh19.collab.a2a.v1";
+const A2A_PEERS_KEY = "engine.collab.a2a.v1";
 
 export interface A2AVerifiedPeer {
   memberId: string;

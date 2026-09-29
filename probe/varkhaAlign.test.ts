@@ -30,8 +30,8 @@ function ok(label: string, cond: boolean, detail = ""): void {
 }
 function section(name: string): void { console.log(`\n== ${name}`); }
 
-declare const HANDLE_ROOT: string | undefined;
-const root = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0 ? HANDLE_ROOT : process.cwd();
+declare const SI_ROOT: string | undefined;
+const root = typeof SI_ROOT === "string" && SI_ROOT.length > 0 ? SI_ROOT : process.cwd();
 
 const NOW = 1_760_000_000_000;
 

@@ -10,7 +10,7 @@
  *   6. encrypted handoff — a payload sealed to my friend's keys only
  *   7. receiving evidence back over the network
  */
-import { VHClient } from "../src/client/vh-sdk.js";
+import { VHClient } from "../src/client/si-sdk.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -21,7 +21,7 @@ const log = (...a) => console.log("[A|my-machine] ", ...a);
 const out = {};
 
 const a = new VHClient(URL);
-const me = await a.join("Woods-Laptop", "11handle");
+const me = await a.join("Woods-Laptop", "selfimpulse");
 log(`joined  name=${me.name}  fp=${me.fp}`);
 out.me = me;
 
@@ -43,19 +43,19 @@ const cap = await a.declareCapability(["code.review", "test.run"], { reason: "jo
 log(`   → ${JSON.stringify(cap)}`);
 
 /* 3. grant the friend scoped, expiring authority */
-log("3. authorizing friend's machine (scope=repo:11handle, ttl=60min)");
-const az = await a.authorize(peer.id, "code.review", { scope: "repo:11handle", ttlMs: 3_600_000 });
+log("3. authorizing friend's machine (scope=repo:selfimpulse, ttl=60min)");
+const az = await a.authorize(peer.id, "code.review", { scope: "repo:selfimpulse", ttlMs: 3_600_000 });
 log(`   → ${JSON.stringify(az)}`);
 
-/* 4. THE GOVERNANCE TEST — vouch an action nobody granted */
+/* 4. THE GOVERNANCE TEST — selfimpulse an action nobody granted */
 log("4. attempting an UNAUTHORIZED action (expect refusal)…");
-const refused = await a.vouchAction({ action: "deploy.production", tool: "claude", purpose: "not granted", result: "success" });
+const refused = await a.selfimpulseAction({ action: "deploy.production", tool: "claude", purpose: "not granted", result: "success" });
 log(`   → ${JSON.stringify(refused)}`);
 out.refused = refused;
 
 /* 5. the same action, now covered by declared capability */
-log("5. vouching an AUTHORIZED action: code.review");
-const ok = await a.vouchAction({ action: "code.review", tool: "claude", purpose: "joint mission — shared review", evidence: "12/12 probes green", result: "success" });
+log("5. selfimpulseing an AUTHORIZED action: code.review");
+const ok = await a.selfimpulseAction({ action: "code.review", tool: "claude", purpose: "joint mission — shared review", evidence: "12/12 probes green", result: "success" });
 log(`   → ${JSON.stringify(ok)}`);
 out.ok = ok;
 
@@ -64,7 +64,7 @@ const secret = JSON.stringify({
   mission: "mission_ab12",
   handoff: "review findings from my seat",
   findings: ["bridge seam holds", "gates wired", "fabricated assurance score found"],
-  note: "this plaintext must never exist on the harbor",
+  note: "this plaintext must never exist on the selfimpulse",
 });
 log("6. sealing payload to friend's keys (HPKE P-256 + ML-KEM-768)…");
 const { packed } = await a.vaultSend(peer.id, secret, "handoff.json");
@@ -73,10 +73,10 @@ fs.writeFileSync(path.join(TRANSFER, "packed-for-friend.json"), JSON.stringify(p
 log("   payload placed on the byte channel (WebRTC data channel in production)");
 
 /* 7. receive my friend's evidence back over the network */
-log("7. waiting for my friend's agents to vouch back…");
+log("7. waiting for my friend's agents to selfimpulse back…");
 let endorsed = null;
 await new Promise((res) => {
-  a.on("vouch:new", (link) => {
+  a.on("selfimpulse:new", (link) => {
     let facts = {}; try { facts = JSON.parse(link.payloadStr ?? "{}"); } catch {}
     log(`   RECEIVED OVER NETWORK → kind=${link.kind} from=${facts.from?.n ?? facts.who ?? "?"}`);
     if (link.kind === "endorsement") { endorsed = facts; res(); }
@@ -89,9 +89,9 @@ const chain = await a.chainGet().catch(() => null);
 log("──────────────────────────────────────────────");
 log(`peer seen         : OK (${peer.name})`);
 log(`unauthorized action: ${refused?.ok === false ? "REFUSED — " + refused.reason : "NOT refused (!)"}`);
-log(`authorized action  : ${ok?.ok ? "VOUCHED seq=" + ok.seq : "failed — " + ok?.reason}`);
+log(`authorized action  : ${ok?.ok ? "SELFIMPULSEED seq=" + ok.seq : "failed — " + ok?.reason}`);
 log(`encrypted handoff  : ${packed.alg}, ${packed.manifest.size}B`);
 log(`endorsement back   : ${endorsed ? "RECEIVED over network" : "NOT received"}`);
-log(`harbor chain length: ${chain?.chain?.length ?? chain?.length ?? "n/a"}`);
+log(`selfimpulse chain length: ${chain?.chain?.length ?? chain?.length ?? "n/a"}`);
 log("A DONE");
 process.exit(0);

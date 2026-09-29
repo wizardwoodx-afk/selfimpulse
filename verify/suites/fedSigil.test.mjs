@@ -4,7 +4,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-// src/vh19/pureHash.ts
+// src/engine/pureHash.ts
 var K = [
   1116352408,
   1899447441,
@@ -134,11 +134,11 @@ function pureSha256(text) {
   return toHex(sha256Bytes(utf8(text)));
 }
 
-// src/vh19/avatarEngine.ts
+// src/engine/avatarEngine.ts
 var AVATAR_INKS = ["#2d3142", "#3a3f52", "#586a66", "#46554f", "#827278", "#695c5e"];
 var AVATAR_FIELDS = ["#d8d5db", "#d5dfea", "#e2e6ed", "#c6cdd3"];
 
-// src/vh19/federation/sigil.ts
+// src/engine/federation/sigil.ts
 var PINNED_PALETTE = [
   ...AVATAR_INKS,
   ...AVATAR_FIELDS,
@@ -464,12 +464,12 @@ function sigilSvg(s, opts = {}) {
     `</g>`,
     state === "sealed" ? `<g><circle cx="82" cy="88" r="9" fill="${ground}" stroke="${tincture}" stroke-width="2.2"/><path d="M 78 88 l 2.6 2.8 l 5 -6" stroke="${tincture}" stroke-width="2.2" fill="none" stroke-linecap="round"/></g>` : ""
   ].join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}" role="img" aria-label="${label}" class="vh-sigil vh-sigil--${state}">${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}" role="img" aria-label="${label}" class="si-sigil si-sigil--${state}">${body}</svg>`;
 }
 function sigilCardHtml(s, opts = {}) {
   const traits = sigilTraits(s).map((t) => `<li>${t}</li>`).join("");
   return [
-    `<figure class="vh-sigil-card">`,
+    `<figure class="si-sigil-card">`,
     sigilSvg(s, { size: opts.size ?? 96, state: opts.state ?? "idle" }),
     `<figcaption><code>${s.fingerprint}</code><ul>${traits}</ul></figcaption>`,
     `</figure>`
@@ -479,15 +479,15 @@ function sigilCardHtml(s, opts = {}) {
 // probe/fedSigil.test.ts
 var SEEDS = Array.from({ length: 120 }, (_, i) => `identity:probe-${i}`);
 test("federation sigil \u2014 a face that is derived, measured and never selectable", async (t) => {
-  await t.test("\xA71 the derivation is the harbor's own SHA-256, and it is total", () => {
-    const s = sigilOf("harbor:reykjavik");
-    const hex = pureSha256("vh.fed.sigil.v1:harbor:reykjavik");
+  await t.test("\xA71 the derivation is the selfimpulse's own SHA-256, and it is total", () => {
+    const s = sigilOf("selfimpulse:reykjavik");
+    const hex = pureSha256("vh.fed.sigil.v1:selfimpulse:reykjavik");
     assert.equal(hex.length, 64);
     assert.equal(s.field, ["heater", "lozenge", "rondel"][Number.parseInt(hex.slice(0, 2), 16) % 3]);
-    assert.equal(s.fingerprint, fingerprintOf("harbor:reykjavik"));
+    assert.equal(s.fingerprint, fingerprintOf("selfimpulse:reykjavik"));
     assert.match(s.fingerprint, /^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/);
-    assert.equal(s.fingerprint, fingerprintOf("harbor:reykjavik"), "the handle is stable");
-    assert.notEqual(s.fingerprint, fingerprintOf("harbor:lisbon"));
+    assert.equal(s.fingerprint, fingerprintOf("selfimpulse:reykjavik"), "the handle is stable");
+    assert.notEqual(s.fingerprint, fingerprintOf("selfimpulse:lisbon"));
     for (const layer of ["field", "division", "seme", "chief", "charge", "chargeCount", "tincture", "ground", "bordure", "tilt"]) {
       for (const seed of SEEDS.slice(0, 40)) assert.ok(sigilOf(seed)[layer] !== void 0, `${seed} has no ${layer}`);
     }
@@ -552,7 +552,7 @@ test("federation sigil \u2014 a face that is derived, measured and never selecta
     for (const state of states) {
       const svg = sigilSvg(s, { state, size: 64 });
       assert.ok(svg.startsWith("<svg"), `${state} did not render`);
-      assert.ok(svg.includes(`vh-sigil--${state}`));
+      assert.ok(svg.includes(`si-sigil--${state}`));
       assert.ok(svg.includes(`aria-label="sigil ${s.fingerprint}`), `${state} lost its readable label`);
       assert.ok(svg.includes(SIGIL_STATE_WORDS[state]), `${state} does not read its own state`);
       seen.add(svg);
@@ -579,7 +579,7 @@ test("federation sigil \u2014 a face that is derived, measured and never selecta
     const card = sigilCardHtml(s, { state: "sealed", size: 48 });
     assert.ok(card.includes(s.fingerprint));
     assert.ok(card.includes("<ul>"));
-    assert.equal(card.includes("vh-sigil-card"), true);
+    assert.equal(card.includes("si-sigil-card"), true);
   });
   await t.test("\xA77 the encoding is wide enough that near-identical faces are rare", () => {
     assert.equal(SIGIL_TILTS.length, 3);

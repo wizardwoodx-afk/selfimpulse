@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/vouch/engine/policyGateway.ts
+// src/selfimpulse/engine/policyGateway.ts
 function registerPolicyRule(rule) {
   RULES.push(rule);
 }
@@ -28,7 +28,7 @@ function propose(input2) {
 }
 var riskyTools, riskyToolRule, budgetRule, workspaceRootRule, RULES, DEFAULT_ALLOW;
 var init_policyGateway = __esm({
-  "src/vouch/engine/policyGateway.ts"() {
+  "src/selfimpulse/engine/policyGateway.ts"() {
     "use strict";
     riskyTools = /* @__PURE__ */ new Set(["workspace_write", "dispatch_mission", "shell_exec"]);
     riskyToolRule = (input2) => {
@@ -20678,7 +20678,7 @@ var init_zod = __esm({
   }
 });
 
-// src/vouch/engine/toolSchema.ts
+// src/selfimpulse/engine/toolSchema.ts
 function deterministicRepair(tool, args, errors) {
   const out = { ...args ?? {} };
   const errs = errors.toLowerCase();
@@ -20829,7 +20829,7 @@ function withSchema(schema, fn, opts) {
 }
 var WorkspaceWriteSchema, ShellExecSchema, DispatchMissionSchema, SystemInfoSchema, WebSearchSchema, toolSchemas;
 var init_toolSchema = __esm({
-  "src/vouch/engine/toolSchema.ts"() {
+  "src/selfimpulse/engine/toolSchema.ts"() {
     "use strict";
     init_zod();
     WorkspaceWriteSchema = external_exports.object({
@@ -20858,7 +20858,7 @@ var init_toolSchema = __esm({
   }
 });
 
-// src/vouch/engine/agui.ts
+// src/selfimpulse/engine/agui.ts
 function nextRunId() {
   runCounter += 1;
   return `run_${Date.now().toString(36)}_${runCounter.toString(36)}`;
@@ -20898,7 +20898,7 @@ function emitStateSnapshot(runId, threadId, snapshot) {
 }
 var AguiBus, agui, runCounter;
 var init_agui = __esm({
-  "src/vouch/engine/agui.ts"() {
+  "src/selfimpulse/engine/agui.ts"() {
     "use strict";
     AguiBus = class extends EventTarget {
       emit(ev) {
@@ -20922,12 +20922,12 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
-// src/vouch/ipc/client.ts
+// src/selfimpulse/ipc/client.ts
 var client_exports = {};
 __export(client_exports, {
   ipc: () => ipc,
@@ -20938,7 +20938,7 @@ function isNativeHost() {
 }
 var invoke, ipc;
 var init_client = __esm({
-  "src/vouch/ipc/client.ts"() {
+  "src/selfimpulse/ipc/client.ts"() {
     "use strict";
     invoke = (cmd, args) => {
       const internals = window.__TAURI_INTERNALS__;
@@ -20962,7 +20962,7 @@ var init_client = __esm({
   }
 });
 
-// src/vouch/engine/signing.ts
+// src/selfimpulse/engine/signing.ts
 async function keychainBridge() {
   if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return null;
   try {
@@ -21015,7 +21015,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vouch-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `selfimpulse-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -21030,7 +21030,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vouch-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `selfimpulse-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -21074,15 +21074,15 @@ async function verifyIssuerSignature(chainHashHex, sigHex, publicKeyHex) {
 }
 var STORAGE_KEY, KEYCHAIN_REF, cached2;
 var init_signing = __esm({
-  "src/vouch/engine/signing.ts"() {
+  "src/selfimpulse/engine/signing.ts"() {
     "use strict";
-    STORAGE_KEY = "vouch.issuerkey.v1";
-    KEYCHAIN_REF = "vouch.issuerkey.v1";
+    STORAGE_KEY = "selfimpulse.issuerkey.v1";
+    KEYCHAIN_REF = "selfimpulse.issuerkey.v1";
     cached2 = null;
   }
 });
 
-// src/vouch/engine/proof.ts
+// src/selfimpulse/engine/proof.ts
 function sortDeep(v) {
   if (Array.isArray(v)) return v.map(sortDeep);
   if (v && typeof v === "object") {
@@ -21126,7 +21126,7 @@ async function buildChainedReceipt(args) {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -21135,7 +21135,7 @@ async function buildChainedReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -21177,13 +21177,13 @@ function receiptToJsonl(rc) {
 }
 var VERIFY_SECRET, LEGACY_SEAL_SECRET, SEAL_SECRET_BY_FORMAT, enc, canon;
 var init_proof = __esm({
-  "src/vouch/engine/proof.ts"() {
+  "src/selfimpulse/engine/proof.ts"() {
     "use strict";
     init_signing();
-    VERIFY_SECRET = "vh-commercial-v1-offline";
+    VERIFY_SECRET = "si-commercial-v1-offline";
     LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
     SEAL_SECRET_BY_FORMAT = {
-      "vh-proof-receipt/2": VERIFY_SECRET,
+      "si-proof-receipt/2": VERIFY_SECRET,
       "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
       "mj-proof-receipt/1": LEGACY_SEAL_SECRET
     };
@@ -21382,7 +21382,7 @@ var init_guardrail = __esm({
   }
 });
 
-// src/vouch/engine/webSearch.ts
+// src/selfimpulse/engine/webSearch.ts
 function normalizeWikipedia(json2, query) {
   if (!Array.isArray(json2) || json2.length < 4) return [];
   const [, titles, snippets, urls] = json2;
@@ -21500,7 +21500,7 @@ async function searchWeb(query, opts = {}) {
 }
 var WEB_PROVIDERS, SOURCE_PRIOR;
 var init_webSearch = __esm({
-  "src/vouch/engine/webSearch.ts"() {
+  "src/selfimpulse/engine/webSearch.ts"() {
     "use strict";
     init_guardrail();
     WEB_PROVIDERS = [
@@ -21633,7 +21633,7 @@ var init_harness = __esm({
         name: "Native agent (in-process)",
         bins: [],
         argv: [],
-        install: "Nothing to install \u2014 the agent loop runs inside 11Handle on your own provider key (or a local Ollama).",
+        install: "Nothing to install \u2014 the agent loop runs inside SelfImpulse on your own provider key (or a local Ollama).",
         notes: "The vendored act/observe/adjust loop. Every crew seat runs here, so every action carries one audited receipt format and the trust story has no third party in it.",
         source: "src/engine/hermesRuntime.ts"
       },
@@ -21750,7 +21750,7 @@ var init_agentCapabilities = __esm({
         // does not exist; every caller that read them was reasoning about a seat
         // that could not run.
         bins: [],
-        install: "bundled with 11Handle; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
+        install: "bundled with SelfImpulse; runs in-process (src/engine/hermesRuntime.ts) \u2014 no binary, no argv",
         prompt: { argv: [], confidence: "docs", source: "in-process runtime: no argv exists by construction" },
         json: null,
         readOnly: null,
@@ -21862,7 +21862,7 @@ function sessionArgv(harness, opts) {
 function sessionIdKind(harness) {
   const rc = resolveCaps(harness);
   if (rc.custom) return "cli-chosen";
-  return rc.caps.sessionStart?.argv ? "vh-chosen" : "cli-chosen";
+  return rc.caps.sessionStart?.argv ? "si-chosen" : "cli-chosen";
 }
 function parseSessionId(harness, raw) {
   if (!raw.trim()) return null;
@@ -22021,8 +22021,8 @@ function composeSeatArgv(teamSeat, ctx) {
     $CWD: ctx.cwd,
     $SECS: String(teamSeat.timeoutSecs),
     $SESSION: ctx.sessionId ?? "",
-    $REVIEWER: "vh-readonly",
-    $NAME: `vh-${teamSeat.id}`
+    $REVIEWER: "si-readonly",
+    $NAME: `si-${teamSeat.id}`
   };
   const argv = [];
   const flags = [];
@@ -22797,10 +22797,10 @@ var VERIFY_SECRET2, LEGACY_SEAL_SECRET2, SEAL_SECRET_BY_FORMAT2, TRIAL_DAYS, LS_
 var init_licensing = __esm({
   "src/mission/licensing.ts"() {
     "use strict";
-    VERIFY_SECRET2 = "vh-commercial-v1-offline";
+    VERIFY_SECRET2 = "si-commercial-v1-offline";
     LEGACY_SEAL_SECRET2 = "mj-commercial-v1-offline";
     SEAL_SECRET_BY_FORMAT2 = {
-      "vh-proof-receipt/2": VERIFY_SECRET2,
+      "si-proof-receipt/2": VERIFY_SECRET2,
       "mj-proof-receipt/2": LEGACY_SEAL_SECRET2,
       "mj-proof-receipt/1": LEGACY_SEAL_SECRET2
     };
@@ -23347,7 +23347,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -23377,7 +23377,7 @@ var init_localDb = __esm({
     "use strict";
     init_id2();
     init_types();
-    KEY2 = "vouch.v3.db";
+    KEY2 = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -23916,7 +23916,7 @@ var init_client2 = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -23946,7 +23946,7 @@ var init_client2 = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -23965,7 +23965,7 @@ var init_client2 = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -23988,7 +23988,7 @@ var init_client2 = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -24011,7 +24011,7 @@ var init_client2 = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -24488,7 +24488,7 @@ async function ensureIssuerIdentity2() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vh-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `si-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -24503,7 +24503,7 @@ async function ensureIssuerIdentity2() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex2(rawPub);
     const identity = {
-      keyId: `vh-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `si-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -24600,7 +24600,7 @@ async function issueRootEnvelope(args) {
   }
   seq += 1;
   return seal({
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: args.principal,
     delegationChain: [args.principal],
@@ -24633,7 +24633,7 @@ async function attenuate(parent, agentId, subScope, opts) {
   seq += 1;
   const envelope = await seal({
     budgetUsd: budget,
-    format: "vh-envelope/1",
+    format: "si-envelope/1",
     id: `env-${now.toString(36)}-${seq}`,
     principal: parent.principal,
     delegationChain: [...parent.delegationChain, agentId],
@@ -24958,7 +24958,7 @@ function evaluateVerifyGate(input2) {
     if (snap && countingVerifiers.length < ranVerifiers.length) {
       const off = ranVerifiers.filter((v) => !(snap.built && snap.sha !== null && (v.reviewedSha ?? null) === snap.sha));
       for (const o of off) {
-        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot vouch for the writers' work.`);
+        reasons.push(`Verifier "${o.seatId}" (${o.harness}) ran, but its reviewed ref (${o.reviewedSha ?? "none recorded"}) does not match the snapshot (${snap.sha}) \u2014 it cannot selfimpulse for the writers' work.`);
       }
     }
     const selfVerified = writerHarnesses.filter(
@@ -25819,7 +25819,7 @@ function planWorktrees(team, opts) {
   for (const seat2 of team.seats) {
     if (!seat2.mayWrite) {
       if (opts.deferReview && hasWriter) {
-        const path3 = `${root}-vh-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+        const path3 = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
         plans.push({
           seatId: seat2.id,
           branch: "",
@@ -25845,7 +25845,7 @@ function planWorktrees(team, opts) {
       continue;
     }
     const branch = `vh/${opts.missionSlug}/${branchSafe(seat2.id)}`;
-    const path2 = `${root}-vh-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
+    const path2 = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat2.id)}`;
     plans.push({
       seatId: seat2.id,
       branch,
@@ -26683,7 +26683,7 @@ Spent: $${(spentUsd2 || 0).toFixed(4)}`, "orchestrator", "finding");
   const learnedMarkdown = globalMemoryCortex.compileBriefing().generatedBriefingMarkdown;
   for (const seat2 of req.team.seats) {
     briefingsByHarness.push({
-      path: ".vh-brief/LEARNED_INVARIANTS.md",
+      path: ".si-brief/LEARNED_INVARIANTS.md",
       contents: learnedMarkdown,
       forHarness: seat2.harness
     });
@@ -26696,7 +26696,7 @@ ${lessonLines.map((l) => `- ${l}`).join("\n")}
 `;
     for (const seat2 of req.team.seats) {
       briefingsByHarness.push({
-        path: ".vh-brief/ORG_LESSONS.md",
+        path: ".si-brief/ORG_LESSONS.md",
         contents: lessonsMd,
         forHarness: seat2.harness
       });
@@ -27238,7 +27238,7 @@ async function runSeat(req, deps, a, sessions, wt, binaryExists, resolvedBin, se
   let commitDetail = readOnly ? "Read-only seat; nothing to commit." : "No git runner, so the work could not be committed.";
   if (deps.git && !readOnly) {
     await git(deps, ["add", "-A"], cwd);
-    const commit2 = await git(deps, ["-c", "user.email=vh@vouch.harbor", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
+    const commit2 = await git(deps, ["-c", "user.email=vh@selfimpulse.selfimpulse", "-c", "user.name=VH", "commit", "-q", "-m", `vh(${a.seat.id}): ${req.missionSlug}`], cwd);
     commitDetail = commit2.ok ? `Committed on ${branch}.` : commit2.exitCode === null ? "Could not run git commit." : /nothing to commit|no changes added/i.test(commit2.stderr + commit2.stdout) ? "Nothing to commit \u2014 this seat changed no files." : `git commit exited ${commit2.exitCode}: ${(commit2.stderr || commit2.stdout).trim().slice(0, 200)}`;
   }
   const finalRecord = {
@@ -27408,7 +27408,7 @@ var init_teamExecutor = __esm({
     init_custody();
     init_consensusEngine();
     OUTPUT_TAIL_CHARS = 4e3;
-    BRIEF_DIR = ".vh-brief";
+    BRIEF_DIR = ".si-brief";
   }
 });
 
@@ -27609,7 +27609,7 @@ async function buildProofReceipt(args) {
   const sig = await signChainHash2(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
@@ -27618,7 +27618,7 @@ async function buildProofReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal: seal2,
@@ -27628,7 +27628,7 @@ async function buildProofReceipt(args) {
   };
 }
 async function verifyProofReceipt2(rc) {
-  if (rc.format !== "vh-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
+  if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
   let prev = "0".repeat(64);
   for (const e of rc.events) {
     if (e.prev !== prev) return { ok: false, reason: `chain broken at seq ${e.seq}` };
@@ -27640,7 +27640,7 @@ async function verifyProofReceipt2(rc) {
   const sealSecret = SEAL_SECRET_BY_FORMAT2[rc.format] ?? VERIFY_SECRET2;
   const seal2 = await hmacHex2(prev, sealSecret);
   if (seal2 !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "vh-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok = await verifyIssuerSignature2(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
@@ -28046,14 +28046,14 @@ var init_assuranceScore = __esm({
   }
 });
 
-// src/vouch/engine/bridge.ts
+// src/selfimpulse/engine/bridge.ts
 function mintMissionId() {
   return `mission_${Math.random().toString(36).slice(2, 6)}`;
 }
-function harborCrews() {
+function selfimpulseCrews() {
   return loadCrews().map((t) => ({ id: t.id, name: t.name }));
 }
-async function runHarborMission(objective, missionId, opts = {}) {
+async function runSelfImpulseMission(objective, missionId, opts = {}) {
   const crews = loadCrews();
   const team = opts.team ?? crews[crews.length - 1];
   if (!team) {
@@ -28095,7 +28095,7 @@ async function runHarborMission(objective, missionId, opts = {}) {
     gateStatus: res.record.gate?.status ?? null,
     receiptOk: res.record.receipt?.ok ?? false,
     engine: `MJ execution core ${ENGINE_VERSION}`,
-    controlPlane: `11Handle control plane ${ENGINE_VERSION}`,
+    controlPlane: `SelfImpulse control plane ${ENGINE_VERSION}`,
     teamId: team.id,
     teamName: team.name,
     notes,
@@ -28105,7 +28105,7 @@ async function runHarborMission(objective, missionId, opts = {}) {
 }
 var MissionNotConfiguredError, bridgeDeps;
 var init_bridge = __esm({
-  "src/vouch/engine/bridge.ts"() {
+  "src/selfimpulse/engine/bridge.ts"() {
     "use strict";
     init_missionLoop();
     init_version();
@@ -28116,7 +28116,7 @@ var init_bridge = __esm({
   }
 });
 
-// src/vouch/engine/brainSeam.ts
+// src/selfimpulse/engine/brainSeam.ts
 import fs from "node:fs";
 function brainPref() {
   try {
@@ -28171,7 +28171,7 @@ function planFromModelText(text, max = 6) {
 }
 function plannerPrompt(objective) {
   return [
-    "You are the planner inside 11Handle's governed brain. Produce 3 to 6 concrete steps for the objective below.",
+    "You are the planner inside SelfImpulse's governed brain. Produce 3 to 6 concrete steps for the objective below.",
     "One step per line. No preamble, no markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.",
     `Objective: ${objective}`
   ].join("\n");
@@ -28224,7 +28224,7 @@ function wrapRealModelBrain(base, deps = realBrainDeps, prefOverride) {
 }
 var PREF_KEY, BrainHostError, realBrainInvoke, realBrainDeps;
 var init_brainSeam = __esm({
-  "src/vouch/engine/brainSeam.ts"() {
+  "src/selfimpulse/engine/brainSeam.ts"() {
     "use strict";
     init_harness();
     PREF_KEY = "vh.brain.pref";
@@ -28245,7 +28245,7 @@ var init_brainSeam = __esm({
   }
 });
 
-// src/vouch/engine/providers.ts
+// src/selfimpulse/engine/providers.ts
 function asKV(store2) {
   if (typeof store2.getItem === "function") {
     const ls = store2;
@@ -28387,7 +28387,7 @@ function wrapModelBrain(base, opts) {
 }
 var REGISTRY_KEY, defaultStore, keyRef, PREFS_KEY, defaultModelPrefs, tierFor, ipcCaller, PLANNER_SYSTEM, USAGE_KEY, USAGE_CAP;
 var init_providers = __esm({
-  "src/vouch/engine/providers.ts"() {
+  "src/selfimpulse/engine/providers.ts"() {
     "use strict";
     init_client2();
     init_localDb();
@@ -28398,61 +28398,61 @@ var init_providers = __esm({
     defaultModelPrefs = () => ({ enabled: false });
     tierFor = (mode) => mode === "deep" ? "big" : "cheap";
     ipcCaller = (req) => ipc2.llmChat(req);
-    PLANNER_SYSTEM = "You are the planner inside 11Handle's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
+    PLANNER_SYSTEM = "You are the planner inside SelfImpulse's governed brain. Answer with 3 to 6 concrete steps, one per line, no preamble or markdown. The runtime simulates risky steps and pauses them at a human gate \u2014 propose honestly.";
     USAGE_KEY = "vh.provider.usage";
     USAGE_CAP = 400;
   }
 });
 
-// src/vouch/engine/vouch.ts
-var vouch_exports = {};
-__export(vouch_exports, {
+// src/selfimpulse/engine/selfimpulse.ts
+var selfimpulse_exports = {};
+__export(selfimpulse_exports, {
   BOT_NAME: () => BOT_NAME,
   RISKY_TOOLS: () => RISKY_TOOLS,
-  VOUCH_TOOLS: () => VOUCH_TOOLS,
-  addVouchFact: () => addVouchFact,
-  addVouchPreference: () => addVouchPreference,
-  appendVouchReceiptRef: () => appendVouchReceiptRef,
-  bumpVouchSkillRun: () => bumpVouchSkillRun,
+  SELFIMPULSE_TOOLS: () => SELFIMPULSE_TOOLS,
+  addSelfImpulseFact: () => addSelfImpulseFact,
+  addSelfImpulsePreference: () => addSelfImpulsePreference,
+  appendSelfImpulseReceiptRef: () => appendSelfImpulseReceiptRef,
+  bumpSelfImpulseSkillRun: () => bumpSelfImpulseSkillRun,
   checkPrediction: () => checkPrediction,
   classifyFeedbackNote: () => classifyFeedbackNote,
   commitSession: () => commitSession,
   councilDeliberate: () => councilDeliberate,
   deregisterProbeTool: () => deregisterProbeTool,
   dispatchMission: () => dispatchMission,
-  exportVouchMemoryMarkdown: () => exportVouchMemoryMarkdown,
-  flagVouchSkill: () => flagVouchSkill,
-  loadVouchSession: () => loadVouchSession,
-  newVouchThread: () => newVouchThread,
-  proposeVouchSkill: () => proposeVouchSkill,
-  rateVouchRun: () => rateVouchRun,
+  exportSelfImpulseMemoryMarkdown: () => exportSelfImpulseMemoryMarkdown,
+  flagSelfImpulseSkill: () => flagSelfImpulseSkill,
+  loadSelfImpulseSession: () => loadSelfImpulseSession,
+  newSelfImpulseThread: () => newSelfImpulseThread,
+  proposeSelfImpulseSkill: () => proposeSelfImpulseSkill,
+  rateSelfImpulseRun: () => rateSelfImpulseRun,
   recordMission: () => recordMission,
   registerProbeTool: () => registerProbeTool,
-  removeVouchFact: () => removeVouchFact,
-  removeVouchPreference: () => removeVouchPreference,
-  removeVouchSkill: () => removeVouchSkill,
-  requestVouchApproval: () => requestVouchApproval,
-  resolveVouchApproval: () => resolveVouchApproval,
-  runVouchToolCall: () => runVouchToolCall,
+  removeSelfImpulseFact: () => removeSelfImpulseFact,
+  removeSelfImpulsePreference: () => removeSelfImpulsePreference,
+  removeSelfImpulseSkill: () => removeSelfImpulseSkill,
+  requestSelfImpulseApproval: () => requestSelfImpulseApproval,
+  resolveSelfImpulseApproval: () => resolveSelfImpulseApproval,
+  runSelfImpulseToolCall: () => runSelfImpulseToolCall,
   safeCalculate: () => safeCalculate,
   searchKnowledge: () => searchKnowledge,
-  sendVouchMessage: () => sendVouchMessage,
-  setActiveVouchThread: () => setActiveVouchThread,
-  setVouchBrain: () => setVouchBrain,
-  setVouchMode: () => setVouchMode,
-  setVouchPersona: () => setVouchPersona,
-  simulateVouchAction: () => simulateVouchAction,
+  selfimpulseBrain: () => selfimpulseBrain,
+  selfimpulseMissions: () => selfimpulseMissions,
+  selfimpulseReceiptJsonl: () => selfimpulseReceiptJsonl,
+  selfimpulseSession: () => selfimpulseSession,
+  selfimpulseThreads: () => selfimpulseThreads,
+  selfimpulseToolCallStatus: () => selfimpulseToolCallStatus,
+  selfimpulseWorkspaceFiles: () => selfimpulseWorkspaceFiles,
+  sendSelfImpulseMessage: () => sendSelfImpulseMessage,
+  setActiveSelfImpulseThread: () => setActiveSelfImpulseThread,
+  setSelfImpulseBrain: () => setSelfImpulseBrain,
+  setSelfImpulseMode: () => setSelfImpulseMode,
+  setSelfImpulsePersona: () => setSelfImpulsePersona,
+  simulateSelfImpulseAction: () => simulateSelfImpulseAction,
   simulatedBrain: () => simulatedBrain,
-  stopVouch: () => stopVouch,
-  subscribeVouch: () => subscribeVouch,
-  verifyVouchReceipt: () => verifyVouchReceipt,
-  vouchBrain: () => vouchBrain,
-  vouchMissions: () => vouchMissions,
-  vouchReceiptJsonl: () => vouchReceiptJsonl,
-  vouchSession: () => vouchSession,
-  vouchThreads: () => vouchThreads,
-  vouchToolCallStatus: () => vouchToolCallStatus,
-  vouchWorkspaceFiles: () => vouchWorkspaceFiles
+  stopSelfImpulse: () => stopSelfImpulse,
+  subscribeSelfImpulse: () => subscribeSelfImpulse,
+  verifySelfImpulseReceipt: () => verifySelfImpulseReceipt
 });
 function mainThread(messages) {
   const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -28478,7 +28478,7 @@ function freshSession() {
     createdAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-function loadVouchSession() {
+function loadSelfImpulseSession() {
   const raw = store.get(SESSION_KEY);
   if (!raw) return freshSession();
   try {
@@ -28512,7 +28512,7 @@ function loadVouchSession() {
   }
   return freshSession();
 }
-function subscribeVouch(cb) {
+function subscribeSelfImpulse(cb) {
   listeners.add(cb);
   return () => {
     listeners.delete(cb);
@@ -28522,18 +28522,18 @@ function commit() {
   store.set(SESSION_KEY, JSON.stringify(session));
   for (const cb of listeners) cb();
 }
-function vouchSession() {
+function selfimpulseSession() {
   return session;
 }
-function setVouchPersona(p) {
+function setSelfImpulsePersona(p) {
   session = { ...session, persona: p };
   commit();
 }
-function setVouchMode(m) {
+function setSelfImpulseMode(m) {
   session = { ...session, mode: m };
   commit();
 }
-function addVouchFact(text) {
+function addSelfImpulseFact(text) {
   const t = sanitizeText(text, 300);
   if (!t) return;
   if (detectInjection(t).length > 0) return;
@@ -28541,11 +28541,11 @@ function addVouchFact(text) {
   session = { ...session, facts: [...session.facts, { id: secureId("f"), text: t, ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
 }
-function removeVouchFact(id) {
+function removeSelfImpulseFact(id) {
   session = { ...session, facts: session.facts.filter((f) => f.id !== id) };
   commit();
 }
-function addVouchPreference(text) {
+function addSelfImpulsePreference(text) {
   const t = sanitizeText(text, 300);
   if (!t) return;
   if (detectInjection(t).length > 0) return;
@@ -28553,17 +28553,17 @@ function addVouchPreference(text) {
   session = { ...session, preferences: [...session.preferences, { id: secureId("p"), text: t, ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
 }
-function removeVouchPreference(id) {
+function removeSelfImpulsePreference(id) {
   session = { ...session, preferences: session.preferences.filter((p) => p.id !== id) };
   commit();
 }
 function activeThread() {
   return session.threads.find((t) => t.id === session.activeThreadId) ?? session.threads[0];
 }
-function vouchThreads() {
+function selfimpulseThreads() {
   return session.threads;
 }
-function newVouchThread(title) {
+function newSelfImpulseThread(title) {
   const now = (/* @__PURE__ */ new Date()).toISOString();
   const id = `t${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
   const th = {
@@ -28583,7 +28583,7 @@ function newVouchThread(title) {
   commit();
   return id;
 }
-function setActiveVouchThread(id) {
+function setActiveSelfImpulseThread(id) {
   const target = session.threads.find((t) => t.id === id);
   if (!target) return false;
   session = {
@@ -28612,7 +28612,7 @@ function loadMissions() {
 function saveMissions(list) {
   store.set(MISSIONS_KEY, JSON.stringify(list.slice(-50)));
 }
-function vouchMissions() {
+function selfimpulseMissions() {
   return loadMissions().slice().reverse();
 }
 function recordMission(m) {
@@ -28646,7 +28646,7 @@ function loadWorkspace() {
 function saveWorkspace(ws) {
   store.set(WORKSPACE_KEY, JSON.stringify(ws));
 }
-function vouchWorkspaceFiles() {
+function selfimpulseWorkspaceFiles() {
   return Object.values(loadWorkspace()).map((f) => ({ name: f.name, chars: f.content.length, updated: f.updated })).sort((a, b) => a.name.localeCompare(b.name));
 }
 function workspaceWrite(name, content) {
@@ -28754,23 +28754,23 @@ function systemInfo() {
   const ua = typeof globalThis.navigator !== "undefined" ? globalThis.navigator.userAgent : "node-runtime";
   return `runtime: ${inTauri ? "Tauri (native desktop)" : "browser/webview"}
 os/arch: ${typeof globalThis.navigator !== "undefined" ? `${globalThis.navigator.platform ?? "n/a"} \xB7 ${globalThis.navigator.language ?? "n/a"}` : "node " + (globalThis.process?.versions?.node ?? "?")} \xB7 ${ua.slice(0, 80)}
-version: ${ENGINE_VERSION} \xB7 brain: ${vouchBrain().id}`;
+version: ${ENGINE_VERSION} \xB7 brain: ${selfimpulseBrain().id}`;
 }
 function toolRunOutput(r) {
   return typeof r === "string" ? { output: r, ok: true } : { output: r.output, ok: r.ok ?? true };
 }
 function registerProbeTool(name, tool) {
-  if (!_savedProbeTools.has(name)) _savedProbeTools.set(name, VOUCH_TOOLS[name]);
-  VOUCH_TOOLS[name] = tool;
+  if (!_savedProbeTools.has(name)) _savedProbeTools.set(name, SELFIMPULSE_TOOLS[name]);
+  SELFIMPULSE_TOOLS[name] = tool;
 }
 function deregisterProbeTool(name) {
   if (!_savedProbeTools.has(name)) return;
   const prev = _savedProbeTools.get(name);
   _savedProbeTools.delete(name);
   if (prev === void 0) {
-    delete VOUCH_TOOLS[name];
+    delete SELFIMPULSE_TOOLS[name];
   } else {
-    VOUCH_TOOLS[name] = prev;
+    SELFIMPULSE_TOOLS[name] = prev;
   }
 }
 async function validateWithRetry2(tool, raw) {
@@ -28782,9 +28782,9 @@ async function validateWithRetry2(tool, raw) {
 function actionToolName(a) {
   return a.kind === "tool" ? a.tool : "dispatch_mission";
 }
-function simulateVouchAction(action) {
+function simulateSelfImpulseAction(action) {
   if (action.kind === "dispatch") {
-    const crews = harborCrews();
+    const crews = selfimpulseCrews();
     const active = crews.length > 0 ? crews[crews.length - 1] : null;
     return {
       tool: "dispatch_mission",
@@ -28816,23 +28816,23 @@ function checkPrediction(action, _sim, ok, output2) {
   if (action.kind === "tool" && action.tool === "workspace_write") {
     const name = String(action.args.name ?? "untitled.txt");
     const content = String(action.args.content ?? "");
-    const f = vouchWorkspaceFiles().find((x) => x.name === name);
+    const f = selfimpulseWorkspaceFiles().find((x) => x.name === name);
     return f !== void 0 && f.chars === content.length;
   }
   return true;
 }
-function requestVouchApproval(action, detail) {
+function requestSelfImpulseApproval(action, detail) {
   const id = secureId("a");
   session = { ...session, approvals: [...session.approvals, { id, action, detail, status: "pending", ts: (/* @__PURE__ */ new Date()).toISOString() }] };
   commit();
   void Promise.resolve().then(() => (init_client(), client_exports)).then(({ isNativeHost: isNativeHost2, ipc: ipc3 }) => {
-    if (isNativeHost2()) void ipc3.notifyApproval("Vouch \u2014 human gate", `${action}: ${detail.slice(0, 140).replace(/\n/g, " ")}`);
+    if (isNativeHost2()) void ipc3.notifyApproval("SelfImpulse \u2014 human gate", `${action}: ${detail.slice(0, 140).replace(/\n/g, " ")}`);
   }).catch(() => void 0);
   return new Promise((resolve2) => {
     approvalWaiters.set(id, resolve2);
   });
 }
-function resolveVouchApproval(id, ok) {
+function resolveSelfImpulseApproval(id, ok) {
   const approval = session.approvals.find((a) => a.id === id);
   if (!approval) {
     badApprovalProbeGate.check("unknown-approval-id");
@@ -28848,12 +28848,12 @@ function resolveVouchApproval(id, ok) {
     settle2(!expired && ok);
   }
 }
-function setVouchBrain(b) {
+function setSelfImpulseBrain(b) {
   brain = b;
   session = { ...session, brain: b.id };
   commit();
 }
-function vouchBrain() {
+function selfimpulseBrain() {
   return brain;
 }
 function personaCloser(p) {
@@ -28896,19 +28896,19 @@ function councilDeliberate(plan, input2) {
       {
         seat: "Critic",
         role: "audits risk",
-        section: risky.length > 0 ? `Risk audit: ${risky.map((a) => actionToolName(a)).join(", ")} \u2014 each requires a signed simulation and a human gate. Worst case is contained: nothing executes before approval.` : "No risky actions. Worst case: a wasted run \u2014 still vouched."
+        section: risky.length > 0 ? `Risk audit: ${risky.map((a) => actionToolName(a)).join(", ")} \u2014 each requires a signed simulation and a human gate. Worst case is contained: nothing executes before approval.` : "No risky actions. Worst case: a wasted run \u2014 still selfimpulseed."
       },
       {
         seat: "Verifier",
         role: "states the proof",
-        section: `Proof to exist: ${plan.actions.length} vouch.action event(s) with ok/approved/ms/outputDigest${risky.length > 0 ? "; vouch.simulation predictions checked in VOUCH (predictionMatched); " : ""}vouch.verdict carries route + prediction + skill.`
+        section: `Proof to exist: ${plan.actions.length} selfimpulse.action event(s) with ok/approved/ms/outputDigest${risky.length > 0 ? "; selfimpulse.simulation predictions checked in SELFIMPULSE (predictionMatched); " : ""}selfimpulse.verdict carries route + prediction + skill.`
       }
     ],
     synthesis: {
       proposal: plan.plan.length > 0 ? plan.plan.join("; ") : input2.slice(0, 100),
-      critique: risky.length > 0 ? `${risky.length} gated action(s) \u2014 simulate first, human decides` : "no gate required \u2014 the fast path stays vouched",
+      critique: risky.length > 0 ? `${risky.length} gated action(s) \u2014 simulate first, human decides` : "no gate required \u2014 the fast path stays selfimpulseed",
       verdict: conf === "low" ? "low confidence \u2014 deliberate fully before any act" : "plan stands as proposed",
-      resolution: `route SLOW \xB7 ${risky.length} gated \xB7 3-seat rule-based council (deliberation vouched)`
+      resolution: `route SLOW \xB7 ${risky.length} gated \xB7 3-seat rule-based council (deliberation selfimpulseed)`
     },
     ruleBased: true
   };
@@ -28948,7 +28948,7 @@ function skillTriggerArgs(tool, t, lower, skill) {
       return null;
   }
 }
-function routeVouch(plan, mode) {
+function routeSelfImpulse(plan, mode) {
   const reasons = [];
   const risky = plan.actions.some((a) => RISKY_TOOLS.has(actionToolName(a)));
   const multi = plan.actions.length >= 2;
@@ -28964,7 +28964,7 @@ function routeVouch(plan, mode) {
 function nowIso2() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
-function proposeVouchSkill(c) {
+function proposeSelfImpulseSkill(c) {
   const fail = (reason) => {
     session = {
       ...session,
@@ -28974,14 +28974,14 @@ function proposeVouchSkill(c) {
     return { ok: false, reason };
   };
   if (!c.name.trim() || !c.when.trim() || c.steps.length === 0) return fail("incomplete candidate \u2014 needs a name, a trigger, and at least one step");
-  const known = c.tool === "dispatch_mission" || VOUCH_TOOLS[c.tool] !== void 0;
+  const known = c.tool === "dispatch_mission" || SELFIMPULSE_TOOLS[c.tool] !== void 0;
   if (!known) return fail(`unknown tool "${c.tool}" \u2014 a skill can only wrap a real tool`);
   try {
     if (c.tool === "calculator" && c.sampleArgs && c.sampleArgs.expression !== void 0) {
       safeCalculate(String(c.sampleArgs.expression));
     }
     if (c.tool === "workspace_write") {
-      simulateVouchAction({ kind: "tool", tool: "workspace_write", args: c.sampleArgs ?? { name: "dry-run.txt", content: "" } });
+      simulateSelfImpulseAction({ kind: "tool", tool: "workspace_write", args: c.sampleArgs ?? { name: "dry-run.txt", content: "" } });
     }
     if (c.tool === "dispatch_mission") {
       const pattern = String(c.sampleArgs?.objective ?? "");
@@ -29022,18 +29022,18 @@ function proposeVouchSkill(c) {
   commit();
   return { ok: true, skillId: id };
 }
-function flagVouchSkill(skillId) {
+function flagSelfImpulseSkill(skillId) {
   session = { ...session, skills: session.skills.map((sk) => sk.id === skillId ? { ...sk, flagged: true, updatedAt: nowIso2() } : sk) };
   commit();
 }
-function bumpVouchSkillRun(skillId, ok) {
+function bumpSelfImpulseSkillRun(skillId, ok) {
   session = {
     ...session,
     skills: session.skills.map((s) => s.id === skillId ? { ...s, runs: s.runs + 1, wins: s.wins + (ok ? 1 : 0), updatedAt: nowIso2() } : s)
   };
   commit();
 }
-function removeVouchSkill(id) {
+function removeSelfImpulseSkill(id) {
   session = { ...session, skills: session.skills.filter((s) => s.id !== id) };
   commit();
 }
@@ -29045,7 +29045,7 @@ function classifyFeedbackNote(note) {
   if (/tone|polite|rude|joke|chatty|verbose/i.test(n)) return "tone";
   return "other";
 }
-function rateVouchRun(receiptId, score, note) {
+function rateSelfImpulseRun(receiptId, score, note) {
   const ref = session.receipts.find((r) => r.id === receiptId);
   if (!ref) return;
   const s = Math.max(1, Math.min(5, Math.round(Number.isFinite(score) ? score : 0) || 1));
@@ -29079,7 +29079,7 @@ function distillSkill(results, bornReceiptId) {
     return {
       name: `mission-${teamSlug}`,
       when: `dispatching a mission like: ${m.objective.slice(0, 160)}`,
-      steps: phases.length > 0 ? [`route + human gate`, ...phases.map((ph) => `loop phase: ${ph}`), "vouch: prediction vs reality"] : ["route + human gate", "compose", "dispatch", "execute", "gate", "adapt", "vouch: prediction vs reality"],
+      steps: phases.length > 0 ? [`route + human gate`, ...phases.map((ph) => `loop phase: ${ph}`), "selfimpulse: prediction vs reality"] : ["route + human gate", "compose", "dispatch", "execute", "gate", "adapt", "selfimpulse: prediction vs reality"],
       tool: "dispatch_mission",
       sampleArgs: { objective: m.objective.slice(0, 200) },
       mission: { missionId: m.missionId, team: m.teamName, verifiedSeats: m.verifiedSeats, seatCount: m.seatCount, cycleNo: m.cycleNo },
@@ -29127,7 +29127,7 @@ function distillSkill(results, bornReceiptId) {
       return null;
   }
 }
-function stopVouch() {
+function stopSelfImpulse() {
   runToken += 1;
   return true;
 }
@@ -29135,7 +29135,7 @@ async function dispatchMission(objective) {
   lastMission = null;
   const missionId = mintMissionId();
   try {
-    lastMission = await runHarborMission(objective, missionId);
+    lastMission = await runSelfImpulseMission(objective, missionId);
     recordMission(lastMission);
     const m = lastMission;
     return `Dispatched \u2014 ${missionId} \xB7 engine ${m.engine} \xB7 crew "${m.teamName}" \xB7 status ${m.status} \xB7 cycle ${m.cycleNo} \xB7 ${m.verifiedSeats}/${m.seatCount} seats verified \xB7 gate ${m.gateStatus ?? "n/a"} \xB7 receipt ${m.receiptOk ? "signed" : "missing"} \xB7 ${m.runMs}ms.`;
@@ -29149,7 +29149,7 @@ function overlapWords(a, b) {
   const wa = new Set(a.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2));
   return b.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2 && wa.has(w));
 }
-async function sendVouchMessage(input2) {
+async function sendSelfImpulseMessage(input2) {
   const text = input2.trim();
   if (!text) return;
   const token = ++runToken;
@@ -29167,7 +29167,7 @@ async function sendVouchMessage(input2) {
       }).sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt));
       if (candidates.length > 0) {
         const th = candidates[0];
-        setActiveVouchThread(th.id);
+        setActiveSelfImpulseThread(th.id);
         const lastUser = [...th.messages].reverse().find((m) => m.role === "user");
         resume = { title: th.title, summary: (lastUser?.text ?? "no earlier exchange").slice(0, 140) };
       }
@@ -29200,12 +29200,12 @@ async function sendVouchMessage(input2) {
   };
   updateActive((t) => ({ ...t, lastActivityAt: startedAt, messages: [...t.messages, { id: `m${Date.now()}u`, role: "user", text, ts: startedAt, trace: [] }] }));
   const msgId = `m${Date.now()}t`;
-  updateActive((t) => ({ ...t, messages: [...t.messages, { id: msgId, role: "vouch", text: "", ts: nowIso2(), trace: [], streaming: true }] }));
+  updateActive((t) => ({ ...t, messages: [...t.messages, { id: msgId, role: "selfimpulse", text: "", ts: nowIso2(), trace: [], streaming: true }] }));
   const patchMsg = (patch) => {
     if (token !== runToken) return;
     updateActive((t) => ({ ...t, messages: t.messages.map((m) => m.id === msgId ? patch(m) : m) }));
   };
-  const brainNow = vouchBrain();
+  const brainNow = selfimpulseBrain();
   const recallPrefs = session.preferences.filter((p) => overlapWords(text, p.text).length > 0).map((p) => p.text);
   const recallSkills = session.skills.filter((sk) => {
     const wa = text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 3);
@@ -29219,17 +29219,17 @@ async function sendVouchMessage(input2) {
     threads: session.threads.map((th) => ({ title: th.title, status: th.status, active: th.id === threadId }))
   };
   const plan = await brainNow.decide(text, { mode: session.mode, persona: session.persona, facts: session.facts, recall });
-  const route = routeVouch(plan, session.mode);
+  const route = routeSelfImpulse(plan, session.mode);
   const results = [];
   const simulations = [];
   const receiptEvents = [
-    { kind: "vouch.session", seatId: "vouch-core", data: { brain: brainNow.id, persona: session.persona, mode: session.mode, input: text.slice(0, 200), route: route.path, thread: threadTitle, recall: { facts: session.facts.length, preferences: recallPrefs.length, skills: recallSkills.length } } }
+    { kind: "selfimpulse.session", seatId: "selfimpulse-core", data: { brain: brainNow.id, persona: session.persona, mode: session.mode, input: text.slice(0, 200), route: route.path, thread: threadTitle, recall: { facts: session.facts.length, preferences: recallPrefs.length, skills: recallSkills.length } } }
   ];
   const council = route.path === "slow" ? councilDeliberate(plan, text) : null;
   if (council) {
     receiptEvents.push({
-      kind: "vouch.deliberation",
-      seatId: "vouch-core",
+      kind: "selfimpulse.deliberation",
+      seatId: "selfimpulse-core",
       data: { seats: council.seats.length, synthesis: council.synthesis, ruleBased: council.ruleBased }
     });
   }
@@ -29256,7 +29256,7 @@ async function sendVouchMessage(input2) {
       patchMsg((m) => ({ ...m, trace: [...m.trace, { kind: "thought", text: th }] }));
       await sleep(120);
     }
-    const planSteps = plan.plan.length > 0 ? plan.plan : route.path === "slow" ? ["Simulate the action", "Request approval at the human gate", "Execute", "Vouch (prediction vs reality)"] : [];
+    const planSteps = plan.plan.length > 0 ? plan.plan : route.path === "slow" ? ["Simulate the action", "Request approval at the human gate", "Execute", "SelfImpulse (prediction vs reality)"] : [];
     if (planSteps.length > 0) {
       if (token !== runToken) return;
       patchMsg((m) => ({ ...m, trace: [...m.trace, { kind: "plan", steps: planSteps }] }));
@@ -29280,7 +29280,7 @@ async function sendVouchMessage(input2) {
       });
       receiptEvents.push({
         kind: "policy.decision",
-        seatId: "vouch-policy",
+        seatId: "selfimpulse-policy",
         data: { tool: tName, decision: policy.decision, rule: policy.rule, reason: policy.reason }
       });
       const agTcId = `tc${Date.now()}${ai}`;
@@ -29301,7 +29301,7 @@ async function sendVouchMessage(input2) {
       if (v.audit.retried) {
         receiptEvents.push({
           kind: "tool.schema_retry",
-          seatId: "vouch-schema",
+          seatId: "selfimpulse-schema",
           data: { tool: tName, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason, attempt: 1 }
         });
         patchMsg((m) => ({ ...m, trace: [...m.trace, { kind: "thought", text: `Schema validation flagged ${tName}: ${v.audit.errors} \u2014 applying one structured retry (${v.audit.repairSource})\u2026` }] }));
@@ -29313,7 +29313,7 @@ async function sendVouchMessage(input2) {
         emitToolResult(agRunId, threadId, agTcId, msg, false);
         receiptEvents.push({
           kind: "tool.schema_refused",
-          seatId: "vouch-schema",
+          seatId: "selfimpulse-schema",
           data: { tool: tName, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, attempts: v.audit.attempts - 1, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason }
         });
         patchMsg((m) => ({ ...m, trace: [...m.trace, { kind: "thought", text: msg }] }));
@@ -29321,12 +29321,12 @@ async function sendVouchMessage(input2) {
         continue;
       }
       if (risky) {
-        const simNow = simulateVouchAction(action);
+        const simNow = simulateSelfImpulseAction(action);
         sim = simNow;
         simulations.push(simNow);
         receiptEvents.push({
-          kind: "vouch.simulation",
-          seatId: "vouch-core",
+          kind: "selfimpulse.simulation",
+          seatId: "selfimpulse-core",
           data: { tool: actionToolName(action), prediction: simNow.prediction, sideEffects: simNow.sideEffects, warnings: simNow.warnings, confidence: simNow.confidence }
         });
         patchMsg((m) => ({ ...m, trace: [...m.trace, { kind: "simulate", tool: simNow.tool, prediction: simNow.prediction, sideEffects: simNow.sideEffects, warnings: simNow.warnings, confidence: simNow.confidence }] }));
@@ -29340,7 +29340,7 @@ WARNINGS: ${simNow.warnings.join("; ")}` : ""}`;
         patchMsg(
           (m) => isDispatch ? { ...m, trace: [...m.trace, { kind: "dispatch", objective: action.objective, awaitingApprovalId: "" }] } : { ...m, trace: [...m.trace, { kind: "tool", tool: action.tool, args: action.args, awaitingApprovalId: "" }] }
         );
-        const approvalPromise = requestVouchApproval(toolName, detail);
+        const approvalPromise = requestSelfImpulseApproval(toolName, detail);
         const lastApproval = session.approvals[session.approvals.length - 1];
         patchMsg((m) => ({
           ...m,
@@ -29365,7 +29365,7 @@ WARNINGS: ${simNow.warnings.join("; ")}` : ""}`;
       if (ok) {
         if (action.kind === "tool") {
           patchMsg((m) => ({ ...m, trace: [...m.trace, { kind: "tool", tool: action.tool, args: liveArgs }] }));
-          const tool = VOUCH_TOOLS[action.tool];
+          const tool = SELFIMPULSE_TOOLS[action.tool];
           emitToolStart(agRunId, threadId, agTcId, action.tool);
           emitToolArgs(agRunId, threadId, agTcId, liveArgs);
           try {
@@ -29393,7 +29393,7 @@ WARNINGS: ${simNow.warnings.join("; ")}` : ""}`;
             for (const t of outcome.trace) {
               receiptEvents.push({
                 kind: "mission.event",
-                seatId: "vouch-core",
+                seatId: "selfimpulse-core",
                 data: {
                   missionId: outcome.missionId,
                   phase: t.phase ?? null,
@@ -29409,8 +29409,8 @@ WARNINGS: ${simNow.warnings.join("; ")}` : ""}`;
       const predictionMatched = sim ? checkPrediction(action, sim, ok, output2) : void 0;
       results.push({ action, ok, output: output2, ms: Date.now() - t0, approved, predictionMatched });
       receiptEvents.push({
-        kind: action.kind === "dispatch" ? "vouch.dispatch" : "vouch.action",
-        seatId: "vouch-core",
+        kind: action.kind === "dispatch" ? "selfimpulse.dispatch" : "selfimpulse.action",
+        seatId: "selfimpulse-core",
         data: {
           tool: actionToolName(action),
           args: action.kind === "dispatch" ? { objective: action.objective.slice(0, 200) } : action.args,
@@ -29425,16 +29425,16 @@ WARNINGS: ${simNow.warnings.join("; ")}` : ""}`;
         }
       });
       if (activePlan.skillId && action === activePlan.actions[0]) {
-        bumpVouchSkillRun(activePlan.skillId, ok);
+        bumpSelfImpulseSkillRun(activePlan.skillId, ok);
         if (!ok && approved && !skillFallbackUsed) {
-          const failedSkill = vouchSession().skills.find((sk) => sk.id === activePlan.skillId);
-          flagVouchSkill(activePlan.skillId);
+          const failedSkill = selfimpulseSession().skills.find((sk) => sk.id === activePlan.skillId);
+          flagSelfImpulseSkill(activePlan.skillId);
           session = {
             ...session,
             failures: [...session.failures.slice(-49), { id: `x${Date.now()}${Math.random().toString(36).slice(2, 6)}`, ts: nowIso2(), what: `skill "${failedSkill?.name ?? activePlan.skillId}" replay failed live`, reason: output2.slice(0, 200) }]
           };
           commit();
-          patchMsg((m) => ({ ...m, trace: [...m.trace, { kind: "thought", text: `My vouched skill ${failedSkill ? `"${failedSkill.name}"` : ""} FAILED on live replay \u2014 flagged it, filed it to failure memory, and re-planning the full cycle (skills off).` }] }));
+          patchMsg((m) => ({ ...m, trace: [...m.trace, { kind: "thought", text: `My selfimpulseed skill ${failedSkill ? `"${failedSkill.name}"` : ""} FAILED on live replay \u2014 flagged it, filed it to failure memory, and re-planning the full cycle (skills off).` }] }));
           const fb = await brainNow.decide(text, { mode: session.mode, persona: session.persona, facts: session.facts, recall: { ...recall, skills: [] } });
           activePlan = fb;
           actions = fb.actions;
@@ -29465,10 +29465,10 @@ WARNINGS: ${simNow.warnings.join("; ")}` : ""}`;
       const preReceiptId = `r${Date.now()}`;
       const cand = distillSkill(results, preReceiptId);
       if (cand) {
-        const proposed = proposeVouchSkill(cand);
+        const proposed = proposeSelfImpulseSkill(cand);
         if (proposed.ok && proposed.skillId) {
-          bumpVouchSkillRun(proposed.skillId, true);
-          const sk = vouchSession().skills.find((s) => s.id === proposed.skillId);
+          bumpSelfImpulseSkillRun(proposed.skillId, true);
+          const sk = selfimpulseSession().skills.find((s) => s.id === proposed.skillId);
           skillId = proposed.skillId;
           if (sk) {
             patchMsg((m) => ({ ...m, trace: [...m.trace, { kind: "thought", text: `Learned: skill "${sk.name}" v${sk.version} (run ${sk.runs}, win ${sk.wins}) \u2014 test-gated, in your skill library, yours to inspect or delete.` }] }));
@@ -29480,15 +29480,15 @@ WARNINGS: ${simNow.warnings.join("; ")}` : ""}`;
     }
     const finishedAt = nowIso2();
     const predictionSummary = simulations.length === 0 ? "n/a" : results.every((r) => r.predictionMatched !== false) ? "matched" : "diverged";
-    receiptEvents.push({ kind: "vouch.verdict", seatId: "vouch-core", data: { status: "done", actions: results.length, approved: results.filter((r) => r.approved).length, brain: brainNow.id, route: route.path, prediction: predictionSummary, skillId: skillId ?? null } });
+    receiptEvents.push({ kind: "selfimpulse.verdict", seatId: "selfimpulse-core", data: { status: "done", actions: results.length, approved: results.filter((r) => r.approved).length, brain: brainNow.id, route: route.path, prediction: predictionSummary, skillId: skillId ?? null } });
     const receipt = await buildChainedReceipt({
-      mission: `vouch: ${text.slice(0, 48)}`,
-      teamId: "vouch",
+      mission: `selfimpulse: ${text.slice(0, 48)}`,
+      teamId: "selfimpulse",
       startedAt,
       finishedAt,
       /* 16.0 merge: the unified product stamps the product version (one state,
-       * one version line). Vouch's own 1.x line survives as provenance INSIDE
-       * the events (mission payloads carry controlPlane: "Vouch 1.1"). */
+       * one version line). SelfImpulse's own 1.x line survives as provenance INSIDE
+       * the events (mission payloads carry controlPlane: "SelfImpulse 1.1"). */
       version: ENGINE_VERSION,
       edition: "personal",
       events: receiptEvents
@@ -29528,21 +29528,21 @@ WARNINGS: ${simNow.warnings.join("; ")}` : ""}`;
     finalizeIfAborted();
   }
 }
-function verifyVouchReceipt(id) {
+function verifySelfImpulseReceipt(id) {
   const ref = session.receipts.find((r) => r.id === id);
   if (!ref) return Promise.resolve({ ok: false, reason: "receipt not found" });
   return verifyProofReceipt(ref.receipt);
 }
-function vouchReceiptJsonl(id) {
+function selfimpulseReceiptJsonl(id) {
   const ref = session.receipts.find((r) => r.id === id);
   return ref ? receiptToJsonl(ref.receipt) : null;
 }
-function exportVouchMemoryMarkdown() {
-  const s = vouchSession();
+function exportSelfImpulseMemoryMarkdown() {
+  const s = selfimpulseSession();
   const lines = [
     `# ${s.botName} \u2014 memory export`,
     ``,
-    `Exported ${(/* @__PURE__ */ new Date()).toISOString()} from this machine (11Handle ${ENGINE_VERSION}).`,
+    `Exported ${(/* @__PURE__ */ new Date()).toISOString()} from this machine (SelfImpulse ${ENGINE_VERSION}).`,
     `Everything below is local state you own \u2014 edit, delete, or archive it.`,
     ``,
     `## Facts (${s.facts.length})`,
@@ -29560,8 +29560,8 @@ function exportVouchMemoryMarkdown() {
     `## Failure memory \u2014 rejected mutations (${s.failures.length})`,
     ...s.failures.length > 0 ? s.failures.map((x) => `- ${x.what}: ${x.reason} _(${x.ts.slice(0, 10)})_`) : ["- (none)"],
     ``,
-    `## Workspace (${vouchWorkspaceFiles().length} files)`,
-    ...vouchWorkspaceFiles().length > 0 ? vouchWorkspaceFiles().map((f) => `- \`${f.name}\` \u2014 ${f.chars} chars, updated ${f.updated.slice(0, 10)}`) : ["- (none)"],
+    `## Workspace (${selfimpulseWorkspaceFiles().length} files)`,
+    ...selfimpulseWorkspaceFiles().length > 0 ? selfimpulseWorkspaceFiles().map((f) => `- \`${f.name}\` \u2014 ${f.chars} chars, updated ${f.updated.slice(0, 10)}`) : ["- (none)"],
     ``,
     `## Threads (${s.threads.length})`,
     ...s.threads.map((t) => `- **${t.title}** \u2014 ${t.status} \xB7 ${t.messages.length} messages \xB7 last ${t.lastActivityAt.slice(0, 16).replace("T", " ")}`),
@@ -29569,24 +29569,24 @@ function exportVouchMemoryMarkdown() {
   ];
   return lines.join("\n");
 }
-function vouchToolCallStatus(callId) {
+function selfimpulseToolCallStatus(callId) {
   return toolCallTracks.get(callId) ?? null;
 }
-async function runVouchToolCall(tool, args, opts = {}) {
+async function runSelfImpulseToolCall(tool, args, opts = {}) {
   const origin = opts.origin ?? "mcp";
   const t0 = Date.now();
   const callId = `c${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const startedAt = nowIso2();
   const events = [];
-  events.push({ kind: "vouch.session", seatId: "vouch-core", data: { origin, brain: "simulated", tool, args: JSON.parse(JSON.stringify(args)) } });
+  events.push({ kind: "selfimpulse.session", seatId: "selfimpulse-core", data: { origin, brain: "simulated", tool, args: JSON.parse(JSON.stringify(args)) } });
   const isDispatch = tool === "dispatch_mission";
   let action = isDispatch ? { kind: "dispatch", objective: String(args.objective ?? "").trim() } : { kind: "tool", tool, args };
   const objective = action.kind === "dispatch" ? action.objective : "";
   let approvalIdRef = null;
   const finalize2 = async (r) => {
     events.push({
-      kind: isDispatch ? "vouch.dispatch" : "vouch.action",
-      seatId: "vouch-core",
+      kind: isDispatch ? "selfimpulse.dispatch" : "selfimpulse.action",
+      seatId: "selfimpulse-core",
       data: {
         tool,
         args: action.kind === "dispatch" ? { objective: action.objective.slice(0, 200) } : args,
@@ -29599,14 +29599,14 @@ async function runVouchToolCall(tool, args, opts = {}) {
       }
     });
     events.push({
-      kind: "vouch.verdict",
-      seatId: "vouch-core",
+      kind: "selfimpulse.verdict",
+      seatId: "selfimpulse-core",
       data: { status: !r.approved ? "denied" : r.ok ? "done" : "failed", actions: 1, approved: r.approved ? 1 : 0, origin }
     });
     const finishedAt = nowIso2();
     const receipt = await buildChainedReceipt({
-      mission: `vouch:${origin}:${tool}`,
-      teamId: "vouch",
+      mission: `selfimpulse:${origin}:${tool}`,
+      teamId: "selfimpulse",
       startedAt,
       finishedAt,
       version: ENGINE_VERSION,
@@ -29640,7 +29640,7 @@ async function runVouchToolCall(tool, args, opts = {}) {
   emitToolStart(agRunId2, `toolcall:${callId}`, agTcId2, tool);
   emitToolArgs(agRunId2, `toolcall:${callId}`, agTcId2, args);
   const policy = propose({ tool, args, detail: `${tool}(${JSON.stringify(args).slice(0, 140)})` });
-  events.push({ kind: "policy.decision", seatId: "vouch-policy", data: { tool, decision: policy.decision, rule: policy.rule, reason: policy.reason } });
+  events.push({ kind: "policy.decision", seatId: "selfimpulse-policy", data: { tool, decision: policy.decision, rule: policy.rule, reason: policy.reason } });
   if (policy.decision === "deny") {
     emitInterrupt(agRunId2, `toolcall:${callId}`, agTcId2, tool, `${policy.reason} (rule: ${policy.rule})`);
     return finalize2({ ok: false, output: `Policy denied: ${policy.reason} (rule: ${policy.rule})`, approved: false, simulated: false, mission: null });
@@ -29648,26 +29648,26 @@ async function runVouchToolCall(tool, args, opts = {}) {
   const risky = policy.decision === "steer";
   const gr = scanToolCall(tool, args);
   if (!gr.ok) {
-    events.push({ kind: "tool.guardrail_refused", seatId: "vouch-guardrail", data: { tool, code: gr.code, reason: gr.reason } });
+    events.push({ kind: "tool.guardrail_refused", seatId: "selfimpulse-guardrail", data: { tool, code: gr.code, reason: gr.reason } });
     emitInterrupt(agRunId2, `toolcall:${callId}`, agTcId2, tool, `guardrail: ${gr.reason}`);
     return finalize2({ ok: false, output: `GuardRail refused ${tool}: ${gr.reason} (code: ${gr.code}) \u2014 nothing executed.`, approved: false, simulated: false, mission: null });
   }
   if (gr.warnings.length > 0) {
-    events.push({ kind: "tool.guardrail_warnings", seatId: "vouch-guardrail", data: { tool, warnings: gr.warnings.slice(0, 8) } });
+    events.push({ kind: "tool.guardrail_warnings", seatId: "selfimpulse-guardrail", data: { tool, warnings: gr.warnings.slice(0, 8) } });
   }
   const v = await validateWithRetry2(tool, args);
   args = v.args;
   if (v.audit.retried) {
-    events.push({ kind: "tool.schema_retry", seatId: "vouch-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason, attempt: 1 } });
+    events.push({ kind: "tool.schema_retry", seatId: "selfimpulse-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason, attempt: 1 } });
   }
   if (!v.ok) {
     const msg = `Schema validation failed for ${tool} after one retry: ${v.audit.errors} \u2014 refusing, nothing executed.`;
-    events.push({ kind: "tool.schema_refused", seatId: "vouch-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, attempts: v.audit.attempts - 1, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason } });
+    events.push({ kind: "tool.schema_refused", seatId: "selfimpulse-schema", data: { tool, rawArgs: v.audit.rawArgs, repairedArgs: v.audit.repairedArgs, errors: v.audit.errors, attempts: v.audit.attempts - 1, repairSource: v.audit.repairSource, repairReason: v.audit.repairReason } });
     return finalize2({ ok: false, output: msg, approved: true, simulated: false, mission: null });
   }
   if (isDispatch) action = { kind: "dispatch", objective: String(args.objective ?? "") };
-  if (!isDispatch && VOUCH_TOOLS[tool] === void 0) {
-    return finalize2({ ok: false, output: `unknown tool "${tool}" \u2014 refused. Known tools: ${[...Object.keys(VOUCH_TOOLS), "dispatch_mission"].join(", ")}`, approved: true, simulated: false, mission: null });
+  if (!isDispatch && SELFIMPULSE_TOOLS[tool] === void 0) {
+    return finalize2({ ok: false, output: `unknown tool "${tool}" \u2014 refused. Known tools: ${[...Object.keys(SELFIMPULSE_TOOLS), "dispatch_mission"].join(", ")}`, approved: true, simulated: false, mission: null });
   }
   if (isDispatch && String(args.objective ?? "").length === 0) {
     return finalize2({ ok: false, output: "dispatch_mission needs an objective \u2014 refused, nothing dispatched.", approved: true, simulated: false, mission: null });
@@ -29677,7 +29677,7 @@ async function runVouchToolCall(tool, args, opts = {}) {
       const missionId = mintMissionId();
       toolCallTracks.get(callId).missionId = missionId;
       try {
-        const outcome = await runHarborMission(objective, missionId);
+        const outcome = await runSelfImpulseMission(objective, missionId);
         recordMission(outcome);
         return {
           ok: outcome.status !== "failed" && outcome.status !== "aborted",
@@ -29689,7 +29689,7 @@ async function runVouchToolCall(tool, args, opts = {}) {
         return { ok: false, output: `Dispatch blocked \u2014 the mission engine reported an error: ${e instanceof Error ? e.message : String(e)}. Nothing was faked.`, mission: null };
       }
     }
-    const t = VOUCH_TOOLS[tool];
+    const t = SELFIMPULSE_TOOLS[tool];
     try {
       const runResult = toolRunOutput(await t.run(args));
       return { ok: runResult.ok, output: runResult.output, mission: null };
@@ -29701,14 +29701,14 @@ async function runVouchToolCall(tool, args, opts = {}) {
     const a = await runAction();
     return finalize2({ ok: a.ok, output: a.output, approved: true, simulated: false, mission: a.mission });
   }
-  const sim = simulateVouchAction(action);
-  events.push({ kind: "vouch.simulation", seatId: "vouch-core", data: { tool, prediction: sim.prediction, sideEffects: sim.sideEffects, warnings: sim.warnings, confidence: sim.confidence } });
+  const sim = simulateSelfImpulseAction(action);
+  events.push({ kind: "selfimpulse.simulation", seatId: "selfimpulse-core", data: { tool, prediction: sim.prediction, sideEffects: sim.sideEffects, warnings: sim.warnings, confidence: sim.confidence } });
   const detail = isDispatch ? `Dispatch mission to a composed crew via the Mission Loop: "${objective.slice(0, 140)}"
 SIMULATION: ${sim.prediction}` : `Write file "${String(args.name ?? "untitled.txt")}" to the local workspace
 SIMULATION: ${sim.prediction}${sim.warnings.length > 0 ? `
 WARNINGS: ${sim.warnings.join("; ")}` : ""}`;
-  const approvalPromise = requestVouchApproval(tool, detail);
-  approvalIdRef = vouchSession().approvals[vouchSession().approvals.length - 1]?.id ?? null;
+  const approvalPromise = requestSelfImpulseApproval(tool, detail);
+  approvalIdRef = selfimpulseSession().approvals[selfimpulseSession().approvals.length - 1]?.id ?? null;
   const settle2 = async (granted) => {
     if (!granted) {
       return finalize2({ ok: false, output: "Denied by the human gate \u2014 nothing was executed.", approved: false, simulated: true, mission: null });
@@ -29751,13 +29751,13 @@ WARNINGS: ${sim.warnings.join("; ")}` : ""}`;
 function commitSession() {
   commit();
 }
-function appendVouchReceiptRef(ref) {
+function appendSelfImpulseReceiptRef(ref) {
   session = { ...session, receipts: [...session.receipts.slice(-19), ref] };
   commit();
 }
-var hasLS2, mem2, store, SESSION_KEY, WORKSPACE_KEY, BOT_NAME, session, listeners, MISSIONS_KEY, KB, looksLikeMath, VOUCH_TOOLS, _savedProbeTools, RISKY_TOOLS, approvalWaiters, APPROVAL_TTL_MS, badApprovalProbeGate, brain, JOKES, CODE_SNIPPETS, simulatedBrain, runToken, sleep, lastMission, finalRef, toolCallTracks;
-var init_vouch = __esm({
-  "src/vouch/engine/vouch.ts"() {
+var hasLS2, mem2, store, SESSION_KEY, WORKSPACE_KEY, BOT_NAME, session, listeners, MISSIONS_KEY, KB, looksLikeMath, SELFIMPULSE_TOOLS, _savedProbeTools, RISKY_TOOLS, approvalWaiters, APPROVAL_TTL_MS, badApprovalProbeGate, brain, JOKES, CODE_SNIPPETS, simulatedBrain, runToken, sleep, lastMission, finalRef, toolCallTracks;
+var init_selfimpulse = __esm({
+  "src/selfimpulse/engine/selfimpulse.ts"() {
     "use strict";
     init_version();
     init_proof();
@@ -29794,22 +29794,22 @@ var init_vouch = __esm({
         }
       }
     };
-    SESSION_KEY = "vouch.session.v1";
-    WORKSPACE_KEY = "vouch.workspace.v1";
-    BOT_NAME = "Vouch";
-    session = loadVouchSession();
+    SESSION_KEY = "selfimpulse.session.v1";
+    WORKSPACE_KEY = "selfimpulse.workspace.v1";
+    BOT_NAME = "SelfImpulse";
+    session = loadSelfImpulseSession();
     listeners = /* @__PURE__ */ new Set();
-    MISSIONS_KEY = "vouch.missions.v1";
+    MISSIONS_KEY = "selfimpulse.missions.v1";
     KB = [
-      { title: "Grok Bot (xAI, Aug 11 2026)", snippet: "Always-on AI vouchs on a vendor cloud computer that sign into your apps; multi-bot group chats; watch-and-learn routines; gated behind SuperGrok/Cursor top tiers. The critique: your credentials live on their VM.", source: "local knowledge base" },
+      { title: "Grok Bot (xAI, Aug 11 2026)", snippet: "Always-on AI selfimpulses on a vendor cloud computer that sign into your apps; multi-bot group chats; watch-and-learn routines; gated behind SuperGrok/Cursor top tiers. The critique: your credentials live on their VM.", source: "local knowledge base" },
       { title: "Grok 4.6 (xAI, Aug 2026)", snippet: "Flagship model for long-running agents; 500k context; reasoning effort tiers; $2/$0.50/$6 per 1M tokens under 200k prompt.", source: "local knowledge base" },
       { title: "EU AI Act enforcement (Aug 2 2026)", snippet: "High-risk obligations enforced: tamper-evident logging (Art. 12), human oversight (Art. 14); penalties to 7% of global revenue. Agents need receipts, not logs.", source: "local knowledge base" },
-      { title: "The execution core (mission loop)", snippet: "One loop \u2014 COMPOSE \u2192 DISPATCH \u2192 COMMUNICATE \u2192 EXECUTE \u2192 GATE \u2192 ADAPT \u2014 with an allowlisted set of agent CLIs, adversarial arena, budget ledger, Ed25519-signed hash-chained receipts, Assurance Score, FinOps chargeback. The Vouch door dispatches real missions to it.", source: "local knowledge base" },
+      { title: "The execution core (mission loop)", snippet: "One loop \u2014 COMPOSE \u2192 DISPATCH \u2192 COMMUNICATE \u2192 EXECUTE \u2192 GATE \u2192 ADAPT \u2014 with an allowlisted set of agent CLIs, adversarial arena, budget ledger, Ed25519-signed hash-chained receipts, Assurance Score, FinOps chargeback. The SelfImpulse door dispatches real missions to it.", source: "local knowledge base" },
       { title: "The receipt protocol", snippet: "mj-proof-receipt/2: SHA-256 hash-chained events, HMAC seal over the chain head, Ed25519 issuer signature when the runtime can sign. Verifiable with zero VH state (tools/verify-receipt.mjs).", source: "local knowledge base" },
       { title: "Tauri 2 (desktop shell)", snippet: "Rust core + system webview; small binaries, real OS keychain and stdio child processes; the same frontend runs as a browser edition.", source: "local knowledge base" },
       { title: "Agent funding, H1 2026", snippet: "The 'agent governance' theme is the clearest funded theme of H1 2026: JetStream $34M seed, Guild.ai $30M A, Geordie $30M A, WitnessAI $85M+. The verifiable, local-first quadrant is the empty one.", source: "local knowledge base" },
       { title: "Chennai, Tamil Nadu", snippet: "India's fourth-largest city; the IT and aerospace hub of the south (Omi Vedu, Navi Kempegowda's southern twin in reputation). IST = UTC+5:30.", source: "local knowledge base" },
-      { title: "11Handle (this product)", snippet: "One product: the Vouch door (the accountable colleague) + the execution core (the mission loop) + one proof standard. Every job vouched \u2014 signed receipts on every run, on your machine.", source: "local knowledge base" },
+      { title: "SelfImpulse (this product)", snippet: "One product: the SelfImpulse door (the accountable colleague) + the execution core (the mission loop) + one proof standard. Every job selfimpulseed \u2014 signed receipts on every run, on your machine.", source: "local knowledge base" },
       { title: "DeepSearch (Grok feature)", snippet: "Iterative retrieval loop: split query into sub-queries, parallel web + X search, summarize batches in a scratchpad, repeat to a step limit, cross-check before drafting.", source: "local knowledge base" }
     ];
     looksLikeMath = (t) => {
@@ -29821,7 +29821,7 @@ var init_vouch = __esm({
         return false;
       }
     };
-    VOUCH_TOOLS = {
+    SELFIMPULSE_TOOLS = {
       calculator: {
         name: "calculator",
         risky: false,
@@ -29889,7 +29889,7 @@ No network reachable from here \u2014 nothing is faked. The local knowledge base
         run: async (a) => {
           const t = String(a.fact ?? "").trim();
           if (!t) return "nothing to save";
-          addVouchFact(t);
+          addSelfImpulseFact(t);
           return `saved: ${t.slice(0, 120)}`;
         }
       },
@@ -29913,7 +29913,7 @@ ${p}`;
         run: async (a) => {
           const t = String(a.text ?? "").trim();
           if (!t) return "nothing to save";
-          addVouchPreference(t);
+          addSelfImpulsePreference(t);
           return `preference learned: ${t.slice(0, 120)}`;
         }
       },
@@ -29931,7 +29931,7 @@ ${p}`;
         risky: false,
         description: "List files in the local workspace.",
         run: async () => {
-          const fs2 = vouchWorkspaceFiles();
+          const fs2 = selfimpulseWorkspaceFiles();
           return fs2.length === 0 ? "workspace is empty" : fs2.map((f) => `\u2022 ${f.name} (${f.chars} chars, ${f.updated.slice(0, 16).replace("T", " ")})`).join("\n");
         }
       },
@@ -30021,14 +30021,14 @@ Start one and I'll hold it: \u201Ccontinue <thread name>\u201D picks it back up.
           if (!args) continue;
           const isDispatch = sk.tool === "dispatch_mission";
           return {
-            thoughts: [`Slow\u2192fast: executing my vouched skill "${sk.name}" v${sk.version} \u2014 test-gated, ${sk.wins} proven win(s), distilled from a vouched run. The procedure is proven, so no re-planning.`],
-            plan: [`${sk.name} v${sk.version} \u2014 single vouched step`],
+            thoughts: [`Slow\u2192fast: executing my selfimpulseed skill "${sk.name}" v${sk.version} \u2014 test-gated, ${sk.wins} proven win(s), distilled from a selfimpulseed run. The procedure is proven, so no re-planning.`],
+            plan: [`${sk.name} v${sk.version} \u2014 single selfimpulseed step`],
             actions: isDispatch ? [{ kind: "dispatch", objective: String(args.objective ?? "") }] : [{ kind: "tool", tool: sk.tool, args }],
             confidence: "high",
             skillId: sk.id,
             skillVersion: sk.version,
             final: (r) => tone(
-              r[0]?.ok ? `Done \u2014 via my vouched skill **${sk.name}** v${sk.version} (slow\u2192fast; test-gated, ${sk.wins} proven win${sk.wins === 1 ? "" : "s"}). The receipt binds the skill and verifies offline like every other job.` : `My vouched skill **${sk.name}** FAILED on live replay \u2014 I've flagged it, filed the failure to memory, and here is the honest record: ${r[0]?.output ?? ""}`,
+              r[0]?.ok ? `Done \u2014 via my selfimpulseed skill **${sk.name}** v${sk.version} (slow\u2192fast; test-gated, ${sk.wins} proven win${sk.wins === 1 ? "" : "s"}). The receipt binds the skill and verifies offline like every other job.` : `My selfimpulseed skill **${sk.name}** FAILED on live replay \u2014 I've flagged it, filed the failure to memory, and here is the honest record: ${r[0]?.output ?? ""}`,
               ctx.persona
             )
           };
@@ -30041,7 +30041,7 @@ Start one and I'll hold it: \u201Ccontinue <thread name>\u201D picks it back up.
             final: () => tone(
               `Hey. I'm **${BOT_NAME}** \u2014 the accountable colleague on this machine. ${ctx.mode === "deep" ? `Deep mode on:${factLine}` : factLine}
 
-I run a cycle on everything: **recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 vouch \u2192 learn**. Fast tasks take the fast path; risky ones are simulated and paused at your gate \u2014 and every finished run mints a signed receipt.
+I run a cycle on everything: **recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 selfimpulse \u2192 learn**. Fast tasks take the fast path; risky ones are simulated and paused at your gate \u2014 and every finished run mints a signed receipt.
 
 Three ways to use me:
 - **Ask** \u2014 math, time, local knowledge, live web evidence
@@ -30054,16 +30054,16 @@ Brain: **${brain.label}**. The real-model planning seam ships in this runtime \u
           };
           return plan;
         }
-        if (/who are you|what are you|your name|what can you do|about (you|vouch)|\bhelp\b/i.test(lower)) {
+        if (/who are you|what are you|your name|what can you do|about (you|selfimpulse)|\bhelp\b/i.test(lower)) {
           return {
             thoughts: ["Identity question. Answer with the full card \u2014 what, how, and the honest brain status."],
             plan: ctx.mode === "deep" ? ["State the role", "List the tools", "State the brain honestly"] : [],
             actions: [],
             final: () => tone(
-              `I'm **${BOT_NAME}** \u2014 a standalone, persistent, named colleague on this machine, running the **Vouch Cycle**: recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 vouch \u2192 learn.
+              `I'm **${BOT_NAME}** \u2014 a standalone, persistent, named colleague on this machine, running the **SelfImpulse Cycle**: recall \u2192 plan \u2192 think \u2192 simulate \u2192 act \u2192 selfimpulse \u2192 learn.
 
 - **Tools:** calculator (real parser), clock, local knowledge base, live web evidence (keyless providers), memory + preferences (yours to inspect/delete), a local workspace (writes are simulated + approval-gated), system info
-- **Dispatch:** \u201Cdispatch a mission: \u2026\u201D \u2014 hands the objective to the real execution core (the mission loop) under one mission ID; the whole trail lands in one vouched chain
+- **Dispatch:** \u201Cdispatch a mission: \u2026\u201D \u2014 hands the objective to the real execution core (the mission loop) under one mission ID; the whole trail lands in one selfimpulseed chain
 - **Learning:** successful runs become test-gated skills you can inspect; your feedback binds to receipts
 - **Proof:** every completed run mints a ${`mj-proof-receipt/2`} \u2014 SHA-256 chain, HMAC seal, Ed25519 issuer signature when this runtime can sign \u2014 verifiable offline, zero runtime state
 
@@ -30315,7 +30315,7 @@ describe3("hardening1713 \u2014 PolicyGateway, tool schemas, AG-UI emitter", () 
     const denied = propose({ tool: "web_search", args: { query: "my password is hunter2" }, detail: "" });
     assert2.strictEqual(denied.decision, "deny");
     assert2.strictEqual(denied.rule, "no-password-queries");
-    const allowed = propose({ tool: "web_search", args: { query: "11Handle 17.1" }, detail: "" });
+    const allowed = propose({ tool: "web_search", args: { query: "SelfImpulse 17.1" }, detail: "" });
     assert2.strictEqual(allowed.decision, "allow");
     _resetPolicyRulesForProbe();
   });
@@ -30397,7 +30397,7 @@ describe3("hardening1713 \u2014 PolicyGateway, tool schemas, AG-UI emitter", () 
       "finish:completed"
     ]);
   });
-  it("integration: runVouchToolCall routes through PolicyGateway (custom DENY blocks execution)", async () => {
+  it("integration: runSelfImpulseToolCall routes through PolicyGateway (custom DENY blocks execution)", async () => {
     _resetPolicyRulesForProbe();
     registerPolicyRule((input2) => {
       if (input2.tool === "system_info") {
@@ -30408,9 +30408,9 @@ describe3("hardening1713 \u2014 PolicyGateway, tool schemas, AG-UI emitter", () 
     const events = [];
     const off1 = agui.on("INTERRUPT", (e) => events.push(`interrupt:${e.tool}:${e.reason}`));
     const off2 = agui.on("TOOL_CALL_RESULT", (e) => events.push(`result:${e.ok}`));
-    const { runVouchToolCall: runVouchToolCall2, resetVouchForProbe } = await Promise.resolve().then(() => (init_vouch(), vouch_exports));
-    resetVouchForProbe?.();
-    const r = await runVouchToolCall2("system_info", {}, { blockOnGate: false });
+    const { runSelfImpulseToolCall: runSelfImpulseToolCall2, resetSelfImpulseForProbe } = await Promise.resolve().then(() => (init_selfimpulse(), selfimpulse_exports));
+    resetSelfImpulseForProbe?.();
+    const r = await runSelfImpulseToolCall2("system_info", {}, { blockOnGate: false });
     off1();
     off2();
     assert2.strictEqual(r.ok, false, "policy DENY should fail the call");
@@ -30418,15 +30418,15 @@ describe3("hardening1713 \u2014 PolicyGateway, tool schemas, AG-UI emitter", () 
     assert2.ok(events.some((e) => e.startsWith("interrupt:system_info")), "INTERRUPT emitted");
     _resetPolicyRulesForProbe();
   });
-  it("integration: runVouchToolCall rejects bad args via Zod validateArgs before tool.run", async () => {
+  it("integration: runSelfImpulseToolCall rejects bad args via Zod validateArgs before tool.run", async () => {
     _resetPolicyRulesForProbe();
-    const { runVouchToolCall: runVouchToolCall2, resetVouchForProbe } = await Promise.resolve().then(() => (init_vouch(), vouch_exports));
-    resetVouchForProbe?.();
-    const bad = await runVouchToolCall2("web_search", { query: "" }, { blockOnGate: false });
+    const { runSelfImpulseToolCall: runSelfImpulseToolCall2, resetSelfImpulseForProbe } = await Promise.resolve().then(() => (init_selfimpulse(), selfimpulse_exports));
+    resetSelfImpulseForProbe?.();
+    const bad = await runSelfImpulseToolCall2("web_search", { query: "" }, { blockOnGate: false });
     assert2.strictEqual(bad.ok, false, "empty query rejected");
     assert2.ok(/schema validation failed/i.test(bad.output), "mentions schema validation");
   });
-  it("integration: runVouchToolCall emits AG-UI RUN_STARTED/TOOL_*/RUN_FINISHED on a safe call", async () => {
+  it("integration: runSelfImpulseToolCall emits AG-UI RUN_STARTED/TOOL_*/RUN_FINISHED on a safe call", async () => {
     _resetPolicyRulesForProbe();
     const events = [];
     const off1 = agui.on("RUN_STARTED", () => events.push("RUN_STARTED"));
@@ -30434,9 +30434,9 @@ describe3("hardening1713 \u2014 PolicyGateway, tool schemas, AG-UI emitter", () 
     const off3 = agui.on("TOOL_CALL_ARGS", () => events.push("TOOL_CALL_ARGS"));
     const off4 = agui.on("TOOL_CALL_RESULT", () => events.push("TOOL_CALL_RESULT"));
     const off5 = agui.on("RUN_FINISHED", (e) => events.push(`RUN_FINISHED:${e.outcome}`));
-    const { runVouchToolCall: runVouchToolCall2, resetVouchForProbe } = await Promise.resolve().then(() => (init_vouch(), vouch_exports));
-    resetVouchForProbe?.();
-    const r = await runVouchToolCall2("system_info", {}, { blockOnGate: false });
+    const { runSelfImpulseToolCall: runSelfImpulseToolCall2, resetSelfImpulseForProbe } = await Promise.resolve().then(() => (init_selfimpulse(), selfimpulse_exports));
+    resetSelfImpulseForProbe?.();
+    const r = await runSelfImpulseToolCall2("system_info", {}, { blockOnGate: false });
     off1();
     off2();
     off3();
@@ -30450,16 +30450,16 @@ describe3("hardening1713 \u2014 PolicyGateway, tool schemas, AG-UI emitter", () 
     assert2.strictEqual(finish, "RUN_FINISHED:completed", "run completed");
     _resetPolicyRulesForProbe();
   });
-  it("integration: RISKY_TOOLS exported from vouch.ts matches policyGateway.riskyTools (single source of truth)", async () => {
-    const { RISKY_TOOLS: RISKY_TOOLS2 } = await Promise.resolve().then(() => (init_vouch(), vouch_exports));
+  it("integration: RISKY_TOOLS exported from selfimpulse.ts matches policyGateway.riskyTools (single source of truth)", async () => {
+    const { RISKY_TOOLS: RISKY_TOOLS2 } = await Promise.resolve().then(() => (init_selfimpulse(), selfimpulse_exports));
     assert2.ok(RISKY_TOOLS2.has("shell_exec"), "RISKY_TOOLS includes shell_exec (17.1.3 fix)");
     assert2.ok(RISKY_TOOLS2.has("workspace_write"));
     assert2.ok(RISKY_TOOLS2.has("dispatch_mission"));
     assert2.strictEqual(RISKY_TOOLS2.size, riskyTools.size, "sets are the same size");
   });
-  it("integration: runVouchToolCall performs ONE structured retry on fixable schema errors", async () => {
+  it("integration: runSelfImpulseToolCall performs ONE structured retry on fixable schema errors", async () => {
     _resetPolicyRulesForProbe();
-    const { runVouchToolCall: runVouchToolCall2, registerProbeTool: registerProbeTool2, deregisterProbeTool: deregisterProbeTool2 } = await Promise.resolve().then(() => (init_vouch(), vouch_exports));
+    const { runSelfImpulseToolCall: runSelfImpulseToolCall2, registerProbeTool: registerProbeTool2, deregisterProbeTool: deregisterProbeTool2 } = await Promise.resolve().then(() => (init_selfimpulse(), selfimpulse_exports));
     let calls = 0;
     let lastArgs = null;
     registerProbeTool2("web_search", {
@@ -30473,19 +30473,19 @@ describe3("hardening1713 \u2014 PolicyGateway, tool schemas, AG-UI emitter", () 
       }
     });
     try {
-      const refused = await runVouchToolCall2("web_search", {}, { blockOnGate: false });
+      const refused = await runSelfImpulseToolCall2("web_search", {}, { blockOnGate: false });
       assert2.strictEqual(refused.ok, false, "missing query refused after one retry");
       assert2.ok(/one retry/i.test(refused.output), "refusal message mentions one retry");
       assert2.strictEqual(calls, 0, "tool never ran on unfixable input");
       calls = 0;
       lastArgs = null;
-      const fixed = await runVouchToolCall2("web_search", { query: "  what is 11Handle  " }, { blockOnGate: false });
+      const fixed = await runSelfImpulseToolCall2("web_search", { query: "  what is SelfImpulse  " }, { blockOnGate: false });
       assert2.strictEqual(fixed.ok, true, `trimmed query succeeds on retry; got ${fixed.output}`);
       assert2.strictEqual(calls, 1, "tool ran exactly once after repair");
-      assert2.strictEqual(lastArgs?.query, "what is 11Handle", "args were repaired in-place before run()");
+      assert2.strictEqual(lastArgs?.query, "what is SelfImpulse", "args were repaired in-place before run()");
       calls = 0;
       lastArgs = null;
-      const fresh = await runVouchToolCall2("web_search", { query: "hello" }, { blockOnGate: false });
+      const fresh = await runSelfImpulseToolCall2("web_search", { query: "hello" }, { blockOnGate: false });
       assert2.strictEqual(fresh.ok, true);
       assert2.strictEqual(calls, 1, "valid args run once without retry");
     } finally {
@@ -30495,20 +30495,20 @@ describe3("hardening1713 \u2014 PolicyGateway, tool schemas, AG-UI emitter", () 
   });
   it("integration: dispatch_mission is schema-validated through the same retry throat (empty objective refused)", async () => {
     _resetPolicyRulesForProbe();
-    const { runVouchToolCall: runVouchToolCall2 } = await Promise.resolve().then(() => (init_vouch(), vouch_exports));
-    const refused = await runVouchToolCall2("dispatch_mission", { objective: "" }, { blockOnGate: false });
+    const { runSelfImpulseToolCall: runSelfImpulseToolCall2 } = await Promise.resolve().then(() => (init_selfimpulse(), selfimpulse_exports));
+    const refused = await runSelfImpulseToolCall2("dispatch_mission", { objective: "" }, { blockOnGate: false });
     assert2.strictEqual(refused.ok, false, "empty objective refused");
     assert2.ok(/schema validation failed/i.test(refused.output), "output names schema failure");
-    const ws = await runVouchToolCall2("dispatch_mission", { objective: "   " }, { blockOnGate: false });
+    const ws = await runSelfImpulseToolCall2("dispatch_mission", { objective: "   " }, { blockOnGate: false });
     assert2.strictEqual(ws.ok, false, "whitespace-only objective refused after trim");
     _resetPolicyRulesForProbe();
   });
   it("integration: retry receipt event carries rawArgs + repairedArgs + repairSource for audit", async () => {
     _resetPolicyRulesForProbe();
-    const { runVouchToolCall: runVouchToolCall2, vouchSession: vouchSession2 } = await Promise.resolve().then(() => (init_vouch(), vouch_exports));
+    const { runSelfImpulseToolCall: runSelfImpulseToolCall2, selfimpulseSession: selfimpulseSession2 } = await Promise.resolve().then(() => (init_selfimpulse(), selfimpulse_exports));
     let calls = 0;
     let lastArgs = null;
-    const { registerProbeTool: registerProbeTool2, deregisterProbeTool: deregisterProbeTool2 } = await Promise.resolve().then(() => (init_vouch(), vouch_exports));
+    const { registerProbeTool: registerProbeTool2, deregisterProbeTool: deregisterProbeTool2 } = await Promise.resolve().then(() => (init_selfimpulse(), selfimpulse_exports));
     registerProbeTool2("web_search", {
       name: "web_search",
       risky: false,
@@ -30520,16 +30520,16 @@ describe3("hardening1713 \u2014 PolicyGateway, tool schemas, AG-UI emitter", () 
       }
     });
     try {
-      const r = await runVouchToolCall2("web_search", { query: "  audit me  " }, { blockOnGate: false });
+      const r = await runSelfImpulseToolCall2("web_search", { query: "  audit me  " }, { blockOnGate: false });
       assert2.strictEqual(r.ok, true);
       assert2.strictEqual(calls, 1);
       assert2.strictEqual(lastArgs?.query, "audit me", "tool got repaired args");
-      const sess = vouchSession2();
+      const sess = selfimpulseSession2();
       const last = sess.receipts[sess.receipts.length - 1];
       const retryEvt = last.receipt.events.find((e) => e.kind === "tool.schema_retry");
-      const r2 = await runVouchToolCall2("web_search", {}, { blockOnGate: false });
+      const r2 = await runSelfImpulseToolCall2("web_search", {}, { blockOnGate: false });
       assert2.strictEqual(r2.ok, false);
-      const sess2 = vouchSession2();
+      const sess2 = selfimpulseSession2();
       const refEvt = sess2.receipts[sess2.receipts.length - 1].receipt.events.find(
         (e) => e.kind === "tool.schema_refused"
       );

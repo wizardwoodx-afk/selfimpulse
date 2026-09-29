@@ -4,7 +4,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-// src/vh19/authority.ts
+// src/engine/authority.ts
 import { createHash, createHmac } from "node:crypto";
 var sha256 = (t) => createHash("sha256").update(t).digest("hex");
 var hmac = (secret, t) => createHmac("sha256", secret).update(t).digest("hex");
@@ -119,7 +119,7 @@ var verifyAuthorityBinding = (binding, receiptDigest, hopDigest) => {
   return want === binding.digest && binding.receiptDigest === receiptDigest;
 };
 
-// src/vh19/authorityCore.ts
+// src/engine/authorityCore.ts
 var mandateCanonical2 = (m) => JSON.stringify({
   v: "vh.mandate.v1",
   agentId: m.agentId,
@@ -142,7 +142,7 @@ function b64ToBytes(b64) {
   return out;
 }
 
-// src/vh19/authorityWeb.ts
+// src/engine/authorityWeb.ts
 var EC = { name: "ECDSA", namedCurve: "P-256" };
 async function generateOwnerKeysWeb() {
   const pair = await crypto.subtle.generateKey(EC, true, ["sign", "verify"]);
@@ -198,7 +198,7 @@ async function verifyAuthorityBindingWeb(binding, receiptDigest, hopDigest, expe
   return true;
 }
 
-// src/vh19/pureHash.ts
+// src/engine/pureHash.ts
 var K = [
   1116352408,
   1899447441,
@@ -342,12 +342,12 @@ function pureHmacSha256(secret, text) {
   return toHex(sha256Bytes(new Uint8Array([...opad, ...sha256Bytes(inner)])));
 }
 
-// src/vh19/vouchMesh.ts
+// src/engine/selfimpulseMesh.ts
 var sha2562 = pureSha256;
 var hmac2 = pureHmacSha256;
 function registerPeer(p, now2 = Date.now()) {
   if (!p.endpoint.startsWith("https://")) {
-    return { refused: `peer ${p.peerId}: plain-http endpoint refused \u2014 VouchMesh is TLS-by-default` };
+    return { refused: `peer ${p.peerId}: plain-http endpoint refused \u2014 SelfImpulseMesh is TLS-by-default` };
   }
   const identityDigest = sha2562(JSON.stringify({ v: "vh.mesh.identity.v1", peerId: p.peerId, instanceOf: p.instanceOf, endpoint: p.endpoint }));
   return { ...p, registeredAt: now2, identityDigest };
@@ -360,7 +360,7 @@ function attest(peerSecret, attester, subject, trustGrant, now2 = Date.now()) {
 function openChannel(a, b) {
   if (a.attester === b.attester) return { refused: "a channel needs two different peers \u2014 self-attestation is not trust" };
   if (a.subject !== b.attester || b.subject !== a.attester) {
-    return { refused: "attestations do not cross-reference \u2014 each peer must vouch for the other" };
+    return { refused: "attestations do not cross-reference \u2014 each peer must selfimpulse for the other" };
   }
   return { a: a.attester, b: b.attester, attestationAtoB: a, attestationBtoA: b, channelDigest: sha2562(a.digest + "|" + b.digest) };
 }
@@ -401,14 +401,14 @@ function recordJointOutcome(ledger, a, b, outcome) {
 function quarantinePeer(peerId, reason, now2 = Date.now()) {
   return { peerId, reason, at: now2, digest: sha2562(`vh.mesh.quarantine.v1:${peerId}:${reason}:${now2}`) };
 }
-var meshStanding = (t) => !t ? "unknown" : t.trust < 3 ? "probation" : t.trust < 10 ? "vouched" : "proven";
+var meshStanding = (t) => !t ? "unknown" : t.trust < 3 ? "probation" : t.trust < 10 ? "selfimpulseed" : "proven";
 
 // probe/authority.test.ts
 var now = 18e11;
 var SECRET_OWNER = "owner-secret";
-test("authority + vouchmesh", async (t) => {
+test("authority + selfimpulsemesh", async (t) => {
   const mandate = signMandate({
-    agentId: "vh-agent-1",
+    agentId: "si-agent-1",
     owner: "sree",
     scope: ["fs.read", "net.fetch"],
     budgetCap: 100,
@@ -444,7 +444,7 @@ test("authority + vouchmesh", async (t) => {
   });
   const root = { mandate, spent: 0, depth: 0 };
   await t.test("a contained delegation succeeds and links the chain", () => {
-    const d = delegateAuthority(root, "vh-agent-2", ["fs.read"], 40, null);
+    const d = delegateAuthority(root, "si-agent-2", ["fs.read"], 40, null);
     assert.equal(d.ok, true);
     if (d.ok) {
       assert.equal(d.hop.depth, 1);
@@ -452,12 +452,12 @@ test("authority + vouchmesh", async (t) => {
     }
   });
   await t.test("scope inflation is refused \u2014 authority only shrinks", () => {
-    const d = delegateAuthority(root, "vh-agent-2", ["fs.read", "fs.write"], 10, null);
+    const d = delegateAuthority(root, "si-agent-2", ["fs.read", "fs.write"], 10, null);
     assert.equal(d.ok, false);
     if (!d.ok) assert.equal(d.reason, "scope-inflation");
   });
   await t.test("budget inflation is refused", () => {
-    const d = delegateAuthority(root, "vh-agent-2", ["fs.read"], 150, null);
+    const d = delegateAuthority(root, "si-agent-2", ["fs.read"], 150, null);
     assert.equal(d.ok, false);
     if (!d.ok) assert.equal(d.reason, "budget-inflation");
   });
@@ -522,10 +522,10 @@ test("authority + vouchmesh", async (t) => {
     assert.equal(r.gateDecision, "refused");
   });
   await t.test("the warranty pack seals deterministically", () => {
-    const w1 = buildWarrantyPack("vh-agent-1", { from: now, to: now + 864e5 }, { missionsCompleted: 12, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
-    const w2 = buildWarrantyPack("vh-agent-1", { from: now, to: now + 864e5 }, { missionsCompleted: 12, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
+    const w1 = buildWarrantyPack("si-agent-1", { from: now, to: now + 864e5 }, { missionsCompleted: 12, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
+    const w2 = buildWarrantyPack("si-agent-1", { from: now, to: now + 864e5 }, { missionsCompleted: 12, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
     assert.equal(w1.seal, w2.seal);
-    const w3 = buildWarrantyPack("vh-agent-1", { from: now, to: now + 864e5 }, { missionsCompleted: 13, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
+    const w3 = buildWarrantyPack("si-agent-1", { from: now, to: now + 864e5 }, { missionsCompleted: 13, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
     assert.notEqual(w1.seal, w3.seal);
   });
   await t.test("the liability map names the owner first, then every hop", () => {
@@ -600,7 +600,7 @@ test("authority + vouchmesh", async (t) => {
   });
   const keys = await generateOwnerKeysWeb();
   const asymMandate = await signMandateWeb({
-    agentId: "vh-agent-9",
+    agentId: "si-agent-9",
     owner: "sree",
     scope: ["pc.exec", "pc.browser"],
     budgetCap: 50,

@@ -11,7 +11,7 @@
  *     structured skill (frameworks, decision rules, patterns, failure modes)
  *     by a deterministic MECHANICAL extractor, optionally enhanced by an LLM
  *     pass that runs through VH's OWN installed harness CLIs (claude, codex,
- *     opencode, …) — same local-first boundary as seats: no VH-side API
+ *     opencode, …) — same local-first boundary as seats: no SI-side API
  *     keys and no VH network layer. The harness CLI's OWN provider terms
  *     govern where its prompts go (cloud provider, or a local model the
  *     user configured) — see DATA HANDLING below.
@@ -71,7 +71,7 @@
 import { uid } from "../app/id";
 import { loadSkills, mergeProposals, saveSkills, type SkillProposal } from "./skillEvolution";
 
-export const KNOWLEDGE_TOOL = "vh-knowledge-forge/mechanical-v1";
+export const KNOWLEDGE_TOOL = "si-knowledge-forge/mechanical-v1";
 const LS_KEY = "vh.knowledgeSkills.v1";
 
 export interface KnowledgeProvenance {

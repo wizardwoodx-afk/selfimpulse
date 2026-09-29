@@ -1,12 +1,12 @@
 /**
- * VH AUTHORITY + VOUCHMESH — 19.5.0 "Authority" probe pin.
+ * VH AUTHORITY + SELFIMPULSEMESH — 19.5.0 "Authority" probe pin.
  *
  * Pins the mechanics, not the marketing:
  *   · Mandate Passport — forged/expired/ownerless mandates are refusals
  *   · Chain of Authority — scope & budget can ONLY shrink; depth is capped
  *   · Intent Receipts — declared-vs-executed divergence is measured
  *   · Warranty Pack — sealed, deterministic
- *   · VouchMesh — no self-attestation, outsiders can't co-sign,
+ *   · SelfImpulseMesh — no self-attestation, outsiders can't co-sign,
  *     trust compounds bilaterally, quarantine is receipted
  */
 import { test } from "node:test";
@@ -16,20 +16,20 @@ import {
   signMandate, verifyMandate, delegateAuthority, verifyChain, remainingBudget,
   declareIntent, gateIntent, buildWarrantyPack, liabilityMap,
   bindAuthorityToReceipt, verifyAuthorityBinding,
-} from "../src/vh19/authority";
-import { generateOwnerKeysWeb, signMandateWeb, verifyMandateWeb, bindAuthorityToReceiptWeb, verifyAuthorityBindingWeb } from "../src/vh19/authorityWeb";
+} from "../src/engine/authority";
+import { generateOwnerKeysWeb, signMandateWeb, verifyMandateWeb, bindAuthorityToReceiptWeb, verifyAuthorityBindingWeb } from "../src/engine/authorityWeb";
 import {
   registerPeer, attest, openChannel, buildJointReceipt, coSign, isFullyCoSigned,
   recordJointOutcome, pairKey, quarantinePeer, meshStanding,
-} from "../src/vh19/vouchMesh";
+} from "../src/engine/selfimpulseMesh";
 
 const now = 1_800_000_000_000;
 const SECRET_OWNER = "owner-secret";
 
-test("authority + vouchmesh", async (t) => {
+test("authority + selfimpulsemesh", async (t) => {
   // ── mandate passport ──────────────────────────────────────────────────────
   const mandate = signMandate({
-    agentId: "vh-agent-1", owner: "sree", scope: ["fs.read", "net.fetch"], budgetCap: 100, maxDepth: 2,
+    agentId: "si-agent-1", owner: "sree", scope: ["fs.read", "net.fetch"], budgetCap: 100, maxDepth: 2,
     issuedAt: now, expiresAt: now + 3_600_000,
   }, SECRET_OWNER);
 
@@ -63,17 +63,17 @@ test("authority + vouchmesh", async (t) => {
   // ── chain of authority ────────────────────────────────────────────────────
   const root = { mandate, spent: 0, depth: 0 };
   await t.test("a contained delegation succeeds and links the chain", () => {
-    const d = delegateAuthority(root, "vh-agent-2", ["fs.read"], 40, null);
+    const d = delegateAuthority(root, "si-agent-2", ["fs.read"], 40, null);
     assert.equal(d.ok, true);
     if (d.ok) { assert.equal(d.hop.depth, 1); assert.ok(d.hop.digest); }
   });
   await t.test("scope inflation is refused — authority only shrinks", () => {
-    const d = delegateAuthority(root, "vh-agent-2", ["fs.read", "fs.write"], 10, null);
+    const d = delegateAuthority(root, "si-agent-2", ["fs.read", "fs.write"], 10, null);
     assert.equal(d.ok, false);
     if (!d.ok) assert.equal(d.reason, "scope-inflation");
   });
   await t.test("budget inflation is refused", () => {
-    const d = delegateAuthority(root, "vh-agent-2", ["fs.read"], 150, null);
+    const d = delegateAuthority(root, "si-agent-2", ["fs.read"], 150, null);
     assert.equal(d.ok, false);
     if (!d.ok) assert.equal(d.reason, "budget-inflation");
   });
@@ -142,10 +142,10 @@ test("authority + vouchmesh", async (t) => {
 
   // ── warranty pack + liability ─────────────────────────────────────────────
   await t.test("the warranty pack seals deterministically", () => {
-    const w1 = buildWarrantyPack("vh-agent-1", { from: now, to: now + 86_400_000 }, { missionsCompleted: 12, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
-    const w2 = buildWarrantyPack("vh-agent-1", { from: now, to: now + 86_400_000 }, { missionsCompleted: 12, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
+    const w1 = buildWarrantyPack("si-agent-1", { from: now, to: now + 86_400_000 }, { missionsCompleted: 12, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
+    const w2 = buildWarrantyPack("si-agent-1", { from: now, to: now + 86_400_000 }, { missionsCompleted: 12, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
     assert.equal(w1.seal, w2.seal);
-    const w3 = buildWarrantyPack("vh-agent-1", { from: now, to: now + 86_400_000 }, { missionsCompleted: 13, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
+    const w3 = buildWarrantyPack("si-agent-1", { from: now, to: now + 86_400_000 }, { missionsCompleted: 13, gateApprovals: 40, gateRefusals: 3, intentConvergenceRate: 0.97, policyViolations: 0, chainDepthMax: 2 }, SECRET_OWNER);
     assert.notEqual(w1.seal, w3.seal);
   });
   await t.test("the liability map names the owner first, then every hop", () => {
@@ -159,7 +159,7 @@ test("authority + vouchmesh", async (t) => {
     }
   });
 
-  // ── VOUCHMESH ─────────────────────────────────────────────────────────────
+  // ── SELFIMPULSEMESH ─────────────────────────────────────────────────────────────
   const peerA = registerPeer({ peerId: "bot-a", instanceOf: "org-alpha", capabilities: ["research", "writing"], endpoint: "https://a.example.com" }, now);
   const peerB = registerPeer({ peerId: "bot-b", instanceOf: "org-beta", capabilities: ["code", "testing"], endpoint: "https://b.example.com" }, now);
   const peerHttp = registerPeer({ peerId: "bot-c", instanceOf: "org-gamma", capabilities: [], endpoint: "http://c.example.com" }, now);
@@ -227,7 +227,7 @@ test("authority + vouchmesh", async (t) => {
   // ── asymmetric mandates — the portable trust root (WebCrypto, live path) ──
   const keys = await generateOwnerKeysWeb();
   const asymMandate = await signMandateWeb({
-    agentId: "vh-agent-9", owner: "sree", scope: ["pc.exec", "pc.browser"], budgetCap: 50, maxDepth: 1,
+    agentId: "si-agent-9", owner: "sree", scope: ["pc.exec", "pc.browser"], budgetCap: 50, maxDepth: 1,
     issuedAt: now, expiresAt: now + 3_600_000,
   }, keys);
 

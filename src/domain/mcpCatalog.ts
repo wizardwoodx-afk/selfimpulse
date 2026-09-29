@@ -4,7 +4,7 @@
  * vendor/mcp-servers-reference/src/{filesystem,git,memory,sequentialthinking,time}
  * vendor/mcp-github
  *
- * Control MCP is the only 11Handle-authored server. Mutations are Plan → Apply → Verify.
+ * Control MCP is the only SelfImpulse-authored server. Mutations are Plan → Apply → Verify.
  * Transport is stdio. No HTTP 127.0.0.1 sidecar.
  */
 
@@ -14,12 +14,12 @@ export interface VendoredMcpSpec {
   id: string;
   name: string;
   vendorPath: string;
-  kind: "typescript" | "python" | "go" | "vouch";
+  kind: "typescript" | "python" | "go" | "selfimpulse";
   command: string;
   args: string[];
   description: string;
   pinned: boolean;
-  authoredByVouch: boolean;
+  authoredBySelfImpulse: boolean;
 }
 
 export const VENDORED_MCP_SERVERS: VendoredMcpSpec[] = [
@@ -32,7 +32,7 @@ export const VENDORED_MCP_SERVERS: VendoredMcpSpec[] = [
     args: ["-y", "tsx", "vendor/mcp-servers-reference/src/filesystem/index.ts"],
     description: "Official MCP filesystem server (read/write inside the workspace root).",
     pinned: true,
-    authoredByVouch: false,
+    authoredBySelfImpulse: false,
   },
   {
     id: "mcp.git",
@@ -43,7 +43,7 @@ export const VENDORED_MCP_SERVERS: VendoredMcpSpec[] = [
     args: ["-m", "mcp_server_git"],
     description: "Official MCP git server.",
     pinned: true,
-    authoredByVouch: false,
+    authoredBySelfImpulse: false,
   },
   {
     id: "mcp.memory",
@@ -54,7 +54,7 @@ export const VENDORED_MCP_SERVERS: VendoredMcpSpec[] = [
     args: ["-y", "tsx", "vendor/mcp-servers-reference/src/memory/index.ts"],
     description: "Official MCP knowledge-graph memory server.",
     pinned: true,
-    authoredByVouch: false,
+    authoredBySelfImpulse: false,
   },
   {
     id: "mcp.sequential-thinking",
@@ -65,7 +65,7 @@ export const VENDORED_MCP_SERVERS: VendoredMcpSpec[] = [
     args: ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"],
     description: "Official MCP sequential-thinking server.",
     pinned: true,
-    authoredByVouch: false,
+    authoredBySelfImpulse: false,
   },
   {
     id: "mcp.time",
@@ -76,7 +76,7 @@ export const VENDORED_MCP_SERVERS: VendoredMcpSpec[] = [
     args: ["-m", "mcp_server_time"],
     description: "Official MCP time server.",
     pinned: true,
-    authoredByVouch: false,
+    authoredBySelfImpulse: false,
   },
   {
     id: "mcp.github",
@@ -87,18 +87,18 @@ export const VENDORED_MCP_SERVERS: VendoredMcpSpec[] = [
     args: ["stdio"],
     description: "Official GitHub MCP server (stdio).",
     pinned: true,
-    authoredByVouch: false,
+    authoredBySelfImpulse: false,
   },
   {
     id: "mcp.control",
     name: "Control MCP",
     vendorPath: "src-tauri/src/control_mcp.rs",
-    kind: "vouch",
-    command: "vh-control-mcp",
+    kind: "selfimpulse",
+    command: "si-control-mcp",
     args: ["stdio"],
-    description: "11Handle-authored Control MCP. Graph mutations are Plan → Apply → Verify. Stdio only.",
+    description: "SelfImpulse-authored Control MCP. Graph mutations are Plan → Apply → Verify. Stdio only.",
     pinned: true,
-    authoredByVouch: true,
+    authoredBySelfImpulse: true,
   },
 ];
 

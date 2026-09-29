@@ -96,7 +96,7 @@ pub fn run() {
                 }
             }
 
-            let quit = tauri::menu::MenuItem::with_id(app, "quit", "Quit 11Handle", true, None::<&str>)?;
+            let quit = tauri::menu::MenuItem::with_id(app, "quit", "Quit SelfImpulse", true, None::<&str>)?;
             let show = tauri::menu::MenuItem::with_id(app, "show", "Show window", true, None::<&str>)?;
             let run = tauri::menu::MenuItem::with_id(app, "run", "Run active workflow", true, None::<&str>)?;
             let menu = tauri::menu::Menu::with_items(app, &[&show, &run, &quit])?;
@@ -233,7 +233,7 @@ pub fn run() {
             git::git_read_only_check,
         ])
         .build(tauri::generate_context!())
-        .expect("error while building 11Handle")
+        .expect("error while building SelfImpulse")
         .run(|_app, event| {
             // A federation listener that outlives the app it belongs to is the
             // failure this module exists to prevent: a peer would keep reaching a

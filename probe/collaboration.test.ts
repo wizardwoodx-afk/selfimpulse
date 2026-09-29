@@ -45,7 +45,7 @@ console.log("\n== 1. worktree isolation ==\n");
   ok(readers.length === balanced.seats.length - 1, "everyone read-only shares the base checkout");
   ok(writers[0].branch === "vh/rate-limiter/impl", `the branch is namespaced by mission and seat, got ${writers[0].branch}`);
   ok(!writers[0].path.startsWith("/repo/app/"), `the worktree is a SIBLING of the repo, not inside it, got ${writers[0].path}`);
-  ok(writers[0].path.startsWith("/repo/app-vh-"), `sibling path is ${writers[0].path}`);
+  ok(writers[0].path.startsWith("/repo/app-si-"), `sibling path is ${writers[0].path}`);
   ok(readers.every((r) => r.path === "/repo/app"), "read-only seats point at the real repo, so they review what is actually there");
   ok(/review a tree nobody is writing to/.test(readers[0].reason), "and the reason explains why they are not isolated");
 
@@ -284,7 +284,7 @@ console.log("\n== 9. a REPEATED mission gets its own worktree (the collision bug
   ok("the path still names the mission, so an operator can tell them apart",
     writerPath(second).includes("mission-two") && reviewPath(second).includes("mission-two"));
   ok("the path is still a sibling of the repo, never inside it",
-    writerPath(second).startsWith("/repo/app-vh-") && !writerPath(second).startsWith("/repo/app/"));
+    writerPath(second).startsWith("/repo/app-si-") && !writerPath(second).startsWith("/repo/app/"));
   ok("the BRANCH was always mission-scoped, and still is",
     first.find((p) => !p.shared)!.branch.startsWith("vh/mission-one/")
     && second.find((p) => !p.shared)!.branch.startsWith("vh/mission-two/"));

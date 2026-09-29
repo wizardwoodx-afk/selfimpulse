@@ -28,10 +28,10 @@ class MemStore implements Storage {
 }
 (globalThis as { localStorage?: Storage }).localStorage = new MemStore();
 
-const market = await import("../src/vh19/mcpMarket");
-const rt = await import("../src/vh19/mcpRuntime");
-const tools = await import("../src/vh19/tools");
-const { memberToolIds } = await import("../src/vh19/agentLoop");
+const market = await import("../src/engine/mcpMarket");
+const rt = await import("../src/engine/mcpRuntime");
+const tools = await import("../src/engine/tools");
+const { memberToolIds } = await import("../src/engine/agentLoop");
 
 console.log("== the surface: enabled market servers become tool surface ==");
 market.clearMarket();

@@ -224,7 +224,7 @@ export async function executeMergePlan(input: MergeExecutorInput): Promise<Merge
 /* ------------------------------------------------------------------ */
 
 export interface MergeAttestation {
-  format: "vh-merge-attestation/1";
+  format: "si-merge-attestation/1";
   issuedAt: string;
   mjVersion: string;
   baseBranch: string;
@@ -270,7 +270,7 @@ export function mergeAttestationPayload(a: MergeAttestation): Record<string, unk
  */
 export async function buildMergeAttestation(result: MergeExecutionResult, mjVersion: string): Promise<MergeAttestation> {
   const att: MergeAttestation = {
-    format: "vh-merge-attestation/1",
+    format: "si-merge-attestation/1",
     issuedAt: new Date().toISOString(),
     mjVersion,
     baseBranch: result.baseBranch,
@@ -299,7 +299,7 @@ export async function buildMergeAttestation(result: MergeExecutionResult, mjVers
 
 /** Auditor path: re-canonicalize, re-hash, verify Ed25519 with the embedded public key. */
 export async function verifyMergeAttestation(att: MergeAttestation): Promise<{ ok: true } | { ok: false; reason: string }> {
-  if (att.format !== "vh-merge-attestation/1" && att.format !== "mj-merge-attestation/1") return { ok: false, reason: `unknown attestation format: ${String(att.format)}` };
+  if (att.format !== "si-merge-attestation/1" && att.format !== "mj-merge-attestation/1") return { ok: false, reason: `unknown attestation format: ${String(att.format)}` };
   // "mj-merge-attestation/1" = pre-16.1 legacy attestation; older ones stay verifiable.
   if (!att.signature) return { ok: false, reason: att.signatureNote ?? "attestation is unsigned" };
   if (!att.issuer?.publicKeyHex) return { ok: false, reason: "attestation is signed but carries no issuer public key" };

@@ -154,7 +154,7 @@ function currentAuthority(args) {
 }
 
 // probe/earnedAuthority.test.ts
-var ROOT = process.env.HANDLE_ROOT ?? process.cwd();
+var ROOT = process.env.SI_ROOT ?? process.cwd();
 var passed = 0;
 var failed = 0;
 var failures = [];

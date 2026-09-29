@@ -11,7 +11,7 @@
  *     receipt.jsonl + anchor-envelope.json + signer-public.json
  *     into the transport dir.
  *
- *   MACHINE B  (a spawned `node tools/vh-interop.mjs` process — the pure-JS
+ *   MACHINE B  (a spawned `node tools/si-interop.mjs` process — the pure-JS
  *     external-agent CLI, fresh process, its own rulebook copy)
  *     verifies the receipt, verifies the envelope against A's public key,
  *     and runs replay protection.
@@ -22,7 +22,7 @@
  *   • a receipt JSONL exported by the engine verifies under the CLI;
  *   • transport-tampered envelopes and receipts are refused IN WORDS
  *     (exit code 1 + reason on stderr);
- *   • the same envelope presented twice to the same harbor is refused
+ *   • the same envelope presented twice to the same selfimpulse is refused
  *     as replayed.
  */
 import { describe, it } from "node:test";
@@ -32,25 +32,25 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-import { buildChainedReceipt, receiptToJsonl } from "../src/vouch/engine/proof";
+import { buildChainedReceipt, receiptToJsonl } from "../src/selfimpulse/engine/proof";
 import {
-  loadOrCreateCrossHarborIdentity, anchorReceipt,
-  type CrossHarborStore,
-} from "../src/vouch/engine/crossHarbor";
+  loadOrCreateCrossSelfImpulseIdentity, anchorReceipt,
+  type CrossSelfImpulseStore,
+} from "../src/selfimpulse/engine/crossSelfImpulse";
 
 /**
- * HANDLE_ROOT is injected by esbuild at build time (absolute path for the dev
+ * SI_ROOT is injected by esbuild at build time (absolute path for the dev
  * runner, "." for the offline pack — verify/run.mjs sets cwd to the tree
  * root). import.meta.url cannot be used: the packed bundle lives one level
  * deeper (verify/suites/) than the dev bundle (probe/).
  */
-declare const HANDLE_ROOT: string | undefined;
-const root = typeof HANDLE_ROOT === "string" && HANDLE_ROOT.length > 0
-  ? path.resolve(HANDLE_ROOT)
+declare const SI_ROOT: string | undefined;
+const root = typeof SI_ROOT === "string" && SI_ROOT.length > 0
+  ? path.resolve(SI_ROOT)
   : path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const cli = path.join(root, "tools", "vh-interop.mjs");
+const cli = path.join(root, "tools", "si-interop.mjs");
 
-function memStore(): CrossHarborStore & { map: Map<string, string> } {
+function memStore(): CrossSelfImpulseStore & { map: Map<string, string> } {
   const map = new Map<string, string>();
   return { map, get: (k) => map.get(k) ?? null, set: (k, v) => { map.set(k, v); } };
 }
@@ -73,10 +73,10 @@ function runCli(args: string[]): { code: number; stdout: string; stderr: string 
 
 describe("interop — two machines, one trust chain (17.6.2)", () => {
   it("machine A (TS runtime) → transport files → machine B (JS CLI): the whole chain verifies", async () => {
-    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "vh-interop-"));
+    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "si-interop-"));
 
     // ── MACHINE A: the Patina runtime seals and anchors a real receipt ──
-    const idA = await loadOrCreateCrossHarborIdentity(memStore(), "machine-a");
+    const idA = await loadOrCreateCrossSelfImpulseIdentity(memStore(), "machine-a");
     assert.equal(idA.ok, true);
     if (!idA.ok) return;
 
@@ -119,8 +119,8 @@ describe("interop — two machines, one trust chain (17.6.2)", () => {
   });
 
   it("replay at machine B: the same envelope is ONE-TIME evidence", async () => {
-    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "vh-interop-"));
-    const idA = await loadOrCreateCrossHarborIdentity(memStore(), "machine-a");
+    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "si-interop-"));
+    const idA = await loadOrCreateCrossSelfImpulseIdentity(memStore(), "machine-a");
     if (!idA.ok) throw new Error("identity");
     const rc = await buildChainedReceipt({
       mission: "replay-mission", teamId: "t", startedAt: new Date().toISOString(),
@@ -141,8 +141,8 @@ describe("interop — two machines, one trust chain (17.6.2)", () => {
   });
 
   it("transport tampering is refused IN WORDS at machine B", async () => {
-    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "vh-interop-"));
-    const idA = await loadOrCreateCrossHarborIdentity(memStore(), "machine-a");
+    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "si-interop-"));
+    const idA = await loadOrCreateCrossSelfImpulseIdentity(memStore(), "machine-a");
     if (!idA.ok) throw new Error("identity");
     const rc = await buildChainedReceipt({
       mission: "tamper-mission", teamId: "t", startedAt: new Date().toISOString(),
@@ -163,7 +163,7 @@ describe("interop — two machines, one trust chain (17.6.2)", () => {
   });
 
   it("a tampered receipt in transit is refused by machine B's rulebook", async () => {
-    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "vh-interop-"));
+    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "si-interop-"));
     const rc = await buildChainedReceipt({
       mission: "receipt-tamper", teamId: "t", startedAt: new Date().toISOString(),
       finishedAt: new Date().toISOString(), version: "17.6.2", edition: "interop",
@@ -183,8 +183,8 @@ describe("interop — two machines, one trust chain (17.6.2)", () => {
   });
 
   it("the transport-pack command ships the machine boundary as files", async () => {
-    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "vh-interop-"));
-    const idA = await loadOrCreateCrossHarborIdentity(memStore(), "packer");
+    const transport = fs.mkdtempSync(path.join(os.tmpdir(), "si-interop-"));
+    const idA = await loadOrCreateCrossSelfImpulseIdentity(memStore(), "packer");
     if (!idA.ok) throw new Error("identity");
     const rc = await buildChainedReceipt({
       mission: "pack-mission", teamId: "t", startedAt: new Date().toISOString(),

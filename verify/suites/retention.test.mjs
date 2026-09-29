@@ -301,8 +301,8 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
@@ -367,7 +367,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -397,7 +397,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY = "vouch.v3.db";
+    KEY = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -936,7 +936,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -966,7 +966,7 @@ var init_client = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -985,7 +985,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -1008,7 +1008,7 @@ var init_client = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -1031,7 +1031,7 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -1459,10 +1459,10 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 
 // src/mission/licensing.ts
-var VERIFY_SECRET = "vh-commercial-v1-offline";
+var VERIFY_SECRET = "si-commercial-v1-offline";
 var LEGACY_SEAL_SECRET = "mj-commercial-v1-offline";
 var SEAL_SECRET_BY_FORMAT = {
-  "vh-proof-receipt/2": VERIFY_SECRET,
+  "si-proof-receipt/2": VERIFY_SECRET,
   "mj-proof-receipt/2": LEGACY_SEAL_SECRET,
   "mj-proof-receipt/1": LEGACY_SEAL_SECRET
 };
@@ -1524,7 +1524,7 @@ async function ensureIssuerIdentity() {
       if (stored?.publicKeyHex && stored?.privateJwk) {
         const privateKey = await crypto.subtle.importKey("jwk", stored.privateJwk, { name: "Ed25519" }, true, ["sign"]);
         const identity = {
-          keyId: `vh-issuer-${stored.publicKeyHex.slice(0, 12)}`,
+          keyId: `si-issuer-${stored.publicKeyHex.slice(0, 12)}`,
           publicKeyHex: stored.publicKeyHex,
           createdAt: stored.createdAt ?? (/* @__PURE__ */ new Date(0)).toISOString()
         };
@@ -1539,7 +1539,7 @@ async function ensureIssuerIdentity() {
     const rawPub = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
     const publicKeyHex = toHex(rawPub);
     const identity = {
-      keyId: `vh-issuer-${publicKeyHex.slice(0, 12)}`,
+      keyId: `si-issuer-${publicKeyHex.slice(0, 12)}`,
       publicKeyHex,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -1700,7 +1700,7 @@ async function buildProofReceipt(args) {
   const sig = await signChainHash(prev);
   if (sig) {
     return {
-      format: "vh-proof-receipt/2",
+      format: "si-proof-receipt/2",
       header,
       events,
       seal,
@@ -1709,7 +1709,7 @@ async function buildProofReceipt(args) {
     };
   }
   return {
-    format: "vh-proof-receipt/2",
+    format: "si-proof-receipt/2",
     header,
     events,
     seal,
@@ -1719,7 +1719,7 @@ async function buildProofReceipt(args) {
   };
 }
 async function verifyProofReceipt(rc) {
-  if (rc.format !== "vh-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
+  if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
   let prev = "0".repeat(64);
   for (const e of rc.events) {
     if (e.prev !== prev) return { ok: false, reason: `chain broken at seq ${e.seq}` };
@@ -1731,7 +1731,7 @@ async function verifyProofReceipt(rc) {
   const sealSecret = SEAL_SECRET_BY_FORMAT[rc.format] ?? VERIFY_SECRET;
   const seal = await hmacHex(prev, sealSecret);
   if (seal !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "vh-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok = await verifyIssuerSignature(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
@@ -1973,13 +1973,13 @@ function buildAibom(args) {
   }
   const entries = [...byComponent.values()].sort((a, b) => a.component.localeCompare(b.component));
   return {
-    format: "vh-aibom/1",
+    format: "si-aibom/1",
     generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
     mjVersion: args.mjVersion,
     receiptsScanned: args.records.length,
     entries,
-    declarationSource: "11Handle Role Board \u2014 the harnesses the user declared as owned (approved); observed-but-undeclared components are marked not-declared.",
-    disclaimer: "Generated from proof receipts on this machine. Versions are not claimed because 11Handle does not measure them. Approval status reflects the user's own declaration, not any 11Handle judgment. This is an evidence inventory, not a certification."
+    declarationSource: "SelfImpulse Role Board \u2014 the harnesses the user declared as owned (approved); observed-but-undeclared components are marked not-declared.",
+    disclaimer: "Generated from proof receipts on this machine. Versions are not claimed because SelfImpulse does not measure them. Approval status reflects the user's own declaration, not any SelfImpulse judgment. This is an evidence inventory, not a certification."
   };
 }
 
@@ -1994,7 +1994,7 @@ var EVIDENCE_CONTROL_MAPPINGS = [
   {
     control: "EU AI Act \u2014 Art. 13 (transparency to deployers)",
     whatItAsksFor: "Instructions and capability information so deployers can interpret outputs.",
-    whatVhProvides: "The one-pager and this pack's manifest: what 11Handle records, how it is verified externally, and what VH does not claim.",
+    whatVhProvides: "The one-pager and this pack's manifest: what SelfImpulse records, how it is verified externally, and what VH does not claim.",
     artifact: "onePager, manifest"
   },
   {
@@ -2024,7 +2024,7 @@ var EVIDENCE_CONTROL_MAPPINGS = [
   {
     control: "NIST SP 800-218A / SLSA v1.2 (AI code provenance gap)",
     whatItAsksFor: "Provenance distinguishing AI-authored from human-authored source, captured in the layer that runs the agent \u2014 a category the current standards do not yet define.",
-    whatVhProvides: "vh-provenance-statement/1: in-toto-shaped statements with a 11Handle predicate (builder, materials, verification, merge), signed with the issuer key \u2014 plus the AIBOM inventory of every AI component observed in receipts.",
+    whatVhProvides: "si-provenance-statement/1: in-toto-shaped statements with a SelfImpulse predicate (builder, materials, verification, merge), signed with the issuer key \u2014 plus the AIBOM inventory of every AI component observed in receipts.",
     artifact: "provenanceStatements[], aibom"
   }
 ];
@@ -2054,7 +2054,7 @@ async function buildEvidencePack(args) {
   const aibom = buildAibom({ records, ownedHarnesses: args.ownedHarnesses, mjVersion: args.mjVersion });
   const issuerDoc = await exportIssuerPublicKeyDocument(args.mjVersion);
   return {
-    format: "vh-evidence-pack/1",
+    format: "si-evidence-pack/1",
     generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
     mjVersion: args.mjVersion,
     manifest: {
@@ -2075,7 +2075,7 @@ async function buildEvidencePack(args) {
     onePager: args.vault.onePager({ mjVersion: args.mjVersion, edition: args.edition }),
     issuerPublicKeyDocument: issuerDoc,
     controlMappings: EVIDENCE_CONTROL_MAPPINGS,
-    disclaimer: "This pack is machine-verifiable evidence produced by VH on the user's own machine. The control mappings are a convenience crosswalk prepared by the VH project to help reviewers locate relevant artifacts; they are NOT a legal opinion, NOT an audit, and NOT a claim that VH or its outputs satisfy any regulation or standard. VH is not 'EU AI Act compliant' and is not a compliance product \u2014 it is a logging, provenance and evidence mechanism that can SUPPORT compliance work; applicability of any regulation depends on the system and use case. The enclosed provenance statements are VH-specific provenance (vh-provenance-statement/1), shaped on in-toto conventions \u2014 they are NOT SLSA certification. Verification of the enclosed receipts requires no VH software \u2014 see the one-pager's external-verification steps."
+    disclaimer: "This pack is machine-verifiable evidence produced by VH on the user's own machine. The control mappings are a convenience crosswalk prepared by the VH project to help reviewers locate relevant artifacts; they are NOT a legal opinion, NOT an audit, and NOT a claim that VH or its outputs satisfy any regulation or standard. VH is not 'EU AI Act compliant' and is not a compliance product \u2014 it is a logging, provenance and evidence mechanism that can SUPPORT compliance work; applicability of any regulation depends on the system and use case. The enclosed provenance statements are SI-specific provenance (si-provenance-statement/1), shaped on in-toto conventions \u2014 they are NOT SLSA certification. Verification of the enclosed receipts requires no VH software \u2014 see the one-pager's external-verification steps."
   };
 }
 
@@ -2329,7 +2329,7 @@ function mergeAttestationPayload(a) {
 }
 async function buildMergeAttestation(result, mjVersion) {
   const att = {
-    format: "vh-merge-attestation/1",
+    format: "si-merge-attestation/1",
     issuedAt: (/* @__PURE__ */ new Date()).toISOString(),
     mjVersion,
     baseBranch: result.baseBranch,
@@ -2394,11 +2394,11 @@ async function buildProvenanceStatement(args) {
   }
   const st = {
     _type: "https://in-toto.io/Statement/v1",
-    format: "vh-provenance-statement/1",
+    format: "si-provenance-statement/1",
     subject: [{ name: args.merge.baseBranch, digest: { gitCommit: args.merge.mergeCommitSha } }],
     predicateType: MJ_PROVENANCE_PREDICATE_TYPE,
     predicate: {
-      builder: { id: `11handle@${args.mjVersion}` },
+      builder: { id: `selfimpulse@${args.mjVersion}` },
       buildType: "vh.verified-team-run/v1",
       metadata: { mission: args.mission, teamId: args.teamId, mjVersion: args.mjVersion, issuedAt: (/* @__PURE__ */ new Date()).toISOString() },
       materials,

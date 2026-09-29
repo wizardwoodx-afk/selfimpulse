@@ -24,13 +24,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// HANDLE_ROOT is injected by the offline runner and the dev runner. When this
+// SI_ROOT is injected by the offline runner and the dev runner. When this
 // file is executed directly (npx tsx probe/...) it is undefined, so fall back
 // to the repository root inferred from this file's own location.
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root =
-  typeof HANDLE_ROOT === "string" && HANDLE_ROOT
-    ? HANDLE_ROOT
+  typeof SI_ROOT === "string" && SI_ROOT
+    ? SI_ROOT
     : path.resolve(here, "..");
 const read = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
 

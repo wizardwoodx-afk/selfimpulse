@@ -20549,7 +20549,7 @@ var init_guardrail = __esm({
   }
 });
 
-// src/vh19/mcpMarket.ts
+// src/engine/mcpMarket.ts
 var mcpMarket_exports = {};
 __export(mcpMarket_exports, {
   MCP_CATALOG: () => MCP_CATALOG,
@@ -20699,11 +20699,11 @@ function clearMarket() {
 }
 var REGISTRY_KEY, MCP_CATALOG, McpServerSchema, memRegistry;
 var init_mcpMarket = __esm({
-  "src/vh19/mcpMarket.ts"() {
+  "src/engine/mcpMarket.ts"() {
     "use strict";
     init_zod();
     init_guardrail();
-    REGISTRY_KEY = "vh19.mcpmarket.v1";
+    REGISTRY_KEY = "engine.mcpmarket.v1";
     MCP_CATALOG = [
       { id: "filesystem", name: "Filesystem", category: "workspace", description: "Read/write/search files under a rooted directory you name.", transport: "stdio", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "<ROOT>"] },
       { id: "git", name: "Git", category: "workspace", description: "Repo status, diffs, log and commits through MCP tools.", transport: "stdio", command: "uvx", args: ["mcp-server-git", "--repository", "<PATH>"] },
@@ -20735,7 +20735,7 @@ var init_mcpMarket = __esm({
   }
 });
 
-// src/vh19/mcpRuntime.ts
+// src/engine/mcpRuntime.ts
 var mcpRuntime_exports = {};
 __export(mcpRuntime_exports, {
   MCP_CALL_TIMEOUT_MS: () => MCP_CALL_TIMEOUT_MS,
@@ -20833,7 +20833,7 @@ function mcpRuntimeStats() {
 }
 var MCP_CALL_TIMEOUT_MS, MCP_OUTPUT_CAP;
 var init_mcpRuntime = __esm({
-  "src/vh19/mcpRuntime.ts"() {
+  "src/engine/mcpRuntime.ts"() {
     "use strict";
     init_guardrail();
     init_mcpMarket();
@@ -20842,7 +20842,7 @@ var init_mcpRuntime = __esm({
   }
 });
 
-// src/vh19/computerUse.ts
+// src/engine/computerUse.ts
 function pcExec(binary, args, policy, risk, opts = {}) {
   const started = Date.now();
   const refuse = (reason) => finalize2({
@@ -20909,7 +20909,7 @@ function finalize2(base) {
   return { ...base, digest: sha256(JSON.stringify(base)) };
 }
 function newProfile(missionId, name = "default") {
-  return { name, missionId, userAgent: `VH-Reach/19.5 (accountable-agent; mission ${missionId})`, viewport: { width: 1280, height: 800 }, cookiesAllowed: false };
+  return { name, missionId, userAgent: `SI-Reach/19.5 (accountable-agent; mission ${missionId})`, viewport: { width: 1280, height: 800 }, cookiesAllowed: false };
 }
 function missionBrowser(missionId, transport, binary, spawn) {
   let b = missionBrowsers.get(missionId);
@@ -20935,7 +20935,7 @@ function parseSnapshot(url2, status, html) {
 }
 var sha256, SHELL_META, missionBrowsers, DEFAULT_BROWSER_PATHS, fetchTransport, HeadlessBrowser;
 var init_computerUse = __esm({
-  "src/vh19/computerUse.ts"() {
+  "src/engine/computerUse.ts"() {
     "use strict";
     init_guardrail();
     sha256 = (t) => {
@@ -21066,7 +21066,7 @@ var init_computerUse = __esm({
   }
 });
 
-// src/vh19/tools.ts
+// src/engine/tools.ts
 var tools_exports = {};
 __export(tools_exports, {
   TOOLS: () => TOOLS,
@@ -21252,7 +21252,7 @@ async function execNetFetch(input2, ctx2) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await doFetch(url2, { signal: controller.signal, headers: { accept: "text/html,application/json;q=0.9,*/*;q=0.8", "user-agent": "11Handle/19.7 (+evidence-fetch)" } });
+    const res = await doFetch(url2, { signal: controller.signal, headers: { accept: "text/html,application/json;q=0.9,*/*;q=0.8", "user-agent": "SelfImpulse/19.7 (+evidence-fetch)" } });
     if (!res.ok) return { outcome: "error", output: `HTTP ${res.status} from ${url2}` };
     const text = (await res.text()).slice(0, MAX_FETCH_CHARS);
     return { outcome: "ok", output: text };
@@ -21379,13 +21379,13 @@ async function executeToolReceipted(toolId, input2, ctx2) {
   const latencyMs = Date.now() - t0;
   const receipt2 = { tool: getTool(toolId)?.id ?? toolId, inputCanonical, outcome, output: output2.slice(0, 2e3), latencyMs };
   if (ctx2.hash) {
-    receipt2.digest = await ctx2.hash(JSON.stringify({ v: "vh19-tool/1", tool: toolId, inputCanonical, outcome, output: receipt2.output }));
+    receipt2.digest = await ctx2.hash(JSON.stringify({ v: "engine-tool/1", tool: toolId, inputCanonical, outcome, output: receipt2.output }));
   }
   return receipt2;
 }
 var TOOLS, MAX_READ_BYTES, MAX_FETCH_CHARS, FETCH_TIMEOUT_MS, WIKI_ENDPOINT;
 var init_tools = __esm({
-  "src/vh19/tools.ts"() {
+  "src/engine/tools.ts"() {
     "use strict";
     init_guardrail();
     init_computerUse();
@@ -21406,7 +21406,7 @@ var init_tools = __esm({
   }
 });
 
-// src/vh19/tokenOptim.ts
+// src/engine/tokenOptim.ts
 function estimateTokens(text) {
   return Math.ceil(text.length / 4);
 }
@@ -21581,9 +21581,9 @@ function recordUsage(entry, now = () => /* @__PURE__ */ new Date()) {
 }
 var LEDGER_KEY, LEDGER_CAP, PROMPT_BUDGET, WIRE_BUDGET, EVENT_CAP, wireEvents, wireSeq, lastPrefix;
 var init_tokenOptim = __esm({
-  "src/vh19/tokenOptim.ts"() {
+  "src/engine/tokenOptim.ts"() {
     "use strict";
-    LEDGER_KEY = "vh19.tokens.v1";
+    LEDGER_KEY = "engine.tokens.v1";
     LEDGER_CAP = 500;
     PROMPT_BUDGET = 6e3;
     WIRE_BUDGET = 24e3;
@@ -21594,7 +21594,7 @@ var init_tokenOptim = __esm({
   }
 });
 
-// src/vh19/providers.ts
+// src/engine/providers.ts
 function redactSecrets(text, known = []) {
   let out = text;
   for (const k of known) {
@@ -21698,7 +21698,7 @@ async function complete(cfg, system, user, opts = {}) {
 }
 var DEFAULT_TIMEOUT_MS;
 var init_providers = __esm({
-  "src/vh19/providers.ts"() {
+  "src/engine/providers.ts"() {
     "use strict";
     init_guardrail();
     init_tokenOptim();
@@ -21706,10 +21706,10 @@ var init_providers = __esm({
   }
 });
 
-// src/vh19/bew.ts
+// src/engine/bew.ts
 var BEW_ERROR_CLASSES, BEW_TASK_LADDERS, phase, BEW_BLOCK, PHASE_RANK, BewRun;
 var init_bew = __esm({
-  "src/vh19/bew.ts"() {
+  "src/engine/bew.ts"() {
     "use strict";
     BEW_ERROR_CLASSES = [
       { cls: "transient", recovery: "one situation-changing retry \u2014 change the input, the tool or the wording \u2014 then report what happened" },
@@ -21805,7 +21805,7 @@ var init_bew = __esm({
   }
 });
 
-// src/vh19/agentLoop.ts
+// src/engine/agentLoop.ts
 var agentLoop_exports = {};
 __export(agentLoop_exports, {
   MAX_AGENT_STEPS: () => MAX_AGENT_STEPS,
@@ -21932,7 +21932,7 @@ ${mcpLine}` : ""}`).prompt : optimizeComposedPrompt(systemBase).prompt;
           latencyMs: 0
         };
         if (opts.hash) {
-          receipt3.digest = await opts.hash(JSON.stringify({ v: "vh19-tool/1", tool: "(parse-error)", inputCanonical: receipt3.inputCanonical, outcome: "error", output: receipt3.output }));
+          receipt3.digest = await opts.hash(JSON.stringify({ v: "engine-tool/1", tool: "(parse-error)", inputCanonical: receipt3.inputCanonical, outcome: "error", output: receipt3.output }));
         }
         toolReceipts.push(receipt3);
         resultLines.push(`RESULT(parse-error): ${block.parseError}`);
@@ -21971,7 +21971,7 @@ Continue the task. If the work is done, answer with NO tool blocks.`;
 }
 var MAX_AGENT_STEPS, AUTO_REPAIR_KINDS;
 var init_agentLoop = __esm({
-  "src/vh19/agentLoop.ts"() {
+  "src/engine/agentLoop.ts"() {
     "use strict";
     init_providers();
     init_tokenOptim();

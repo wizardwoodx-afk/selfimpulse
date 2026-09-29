@@ -23,8 +23,8 @@ const {
   estimateTokens, fitToBudget, optimizeComposedPrompt, optimizeWirePair,
   normalizeWhitespace, collapseRepeatedLines, fnv1a,
   wireEventSeq, optimDelta, resetWireCacheState, WIRE_BUDGET,
-} = await import("../src/vh19/tokenOptim");
-const { complete } = await import("../src/vh19/providers");
+} = await import("../src/engine/tokenOptim");
+const { complete } = await import("../src/engine/providers");
 
 console.log("== estimates and the fitter ==");
 ok("estimateTokens is the honest ~4 chars/token", estimateTokens("12345678") === 2);
@@ -45,15 +45,16 @@ ok("a line seen >2× collapses to the first two + a marker", c.collapsed === 1 &
 ok("structural lines never collapse", collapseRepeatedLines("# Header\n# Header").collapsed === 0);
 
 console.log("== fnv1a determinism ==");
-ok("same text, same hash; different text, different hash", fnv1a("vouch") === fnv1a("vouch") && fnv1a("vouch") !== fnv1a("harbor"));
+ok("same text, same hash; different text, different hash",
+  fnv1a("mission alpha") === fnv1a("mission alpha") && fnv1a("mission alpha") !== fnv1a("mission beta"));
 
 console.log("== the wire pipeline ==");
 resetWireCacheState();
 const seq0 = wireEventSeq();
-const sys = "You are VH-19.\n\n\n\nStay honest.   \nStay honest.";
+const sys = "You are SelfImpulse.\n\n\n\nStay honest.   \nStay honest.";
 const usr = "plan a mission";
 const w1 = optimizeWirePair(sys, usr, { model: "m1", kind: "probe" });
-ok("pipeline returns usable texts", w1.system.includes("You are VH-19.") && w1.user === "plan a mission");
+ok("pipeline returns usable texts", w1.system.includes("You are SelfImpulse.") && w1.user === "plan a mission");
 ok("pipeline report is labelled an estimate", w1.report.est === true);
 ok("first call is NOT cache-aligned (no prefix history)", w1.report.cacheAligned === false);
 const w2 = optimizeWirePair(sys, usr, { model: "m1", kind: "probe" });
@@ -76,9 +77,9 @@ const fakeFetch = (async (_url: string | URL, init?: { body?: string }) => {
   seenBody = init?.body ?? "";
   return new Response(JSON.stringify({ choices: [{ message: { content: "the answer" } }] }), { status: 200, headers: { "content-type": "application/json" } });
 }) as typeof fetch;
-const r = await complete(cfg, "You are VH-19, the 11Handle generalist.", "hello", { fetchImpl: fakeFetch });
+const r = await complete(cfg, "You are SelfImpulse, the SelfImpulse generalist.", "hello", { fetchImpl: fakeFetch });
 ok("complete() succeeds through the pipeline", r.ok === true && r.text === "the answer");
-ok("the wire body still carries the system + user roles", seenBody.includes("You are VH-19") && seenBody.includes("hello"));
+ok("the wire body still carries the system + user roles", seenBody.includes("You are SelfImpulse") && seenBody.includes("hello"));
 const d1 = optimDelta(seq1);
 ok("the call landed exactly one pipeline event", d1.calls === 1 && d1.beforeTokens > 0);
 

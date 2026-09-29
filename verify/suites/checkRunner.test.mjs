@@ -2386,7 +2386,7 @@ async function pickJsonFile() {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "application/json,.vouch.json,.mjpack";
+    input.accept = "application/json,.selfimpulse.json,.mjpack";
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return resolve(null);
@@ -2686,8 +2686,8 @@ var init_version = __esm({
     "use strict";
     ENGINE_VERSION = "19.7.15";
     ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "Handle";
-    PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
   }
 });
 
@@ -2752,7 +2752,7 @@ function seedMcp() {
     ["mcp.sequential-thinking", "Sequential Thinking", "npx", ["-y", "tsx", "vendor/mcp-servers-reference/src/sequentialthinking/index.ts"]],
     ["mcp.time", "Time", "python", ["-m", "mcp_server_time"]],
     ["mcp.github", "GitHub", "github-mcp-server", ["stdio"]],
-    ["mcp.control", "Control MCP", "vouch-control-mcp", ["stdio"]]
+    ["mcp.control", "Control MCP", "selfimpulse-control-mcp", ["stdio"]]
   ];
   return rows.map(([id, name, command, args]) => ({
     id,
@@ -2782,7 +2782,7 @@ var init_localDb = __esm({
     "use strict";
     init_id();
     init_types();
-    KEY = "vouch.v3.db";
+    KEY = "selfimpulse.v3.db";
     localDb = {
       load,
       save,
@@ -3166,7 +3166,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -3196,7 +3196,7 @@ var init_client = __esm({
             port: typeof st.port === "number" ? st.port : null,
             cardUrl: typeof st.cardUrl === "string" ? st.cardUrl : null,
             interfaceUrl: typeof st.interfaceUrl === "string" ? st.interfaceUrl : null,
-            harbor: typeof st.harbor === "string" ? st.harbor : null,
+            selfimpulse: typeof st.selfimpulse === "string" ? st.selfimpulse : null,
             identityFp: typeof st.identityFp === "string" ? st.identityFp : null,
             cardSigned: st.cardSigned === true,
             tokenMinted: st.tokenMinted === true,
@@ -3215,7 +3215,7 @@ var init_client = __esm({
             port: null,
             cardUrl: null,
             interfaceUrl: null,
-            harbor: null,
+            selfimpulse: null,
             identityFp: null,
             cardSigned: false,
             tokenMinted: false,
@@ -3238,7 +3238,7 @@ var init_client = __esm({
         }
         try {
           const r = await tauriInvoke("a2a_host_start", {
-            harbor: opts.harbor || "11Handle",
+            selfimpulse: opts.selfimpulse || "SelfImpulse",
             port: opts.port ?? 0,
             bind: opts.bind ?? "local",
             pair: opts.pair === true
@@ -3261,7 +3261,7 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("db_maintenance", { vacuum });
         if (vacuum) {
         }
-        const raw = localStorage.getItem("vouch.v3.db") ?? "";
+        const raw = localStorage.getItem("selfimpulse.v3.db") ?? "";
         return { vacuumed: vacuum, sizeBytes: raw.length };
       },
       workflowList: async () => {
@@ -3727,7 +3727,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform2()) {
     return { ...base, note: "read-class task: no filesystem wrapper; credentials are still scrubbed from the child environment" };
   }
   if (platform === "linux") {
-    const canaryPath = path.posix.join("/", "vh-sandbox-canary.txt");
+    const canaryPath = path.posix.join("/", "si-sandbox-canary.txt");
     const wrapper = [
       "bwrap",
       "--ro-bind",
@@ -3752,7 +3752,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform2()) {
       canaries: [
         {
           name: "write outside the workspace must fail",
-          argv: [...wrapper, "sh", "-c", `echo vh-canary > ${canaryPath}`],
+          argv: [...wrapper, "sh", "-c", `echo si-canary > ${canaryPath}`],
           mustFail: true
         },
         ...tier === "fs+net" ? [{ name: "network must be unreachable", argv: [...wrapper, "sh", "-c", "command -v curl >/dev/null && curl -m 2 -s https://example.com >/dev/null || false"], mustFail: true }] : []
@@ -3761,7 +3761,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform2()) {
     };
   }
   if (platform === "macos") {
-    const canaryPath = path.posix.join("/", "vh-sandbox-canary.txt");
+    const canaryPath = path.posix.join("/", "si-sandbox-canary.txt");
     const profile = tier === "fs+net" ? `(version 1)(deny default)(allow process*)(allow file-read*)(allow file-write* (subpath "${workspace}") (subpath "${os.tmpdir()}"))(deny network*)` : `(version 1)(deny default)(allow process*)(allow file-read*)(allow file-write* (subpath "${workspace}") (subpath "${os.tmpdir()}"))`;
     return {
       ...base,
@@ -3769,7 +3769,7 @@ function sandboxProfileFor(risk, workspace, platform = detectPlatform2()) {
       canaries: [
         {
           name: "write outside the workspace must fail",
-          argv: ["sandbox-exec", "-p", profile, "sh", "-c", `echo vh-canary > ${canaryPath}`],
+          argv: ["sandbox-exec", "-p", profile, "sh", "-c", `echo si-canary > ${canaryPath}`],
           mustFail: true
         }
       ],
@@ -3818,7 +3818,7 @@ function wrapForSeat(risk, workspace, program, args, platform) {
   return { argv: profile.wrapper.length > 0 ? [...profile.wrapper, program, ...args] : [program, ...args], profile };
 }
 function scratchWorkspace() {
-  const dir = fsSync.mkdtempSync(path.join(os.tmpdir(), "vh-seat-"));
+  const dir = fsSync.mkdtempSync(path.join(os.tmpdir(), "si-seat-"));
   return dir;
 }
 var SCRUB_EXACT, SCRUB_SUFFIX, WRAPPER_UNAVAILABLE;

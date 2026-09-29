@@ -7,7 +7,7 @@
  *   (a) can an agent authorize ITSELF?
  *   (b) does a grant from the OTHER machine unlock the action?
  */
-import { VHClient } from "../src/client/vh-sdk.js";
+import { VHClient } from "../src/client/si-sdk.js";
 
 const URL = "http://localhost:3100";
 const log = (...a) => console.log(...a);
@@ -25,7 +25,7 @@ await a.declareCapability(["code.review"], { reason: "test" });
 log("[A] capability declared: code.review");
 
 /* (a) SELF-authorization — is it allowed? */
-const selfAuthz = await a.vouchShare({
+const selfAuthz = await a.selfimpulseShare({
   v: 2, kind: "authorization",
   from: { n: me.name, fp: me.fp },
   subject: { n: me.name, fp: me.fp },
@@ -34,13 +34,13 @@ const selfAuthz = await a.vouchShare({
 });
 log(`[A] (a) SELF-authorization → ${JSON.stringify(selfAuthz)}`);
 
-const afterSelf = await a.vouchAction({ action: "code.review", tool: "claude", purpose: "after self-grant", result: "success" });
+const afterSelf = await a.selfimpulseAction({ action: "code.review", tool: "claude", purpose: "after self-grant", result: "success" });
 log(`[A] (a) action after SELF-grant → ${JSON.stringify(afterSelf)}`);
 
 /* (b) wait for the OTHER machine to grant A authority */
 log("[A] (b) waiting for PEER to grant me authority…");
 let peerGrant = null;
-a.on("vouch:new", (link) => {
+a.on("selfimpulse:new", (link) => {
   let f = {}; try { f = JSON.parse(link.payloadStr ?? "{}"); } catch {}
   if ((link.kind ?? f.kind) === "authorization" && f?.subject?.fp === me.fp) {
     log(`[A]     received grant from ${f.from?.n} for action="${f.action}" scope="${f.scope}"`);
@@ -50,7 +50,7 @@ a.on("vouch:new", (link) => {
 await new Promise((r) => { const t = setInterval(() => { if (peerGrant) { clearInterval(t); r(); } }, 250); setTimeout(() => { clearInterval(t); r(); }, 35_000); });
 
 if (peerGrant) {
-  const afterPeer = await a.vouchAction({ action: "code.review", tool: "claude", purpose: "after peer grant", result: "success" });
+  const afterPeer = await a.selfimpulseAction({ action: "code.review", tool: "claude", purpose: "after peer grant", result: "success" });
   log(`[A] (b) action after PEER grant → ${JSON.stringify(afterPeer)}`);
 } else {
   log("[A] (b) peer never granted — inconclusive");

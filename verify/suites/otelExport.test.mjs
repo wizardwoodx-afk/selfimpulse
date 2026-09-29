@@ -8,8 +8,8 @@ import * as path from "node:path";
 // src/version.ts
 var ENGINE_VERSION = "19.7.15";
 var ENGINE_SHORT = "19.7";
-var ENGINE_CODENAME = "Handle";
-var PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+var ENGINE_CODENAME = "SelfImpulse";
+var PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
 
 // src/mission/otel.ts
 var attr = (key, value) => typeof value === "boolean" ? { key, value: { boolValue: value } } : typeof value === "number" ? { key, value: { intValue: String(Math.round(value)) } } : { key, value: { stringValue: value } };

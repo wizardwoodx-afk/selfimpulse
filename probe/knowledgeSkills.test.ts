@@ -134,7 +134,7 @@ async function main(): Promise<void> {
   const prop = (p1 as { ok: true; proposal: import("../src/mission/knowledgeSkills").KnowledgeProposal }).proposal;
   const expectSha = await sha256(DOC.trim());
   ok("provenance carries the REAL SHA-256 of the content (64 hex)", prop.provenance.sourceSha256 === expectSha && /^[0-9a-f]{64}$/.test(prop.provenance.sourceSha256), prop.provenance.sourceSha256);
-  ok("provenance carries source name, byte length, tool and time", prop.provenance.sourceName === "authorize-rulebook.md" && prop.provenance.byteLength === Buffer.byteLength(DOC.trim(), "utf8") && prop.provenance.tool === "vh-knowledge-forge/mechanical-v1" && prop.provenance.distilledAt.length > 0);
+  ok("provenance carries source name, byte length, tool and time", prop.provenance.sourceName === "authorize-rulebook.md" && prop.provenance.byteLength === Buffer.byteLength(DOC.trim(), "utf8") && prop.provenance.tool === "si-knowledge-forge/mechanical-v1" && prop.provenance.distilledAt.length > 0);
   ok("a mechanical proposal says so, with no model credit", prop.distiller.kind === "mechanical");
   ok("the proposal records it claims NO measured effect", prop.claimsMeasuredEffect === false);
   ok("the distilled procedure carries the extracted rules", prop.procedure.includes("Never check") && prop.procedure.includes("capability"), prop.procedure.slice(0, 120));

@@ -28,8 +28,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const BATCHES = {
   reach: {
-    spec: ["src", "vh19", "reach", "batchSpec.ts"],
-    out: ["src", "vh19", "reach", "reachBatch.ts"],
+    spec: ["src", "engine", "reach", "batchSpec.ts"],
+    out: ["src", "engine", "reach", "reachBatch.ts"],
     build: "buildReachBatch", census: "reachBatchCensus",
     exportName: "REACH_BATCH_SPECIALISTS",
     provenance: "REACH_BATCH_PROVENANCE",
@@ -38,8 +38,8 @@ const BATCHES = {
     headline: "established 1,150 + registered 640 = fleet 1,790",
   },
   federation: {
-    spec: ["src", "vh19", "federation", "federationSpec.ts"],
-    out: ["src", "vh19", "federation", "federationBatch.ts"],
+    spec: ["src", "engine", "federation", "federationSpec.ts"],
+    out: ["src", "engine", "federation", "federationBatch.ts"],
     build: "buildFederationBatch", census: "federationBatchCensus",
     exportName: "FEDERATION_BATCH_SPECIALISTS",
     provenance: "FEDERATION_BATCH_PROVENANCE",
@@ -48,8 +48,8 @@ const BATCHES = {
     headline: "established 1,150 + registered 640 = fleet 1,790",
   },
   regulated: {
-    spec: ["src", "vh19", "federation", "regulatedSpec.ts"],
-    out: ["src", "vh19", "federation", "regulatedBatch.ts"],
+    spec: ["src", "engine", "federation", "regulatedSpec.ts"],
+    out: ["src", "engine", "federation", "regulatedBatch.ts"],
     build: "buildRegulatedBatch", census: "regulatedBatchCensus",
     exportName: "REGULATED_BATCH_SPECIALISTS",
     provenance: "REGULATED_BATCH_PROVENANCE",
@@ -84,7 +84,7 @@ async function loadSpec(rel, key) {
        the whole module fail to LOAD when esbuild is absent — before any fallback can
        run — which is exactly the reviewer's case. */
     const { buildSync } = await import("esbuild");
-    tmp = path.join(os.tmpdir(), `vh-batch-${key}-${process.pid}.mjs`);
+    tmp = path.join(os.tmpdir(), `si-batch-${key}-${process.pid}.mjs`);
     buildSync({ entryPoints: [spec], bundle: true, platform: "node", format: "esm", packages: "external", outfile: tmp, logLevel: "error" });
     const mod = await import(pathToFileURL(tmp).href);
     fs.unlinkSync(tmp);

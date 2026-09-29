@@ -19,7 +19,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const ROOT: string = process.env.HANDLE_ROOT ?? process.cwd();
+const ROOT: string = process.env.SI_ROOT ?? process.cwd();
 const read = (rel: string): string => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 let passed = 0;

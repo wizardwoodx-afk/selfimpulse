@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 11Handle — browser service control: `node cli.mjs start|stop|status`.
+ * SelfImpulse — browser service control: `node cli.mjs start|stop|status`.
  * The service itself is server.mjs next to this file (bundled inside the product).
  */
 import { spawn } from "node:child_process";

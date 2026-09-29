@@ -56,7 +56,7 @@ async function createInvitation(args) {
   const invitation = {
     id: args.id ?? randomId("pair"),
     hostFp: args.hostFp,
-    harbor: args.harbor,
+    selfimpulse: args.selfimpulse,
     codeHash: await hashCode(code),
     issuedAt: now,
     expiresAt: now + ttl * 1e3,
@@ -103,7 +103,7 @@ async function redeemInvitation(args) {
     invitation: inv,
     credential: {
       token: `vhp_${b64url(randomBytes(32))}`,
-      harbor: inv.harbor,
+      selfimpulse: inv.selfimpulse,
       hostFp: inv.hostFp,
       peerFp: args.peer.fp,
       issuedAt: now,
@@ -111,7 +111,7 @@ async function redeemInvitation(args) {
       // Stated, not implied: what a paired peer may ask for. The host still
       // runs every inbound delegation through its gates, so this is a ceiling
       // an operator can read, not the authority itself.
-      scope: ["discover:card", "delegate"]
+      scope: ["discover:card", "delegate", "files:send", "files:receive"]
     }
   };
 }
@@ -176,7 +176,7 @@ async function claimPairing(args) {
 }
 
 // probe/pairing.test.ts
-var ROOT = process.env.HANDLE_ROOT ?? process.cwd();
+var ROOT = process.env.SI_ROOT ?? process.cwd();
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 var passed = 0;
 var failed = 0;
@@ -193,15 +193,15 @@ var ok = (label, cond, detail = "") => {
 };
 var section = (n) => console.log(`
 == ${n}`);
-var NONCE = "vh-stop-test-nonce-0123456789";
+var NONCE = "si-stop-test-nonce-0123456789";
 async function modelTests() {
   section("1. an invitation is single-use, short, and not the token");
-  const { invitation, code } = await createInvitation({ hostFp: "FP-HOST", harbor: "USER 1" });
+  const { invitation, code } = await createInvitation({ hostFp: "FP-HOST", selfimpulse: "USER 1" });
   ok("a code is minted", /^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(code), code);
   ok("it avoids characters people mishear", !/[01OI]/.test(code), code);
   ok("the invitation stores no code, only a digest", !JSON.stringify(invitation).includes(code));
   ok("it expires within minutes, not hours", invitation.expiresAt - invitation.issuedAt <= 9e5);
-  ok("it is bound to this host's identity", invitation.hostFp === "FP-HOST" && invitation.harbor === "USER 1");
+  ok("it is bound to this host's identity", invitation.hostFp === "FP-HOST" && invitation.selfimpulse === "USER 1");
   section("2. redeeming spends it");
   const first = await redeemInvitation({ invitation, code, peer: { fp: "FP-PEER", name: "laptop" } });
   ok("the right code redeems", first.ok === true, first.ok ? "" : first.reason);
@@ -216,7 +216,7 @@ async function modelTests() {
   ok("a second peer cannot ride the first peer's code", !replay.ok && replay.invitation.redeemedBy?.fp === "FP-PEER");
   section("3. wrong codes are expensive, not free");
   {
-    const m = await createInvitation({ hostFp: "FP-HOST", harbor: "USER 1" });
+    const m = await createInvitation({ hostFp: "FP-HOST", selfimpulse: "USER 1" });
     for (let i = 0; i < 4; i += 1) {
       const r = await redeemInvitation({ invitation: m.invitation, code: "ZZZZ-ZZZZ", peer: { fp: "FP-X", name: "guess" } });
       ok(`guess ${i + 1} is refused`, r.ok === false);
@@ -234,7 +234,7 @@ async function modelTests() {
   }
   section("4. time is not a suggestion");
   {
-    const m = await createInvitation({ hostFp: "FP-HOST", harbor: "USER 1" });
+    const m = await createInvitation({ hostFp: "FP-HOST", selfimpulse: "USER 1" });
     const later = m.invitation.expiresAt + 1;
     ok("an expired invitation is not redeemable", (await redeemInvitation({ invitation: m.invitation, code, peer: { fp: "FP-P", name: "late" }, now: later })).ok === false);
     ok("describeInvitation says expired", /expired/.test(describeInvitation(m.invitation, later)));
@@ -255,13 +255,13 @@ async function modelTests() {
     ok("and the refusal is in words", /expired/.test(credentialStatus(c, c.expiresAt + 1).reason));
     ok(
       "something that is not a paired credential is refused outright",
-      credentialStatus({ ...c, token: "vh-someone-elses-token" }).valid === false
+      credentialStatus({ ...c, token: "si-someone-elses-token" }).valid === false
     );
   }
   section("6. a live mount: bind scope, pairing code, paired credential, clean stop");
   const child = spawn(process.execPath, [
-    path.join(ROOT, "tools", "vh-host.mjs"),
-    "--harbor",
+    path.join(ROOT, "tools", "si-host.mjs"),
+    "--selfimpulse",
     "PAIR-PROBE",
     "--port",
     "0",
@@ -282,9 +282,9 @@ async function modelTests() {
   child.stdout.on("data", (c) => {
     out += c;
     for (const line of c.split("\n")) {
-      if (line.startsWith("VH-A2A-READY") && !ready) {
+      if (line.startsWith("SI-A2A-READY") && !ready) {
         try {
-          ready = JSON.parse(line.slice("VH-A2A-READY".length).trim());
+          ready = JSON.parse(line.slice("SI-A2A-READY".length).trim());
         } catch {
           ready = {};
         }
@@ -338,14 +338,14 @@ async function modelTests() {
     const stop = async (nonce) => {
       const res = await fetch(`${base}/vh/stop`, {
         method: "POST",
-        headers: { "x-vh-stop-nonce": nonce },
+        headers: { "x-si-stop-nonce": nonce },
         signal: AbortSignal.timeout(8e3)
       });
       await res.text();
       return res.status;
     };
     ok("a WRONG unmount nonce is refused", await stop("not-the-nonce") === 403);
-    ok("\u2026and the host is still listening after the refusal", child.exitCode === null && /VH-A2A-STOPPED/.test(out) === false);
+    ok("\u2026and the host is still listening after the refusal", child.exitCode === null && /SI-A2A-STOPPED/.test(out) === false);
     let stillUp = true;
     try {
       await fetch(`${base}/.well-known/agent-card.json`, { signal: AbortSignal.timeout(2500) });
@@ -358,7 +358,7 @@ async function modelTests() {
     while (Date.now() < stopAt + 12e3 && child.exitCode === null) await sleep(150);
     ok(
       "the host unmounted ITSELF and wrote its own shutdown line",
-      /VH-A2A-STOPPED/.test(out),
+      /SI-A2A-STOPPED/.test(out),
       (out + err).split("\n").slice(-3).join(" | ").slice(0, 200)
     );
     ok(
@@ -396,7 +396,7 @@ async function sourceTests() {
   ok("the one-time code is what crosses", /"pairingCode"/.test(sup));
   section("8. stopping is graceful, with a fallback");
   ok("unmount asks the HOST to stop, over its own channel", sup.includes("request_unmount(&m)") && sup.includes("/vh/stop"));
-  ok("the channel is nonce-guarded", sup.includes("x-vh-stop-nonce") && sup.includes("stop_nonce"));
+  ok("the channel is nonce-guarded", sup.includes("x-si-stop-nonce") && sup.includes("stop_nonce"));
   ok("and the nonce travels by environment, never argv", sup.includes('cmd.env("HANDLE_STOP_NONCE"'));
   ok("killing is the FALLBACK, not the plan", sup.includes("did not unmount when asked and had to be killed") && sup.includes("let _ = m.child.kill();"));
   ok("the operator is told which path it took", sup.includes('"graceful": graceful'));
@@ -404,10 +404,10 @@ async function sourceTests() {
   ok("the operator is told which path it took", /"graceful": graceful/.test(sup));
   ok("quitting uses the same path", sup.includes("request_unmount(&m)") && sup.includes("wait_for_exit(&mut m.child, Duration::from_secs(3))"));
   const server2 = fs.readFileSync(path.join(ROOT, "src", "mission", "a2aServer.ts"), "utf8");
-  ok("the unmount endpoint is nonce-guarded, not open", server2.includes("unmount-refused") && server2.includes("x-vh-stop-nonce"));
+  ok("the unmount endpoint is nonce-guarded, not open", server2.includes("unmount-refused") && server2.includes("x-si-stop-nonce"));
   ok("it is off unless a nonce was supplied", server2.includes("onStop?:") && server2.includes("opts.onStop = undefined") === false);
   const runtime2 = fs.readFileSync(path.join(ROOT, "src", "mission", "a2aRuntime.ts"), "utf8");
-  ok("the host writes its own shutdown line before leaving", runtime2.includes("VH-A2A-STOPPED") && runtime2.includes("shutdownThenExit"));
+  ok("the host writes its own shutdown line before leaving", runtime2.includes("SI-A2A-STOPPED") && runtime2.includes("shutdownThenExit"));
   ok("a wrong nonce is refused without stopping anything", runtime2.includes("constantTimeEqual(presented, opts.stopNonce"));
   section("9. the endpoint cannot be reached as an A2A method");
   const server = fs.readFileSync(path.join(ROOT, "src", "mission", "a2aServer.ts"), "utf8");

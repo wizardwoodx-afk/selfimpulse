@@ -10,7 +10,7 @@
  */
 import crypto from "node:crypto";
 
-const VERIFY_SECRET = "vh-commercial-v1-offline"; // MUST match src/mission/licensing.ts (current wire)
+const VERIFY_SECRET = "si-commercial-v1-offline"; // MUST match src/mission/licensing.ts (current wire)
 const args = process.argv.slice(2);
 const get = (flag) => {
   const i = args.indexOf(flag);

@@ -4,7 +4,7 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-// src/vh19/authorityCore.ts
+// src/engine/authorityCore.ts
 function bytesToB64(bytes) {
   let s = "";
   for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
@@ -17,7 +17,7 @@ function b64ToBytes(b64) {
   return out;
 }
 
-// src/vh19/authorityWeb.ts
+// src/engine/authorityWeb.ts
 var EC = { name: "ECDSA", namedCurve: "P-256" };
 async function generateOwnerKeysWeb() {
   const pair = await crypto.subtle.generateKey(EC, true, ["sign", "verify"]);
@@ -37,7 +37,7 @@ async function importPublicKeyWeb(publicKeyPem) {
   return crypto.subtle.importKey("spki", b64ToBytes(b64).buffer, EC, false, ["verify"]);
 }
 
-// src/vh19/pureHash.ts
+// src/engine/pureHash.ts
 var K = [
   1116352408,
   1899447441,
@@ -167,7 +167,7 @@ function pureSha256(text) {
   return toHex(sha256Bytes(utf8(text)));
 }
 
-// src/vh19/reach/delegationGrant.ts
+// src/engine/reach/delegationGrant.ts
 var DELEGATION_CAPABILITIES = [
   "repo.read",
   "data.aggregate",
@@ -187,12 +187,12 @@ var HUMAN_FIRST_CAPABILITIES = [
   ...IRREVERSIBLE_CAPABILITIES
 ];
 
-// src/vh19/federation/approval.ts
+// src/engine/federation/approval.ts
 var APPROVAL_SCHEME = "ecdsa-p256";
 var APPROVAL_FORMAT = "vh.fed.approval.v1";
 var APPROVAL_PREFIX = `${APPROVAL_SCHEME}:`;
 var APPROVAL_SIGNER = "owner-authority-key";
-var APPROVAL_ATTESTATION = "the harbor owner's authority key approved this crossing, naming the human who authorised it";
+var APPROVAL_ATTESTATION = "the selfimpulse owner's authority key approved this crossing, naming the human who authorised it";
 var APPROVAL_NOT_ATTESTED = "that the named human authenticated with a credential distinct from the owner key";
 var HEX64 = /^[0-9a-f]{64}$/;
 var MIN_NONCE_CHARS = 16;
@@ -221,13 +221,13 @@ async function issueFederationApproval(body2, keys) {
     return { ok: false, reason: "no-human", detail: "a capability decision must name the person it is made on behalf of; without a name there is nothing to sign" };
   }
   if (!body2.pair.includes("\u2194")) {
-    return { ok: false, reason: "malformed", detail: "the pair key must be the two-harbor pair key, not a single harbor name" };
+    return { ok: false, reason: "malformed", detail: "the pair key must be the two-selfimpulse pair key, not a single selfimpulse name" };
   }
   if (body2.side !== "initiator" && body2.side !== "responder") {
     return { ok: false, reason: "malformed", detail: `side "${String(body2.side)}" is neither end of a crossing` };
   }
   if (!DELEGATION_CAPABILITIES.includes(body2.capability)) {
-    return { ok: false, reason: "unknown-capability", detail: `"${body2.capability}" is not a delegation capability the harbor has a policy for` };
+    return { ok: false, reason: "unknown-capability", detail: `"${body2.capability}" is not a delegation capability the selfimpulse has a policy for` };
   }
   if (!HEX64.test(body2.envelopeDigest)) {
     return { ok: false, reason: "not-a-crossing-binding", detail: "the envelope digest must be the 64-hex sha256 of the exact crossing this decision authorises" };
@@ -333,22 +333,22 @@ function approvalDigest(approval) {
   return pureSha256(`vh.fed.approval.v1:${approvalCanonical(approval)}|${approval.signature}`);
 }
 
-// src/vh19/missionAuthority.ts
+// src/engine/missionAuthority.ts
 var browserRawStorage = (() => {
   try {
     const ls = globalThis.localStorage;
     if (!ls) return null;
-    return { get: () => ls.getItem("vh19.ownerKeys.v1"), set: (v) => ls.setItem("vh19.ownerKeys.v1", v) };
+    return { get: () => ls.getItem("engine.ownerKeys.v1"), set: (v) => ls.setItem("engine.ownerKeys.v1", v) };
   } catch {
     return null;
   }
 })();
 
-// src/vh19/avatarEngine.ts
+// src/engine/avatarEngine.ts
 var AVATAR_INKS = ["#2d3142", "#3a3f52", "#586a66", "#46554f", "#827278", "#695c5e"];
 var AVATAR_FIELDS = ["#d8d5db", "#d5dfea", "#e2e6ed", "#c6cdd3"];
 
-// src/vh19/federation/sigil.ts
+// src/engine/federation/sigil.ts
 var PINNED_PALETTE = [
   ...AVATAR_INKS,
   ...AVATAR_FIELDS,
@@ -394,7 +394,7 @@ function fingerprintOf(seed) {
   return [hex.slice(0, 4), hex.slice(4, 8), hex.slice(8, 12), hex.slice(12, 16)].join("-");
 }
 
-// src/vh19/federation/identity.ts
+// src/engine/federation/identity.ts
 var KEY_FACE_PREFIX = "vh.fed.face.key.v1:";
 function canonicalKeyMaterial(publicKeyPem) {
   return publicKeyPem.replace(/-----[A-Z ]+-----/g, "").replace(/\s+/g, "");
@@ -407,7 +407,7 @@ function keyHandle(publicKeyPem) {
 }
 
 // probe/fedApproval.test.ts
-var PAIR = "harbor-a\u2194harbor-b";
+var PAIR = "selfimpulse-a\u2194selfimpulse-b";
 var ENV = pureSha256("the-crossing-envelope-under-test");
 var NOW = 176e10;
 function body(over = {}) {
@@ -442,8 +442,8 @@ test("federated approval \u2014 the responder's decision is a signature, not a m
     const noBinding = await issueFederationApproval(body({ envelopeDigest: "not-a-digest" }), keys);
     assert.equal(noBinding.ok, false);
     if (!noBinding.ok) assert.equal(noBinding.reason, "not-a-crossing-binding");
-    const singleHarbor = await issueFederationApproval(body({ pair: "harbor-a" }), keys);
-    assert.equal(singleHarbor.ok, false);
+    const singleSelfImpulse = await issueFederationApproval(body({ pair: "selfimpulse-a" }), keys);
+    assert.equal(singleSelfImpulse.ok, false);
     const backdated = await issueFederationApproval(body({ decidedAt: NOW, expiresAt: NOW - 1 }), keys);
     assert.equal(backdated.ok, false);
     if (!backdated.ok) assert.equal(backdated.reason, "expired");
@@ -462,7 +462,7 @@ test("federated approval \u2014 the responder's decision is a signature, not a m
     assert.equal(
       filed.digest,
       pureSha256(`vh.fed.approval.v1:${approvalCanonical(issued.approval)}|${issued.approval.signature}`),
-      "the decision's digest is the harbor's own SHA-256 over the signed bytes"
+      "the decision's digest is the selfimpulse's own SHA-256 over the signed bytes"
     );
     assert.equal(filed.digest.length, 64);
     assert.equal(JSON.stringify(filed).includes("9f2c1d4e6a8b0c3d5e7f1021"), false, "the filed form carries the binding, not the nonce");
@@ -472,7 +472,7 @@ test("federated approval \u2014 the responder's decision is a signature, not a m
     if (!issued.ok) throw new Error("issue failed");
     const a = issued.approval;
     const cases = [
-      ["wrong-pair", { ...EXPECT, pair: "harbor-a\u2194harbor-c" }],
+      ["wrong-pair", { ...EXPECT, pair: "selfimpulse-a\u2194selfimpulse-c" }],
       ["wrong-side", { ...EXPECT, side: "initiator" }],
       ["wrong-capability", { ...EXPECT, capability: "shell.exec" }],
       ["wrong-envelope", { ...EXPECT, envelopeDigest: pureSha256("another-crossing") }],
@@ -491,7 +491,7 @@ test("federated approval \u2014 the responder's decision is a signature, not a m
     assert.equal(forgedVerdict.ok, false);
     if (!forgedVerdict.ok) assert.equal(forgedVerdict.reason, "bad-signature", "editing the human must break the signature");
     const alien = await verifyFederationApproval(a, EXPECT, other.publicKeyPem, NOW + 1e3);
-    assert.equal(alien.ok, false, "another harbor's key must not verify this decision");
+    assert.equal(alien.ok, false, "another selfimpulse's key must not verify this decision");
     if (!alien.ok) assert.equal(alien.reason, "bad-signature");
     const absent = await verifyFederationApproval(null, EXPECT, keys.publicKeyPem, NOW + 1e3);
     assert.equal(absent.ok, false);
@@ -517,7 +517,7 @@ test("federated approval \u2014 the responder's decision is a signature, not a m
     assert.equal(rejected.ok, false);
     assert.equal(ledger.has("appr-0002"), false, "a decision that failed verification is NOT burned \u2014 the human keeps it");
   });
-  await t.test("the ledger is bounded, so a long-lived harbor cannot grow without limit", () => {
+  await t.test("the ledger is bounded, so a long-lived selfimpulse cannot grow without limit", () => {
     const ledger = memoryApprovalLedger(4);
     for (let i = 0; i < 50; i++) ledger.add(`appr-${i}`);
     assert.equal(ledger.size, 4);
@@ -563,7 +563,7 @@ test("federated approval \u2014 the responder's decision is a signature, not a m
     assert.equal(
       (await verifyFederationApproval(alien.approval, EXPECT, keys2.publicKeyPem, NOW)).ok,
       false,
-      "and it does not verify against the harbor's own key"
+      "and it does not verify against the selfimpulse's own key"
     );
     assert.equal(alienRecord.digest !== r1.digest, true, "the two records are not interchangeable");
   });

@@ -29,7 +29,7 @@ import { build } from "esbuild";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 await build({
-  entryPoints: [path.join(root, "src/vouch/engine/mcpRouter.ts")],
+  entryPoints: [path.join(root, "src/selfimpulse/engine/mcpRouter.ts")],
   bundle: true,
   platform: "node",
   format: "esm",

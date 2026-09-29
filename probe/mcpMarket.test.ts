@@ -15,7 +15,7 @@ function ok(label: string, cond: boolean, detail = ""): void {
   else { failed++; failures.push(`${label}${detail ? ` — ${detail}` : ""}`); console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`); }
 }
 
-const mkt = await import("../src/vh19/mcpMarket");
+const mkt = await import("../src/engine/mcpMarket");
 
 console.log("== the curated catalog ==");
 const cat = mkt.catalogServers();

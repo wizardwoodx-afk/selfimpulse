@@ -13,6 +13,6 @@
 export const PRODUCT_VERSION = "1.0.0";
 export const ENGINE_VERSION = "19.7.15";
 export const ENGINE_SHORT = "19.7";
-export const ENGINE_CODENAME = "Handle";
-export const PRODUCT_TITLE = `11Handle (engine MJ ${ENGINE_SHORT} \"${ENGINE_CODENAME}\")`;
+export const ENGINE_CODENAME = "SelfImpulse";
+export const PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} \"${ENGINE_CODENAME}\")`;
 export const TAGLINE = "Your agents, with receipts.";

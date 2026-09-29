@@ -4,9 +4,9 @@ import { createRequire as __mjCreateRequire } from "node:module"; const require 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-// src/vh19/secureKeys.ts
-var V2_KEY = (memberId) => `vh19.collab.key.v2:${memberId}`;
-var V1_KEY = (memberId) => `vh19.collab.key.v1:${memberId}`;
+// src/engine/secureKeys.ts
+var V2_KEY = (memberId) => `engine.collab.key.v2:${memberId}`;
+var V1_KEY = (memberId) => `engine.collab.key.v1:${memberId}`;
 var PBKDF_ITERATIONS = 31e4;
 var PBKDF_ITERATIONS_MIN = 15e4;
 var enc = new TextEncoder();
@@ -68,7 +68,7 @@ async function ensureIdentity(memberId, passphrase) {
       enc.encode(JSON.stringify(privateJwk))
     );
     const record2 = {
-      v: "vh19-collab-key/2",
+      v: "engine-collab-key/2",
       memberId,
       publicJwk,
       saltB64: toB64(salt),
@@ -155,8 +155,8 @@ function jwkEqual(a, b) {
   return a.kty === b.kty && a.crv === b.crv && a.x === b.x && a.y === b.y;
 }
 
-// src/vh19/collabRegistry.ts
-var PEERS_KEY = "vh19.collab.peers.v1";
+// src/engine/collabRegistry.ts
+var PEERS_KEY = "engine.collab.peers.v1";
 function storage2() {
   try {
     return globalThis.localStorage ?? null;
@@ -198,7 +198,7 @@ function unbindPeer(memberId) {
 function clearRegistry() {
   storage2()?.removeItem(PEERS_KEY);
 }
-var A2A_PEERS_KEY = "vh19.collab.a2a.v1";
+var A2A_PEERS_KEY = "engine.collab.a2a.v1";
 function structuralIdentityFor(memberId) {
   const raw = storage2()?.getItem(A2A_PEERS_KEY) ?? null;
   if (!raw) return null;
@@ -227,7 +227,7 @@ function requireBoundKey(memberId, presentedJwk) {
   return { ok: false, error: `"${memberId}" has no bound or A2A-verified identity here \u2014 bind it (invite acceptance, manual verify, or connect over A2A) before approvals can be trusted` };
 }
 
-// src/vh19/collabInvite.ts
+// src/engine/collabInvite.ts
 var enc2 = new TextEncoder();
 function b64url(bytes) {
   const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -258,7 +258,7 @@ async function createInvitation(args) {
   if (!pub) return { ok: false, error: `no identity for "${args.from}" \u2014 create one with a passphrase first` };
   if (!identityUnlocked(args.from)) return { ok: false, error: `identity "${args.from}" is locked \u2014 unlock it to sign` };
   const payload = {
-    v: "vh19-invite/1",
+    v: "engine-invite/1",
     id: `inv-${(args.now ?? (() => /* @__PURE__ */ new Date()))().getTime().toString(36)}`,
     from: args.from,
     to: args.to,
@@ -282,8 +282,8 @@ async function parseInvitation(token) {
   } catch {
     return { ok: false, error: "not a parseable invitation token" };
   }
-  if (!obj.payload || obj.payload.v !== "vh19-invite/1" || !obj.signatureB64) {
-    return { ok: false, error: "token is not a vh19-invite/1 payload" };
+  if (!obj.payload || obj.payload.v !== "engine-invite/1" || !obj.signatureB64) {
+    return { ok: false, error: "token is not a engine-invite/1 payload" };
   }
   const canon = canonical(obj.payload);
   let verified;
@@ -332,7 +332,7 @@ async function verifyApproval(a, expectedApprover) {
 }
 
 // src/mission/a2aIdentityBridge.ts
-var A2A_PEERS_KEY2 = "vh19.collab.a2a.v1";
+var A2A_PEERS_KEY2 = "engine.collab.a2a.v1";
 function storage3() {
   try {
     return globalThis.localStorage ?? null;
@@ -381,10 +381,10 @@ function uid(prefix) {
   return `${prefix}-${cryptoToken()}`;
 }
 
-// src/vh19/teamEvolve.ts
-var RUNS_KEY = "vh19.team.runs.v1";
-var CONFIG_KEY = "vh19.team.config.v1";
-var PENDING_KEY = "vh19.team.pending.v1";
+// src/engine/teamEvolve.ts
+var RUNS_KEY = "engine.team.runs.v1";
+var CONFIG_KEY = "engine.team.config.v1";
+var PENDING_KEY = "engine.team.pending.v1";
 var RUN_CAP = 200;
 function storage4() {
   try {
@@ -465,7 +465,7 @@ async function proposeTeamEvolution(teamId, members, now = () => /* @__PURE__ */
     sourceRunIds: verifiedRuns.map((r) => r.id),
     digest: ""
   };
-  proposal.digest = await sha256Hex2(JSON.stringify(["vh19-evolution/1", proposal.teamId, proposal.recommendedSpecialists, proposal.sourceRunIds, proposal.createdAt]));
+  proposal.digest = await sha256Hex2(JSON.stringify(["engine-evolution/1", proposal.teamId, proposal.recommendedSpecialists, proposal.sourceRunIds, proposal.createdAt]));
   const s = storage4();
   if (s) s.setItem(`${PENDING_KEY}:${teamId}`, JSON.stringify(proposal));
   return { ok: true, proposal };
@@ -510,7 +510,7 @@ async function approveTeamEvolution(teamId, proposalId, approvals, now = () => /
     sourceRunIds: proposal.sourceRunIds,
     approvals: approvals.map((a) => ({ ...a, at: a.at || now().toISOString() })),
     adoptedAt: now().toISOString(),
-    digest: await sha256Hex2(JSON.stringify(["vh19-evolved-team/1", teamId, proposal.recommendedSpecialists, proposal.sourceRunIds, members]))
+    digest: await sha256Hex2(JSON.stringify(["engine-evolved-team/1", teamId, proposal.recommendedSpecialists, proposal.sourceRunIds, members]))
   };
   const s = storage4();
   if (s) {
@@ -556,7 +556,7 @@ test("collabInvite \u2014 identity is sealed, binding is enforced", async () => 
   check("a short passphrase refuses to mint an identity", (await ensureIdentity("member-a", "tiny")).ok === false);
   const h = await ensureIdentity("member-a", PASS);
   check("a passphrase mints the identity", h.ok === true && h.created === true);
-  const storedRaw = localStorage.getItem("vh19.collab.key.v2:member-a") ?? "";
+  const storedRaw = localStorage.getItem("engine.collab.key.v2:member-a") ?? "";
   const priv = (await globalThis.crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])).privateKey;
   const privJwk = await globalThis.crypto.subtle.exportKey("jwk", priv);
   check("localStorage holds NO private key material", !storedRaw.includes(privJwk.d ?? "absent-sentinel") && !storedRaw.includes('"d":'));
@@ -568,10 +568,10 @@ test("collabInvite \u2014 identity is sealed, binding is enforced", async () => 
   await ensureIdentity("member-a", PASS);
   check("the right passphrase re-unlocks and the public key is unchanged", await ensureIdentity("member-a", PASS) && JSON.stringify(storedPublicJwk("member-a")) === JSON.stringify(h.publicJwk));
   console.log("\n\u2500\u2500 2. legacy plaintext blobs are purged \u2500\u2500");
-  localStorage.setItem("vh19.collab.key.v1:legacyuser", JSON.stringify({ pub: { kty: "EC" }, priv: { kty: "EC", d: "PLAINTEXT" } }));
+  localStorage.setItem("engine.collab.key.v1:legacyuser", JSON.stringify({ pub: { kty: "EC" }, priv: { kty: "EC", d: "PLAINTEXT" } }));
   await ensureIdentity("legacyuser", PASS);
-  check("the 18.2.0 plaintext blob is gone after first contact", localStorage.getItem("vh19.collab.key.v1:legacyuser") === null);
-  check("legacy user got a sealed v2 identity", localStorage.getItem("vh19.collab.key.v2:legacyuser") !== null);
+  check("the 18.2.0 plaintext blob is gone after first contact", localStorage.getItem("engine.collab.key.v1:legacyuser") === null);
+  check("legacy user got a sealed v2 identity", localStorage.getItem("engine.collab.key.v2:legacyuser") !== null);
   console.log("\n\u2500\u2500 3. invitations \u2500\u2500");
   const q = await ensureIdentity("qwen", PASS);
   const invR = await createInvitation({ from: "member-a", to: "qwen", scope: "one shared mission", riskCeiling: "safe", durationH: 24, capabilities: [] });
@@ -659,7 +659,7 @@ test("collabInvite \u2014 identity is sealed, binding is enforced", async () => 
   check("signatures over an old proposal digest refuse", stale.ok === false);
   console.log("\n\u2500\u2500 7. the stored public key must match the decrypted private key (18.4.0) \u2500\u2500");
   {
-    const rawKey = "vh19.collab.key.v2:member-a";
+    const rawKey = "engine.collab.key.v2:member-a";
     const before = localStorage.getItem(rawKey);
     const rec = JSON.parse(before);
     const other = await globalThis.crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);

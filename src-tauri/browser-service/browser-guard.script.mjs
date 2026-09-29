@@ -1,5 +1,5 @@
 /**
- * 11Handle browser network guard — the injected enforcement shim.
+ * SelfImpulse browser network guard — the injected enforcement shim.
  *
  * SOURCE ADOPTION (real code, adapted). Adopted from:
  *   github.com/vercel-labs/agent-browser @ d01253d9db28
@@ -8,10 +8,10 @@
  *
  * This file is evaluated INSIDE the page, before the page's own scripts run.
  * It wraps the browser's network APIs so a page cannot reach a host that
- * 11Handle has not allowed — including attempts it constructs itself, because
+ * SelfImpulse has not allowed — including attempts it constructs itself, because
  * the API it would use is already wrapped.
  *
- * Installed as `__install11HandleNetworkGuard(allowedDomains)` by
+ * Installed as `__installSelfImpulseNetworkGuard(allowedDomains)` by
  * `buildNetworkGuardScript()` in src/security/browserGuard.ts.
  *
  * Two properties are load-bearing and are the reason for adopting this design:
@@ -25,19 +25,19 @@
  *   2. WebRTC IS BLOCKED OUTRIGHT. STUN/TURN can reach hosts the allowlist
  *      never sees, so it cannot be filtered by URL and is refused instead.
  *
- * 11Handle divergence: an EMPTY allowlist is a CLOSED policy. Upstream returns
+ * SelfImpulse divergence: an EMPTY allowlist is a CLOSED policy. Upstream returns
  * "allowed" for an empty list, which is correct for an operator-set CLI flag and
  * wrong for a governed runtime whose safe default is to reach nothing.
  */
-function __install11HandleNetworkGuard(allowedDomains) {
+function __installSelfImpulseNetworkGuard(allowedDomains) {
   const ALLOWED = Array.isArray(allowedDomains) ? allowedDomains.slice() : [];
   const g = globalThis;
   const report =
-    g.__11handleGuardReport && typeof g.__11handleGuardReport.push === "function"
-      ? g.__11handleGuardReport
+    g.__selfimpulseGuardReport && typeof g.__selfimpulseGuardReport.push === "function"
+      ? g.__selfimpulseGuardReport
       : null;
 
-  // 11Handle: empty allowlist means CLOSED.
+  // SelfImpulse: empty allowlist means CLOSED.
   function hostAllowed(hostname) {
     if (ALLOWED.length === 0) return false;
     const h = String(hostname || "").toLowerCase();
@@ -110,7 +110,7 @@ function __install11HandleNetworkGuard(allowedDomains) {
     const isModule = options && typeof options === "object" && options.type === "module";
     // Re-install the guard in the worker's own scope before the real script.
     const install =
-      "(" + __install11HandleNetworkGuard.toString() + ")(" + JSON.stringify(ALLOWED) + ");\\n";
+      "(" + __installSelfImpulseNetworkGuard.toString() + ")(" + JSON.stringify(ALLOWED) + ");\\n";
     const source = install + (isModule
       ? "await import(" + JSON.stringify(absolute) + ");\\n"
       : "importScripts(" + JSON.stringify(absolute) + ");\\n");

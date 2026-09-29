@@ -12,9 +12,9 @@
  * and wants the delta; it is the WRONG thing to hand someone who wants to
  * verify the claim. So both ship, named for what they are:
  *
- *   · 11H-<v>-<Name>-full.zip      the complete tree. `tsc`, `npm test` and
+ *   · SI-<v>-<Name>-full.zip      the complete tree. `tsc`, `npm test` and
  *                                 `sh VERIFY.sh` all run from a clean unzip.
- *   · 11H-<v>-<Name>-overlay.zip   only what changed, to drop over 19.5.6.
+ *   · SI-<v>-<Name>-overlay.zip   only what changed, to drop over 19.5.6.
  *
  * Both exclude node_modules, .git and the scratch files a working tree gathers.
  */
@@ -30,7 +30,7 @@ const outDir = (() => {
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const version = pkg.version;
 const codename = (fs.readFileSync(path.join(root, "src/version.ts"), "utf8").match(/ENGINE_CODENAME = "([^"]+)"/) ?? [, "Release"])[1];
-const stem = `11H-${version}-${codename}`;
+const stem = `SI-${version}-${codename}`;
 
 const ALWAYS_EXCLUDE = [
   "node_modules", ".git", "dist", "target", "__pycache__", ".vite", ".cache",
@@ -93,12 +93,12 @@ try {
 if (overlay.length > 0) makeZip("overlay", overlay);
 
 /* ── the self-check that would have caught the first archive's gap ───────── */
-/* 19.7.10: the upgrade-doc entry used to be hardcoded to VH-19.6-UPGRADE.md,
+/* 19.7.10: the upgrade-doc entry used to be hardcoded to SelfImpulse.6-UPGRADE.md,
    so the "is this artifact independently verifiable" check was validating a
    stale filename from three series ago. It now follows the release identity
    the same way versionDrift does. */
 const ENGINE_SHORT = (fs.readFileSync(path.join(root, "src/version.ts"), "utf8").match(/ENGINE_SHORT = "([^"]+)"/) ?? [, "19.7"])[1];
-const REQUIRED_IN_FULL = ["tsconfig.json", "package.json", "verify/run.mjs", "scripts/verify.sh", "src/version.ts", "README.md", `11H-${ENGINE_SHORT}-UPGRADE.md`, "FEATURES.md"];
+const REQUIRED_IN_FULL = ["tsconfig.json", "package.json", "verify/run.mjs", "scripts/verify.sh", "src/version.ts", "README.md", `SI-${ENGINE_SHORT}-UPGRADE.md`, "FEATURES.md"];
 /**
  * accept the archived home too. The product rebrand moved the versioned record
  * (changelog, upgrade guides, design notes) under docs/history/ BY ROLE — which

@@ -49,7 +49,7 @@ export function planWorktrees(
   for (const seat of team.seats) {
     if (!seat.mayWrite) {
       if (opts.deferReview && hasWriter) {
-        const path = `${root}-vh-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat.id)}`;
+        const path = `${root}-si-review-${branchSafe(opts.missionSlug)}-${branchSafe(seat.id)}`;
         plans.push({
           seatId: seat.id,
           branch: "",
@@ -77,7 +77,7 @@ export function planWorktrees(
 
     const branch = `vh/${opts.missionSlug}/${branchSafe(seat.id)}`;
     /* The DIRECTORY is keyed by the mission as well as the seat, and it has to
-     * be. It used to be `${root}-vh-${seat}` alone, which meant a second mission
+     * be. It used to be `${root}-si-${seat}` alone, which meant a second mission
      * for the same seat in the same repository asked git for a worktree that
      * already existed: the branch name differed, the path did not. Depending on
      * what the previous mission left behind, the new run either failed to create
@@ -85,7 +85,7 @@ export function planWorktrees(
      * holding a previous mission's changes. That is not a test artifact; it is
      * what happens when one teammate is handed two delegations against one repo,
      * which is the normal case, not an exotic one. */
-    const path = `${root}-vh-${branchSafe(opts.missionSlug)}-${branchSafe(seat.id)}`;
+    const path = `${root}-si-${branchSafe(opts.missionSlug)}-${branchSafe(seat.id)}`;
     plans.push({
       seatId: seat.id,
       branch,
