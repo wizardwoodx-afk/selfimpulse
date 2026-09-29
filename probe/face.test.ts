@@ -89,11 +89,12 @@ describe("the shell is wired", () => {
     const main = fs.readFileSync(path.join(ROOT, "src", "main.tsx"), "utf8");
     assert.ok(main.includes("ui/vh.css"));
     const css = fs.readFileSync(path.join(ROOT, "src", "ui", "vh.css"), "utf8");
-      // v0.0.3 re-anchored the house palette to deep ink / paper cream / one
-      // desaturated teal accent. The assertion's purpose is unchanged: the
-      // house tokens are declared in the one stylesheet, the display face is
-      // still there, and Tailwind is still not pulled in at runtime.
-      assert.ok(/#0B0C0E/i.test(css) && /#4FB3AF/i.test(css) && /Instrument Serif/.test(css));
+      // ONYX re-anchored the house palette to true black / paper cream / one
+      // live-mint teal accent, and the display voice to Geist Mono. The
+      // assertion's purpose is unchanged: the house tokens are declared in
+      // the one stylesheet, the display face is still there, and Tailwind is
+      // still not pulled in at runtime.
+      assert.ok(/--bg:\s*#000000/i.test(css) && /#3CE8C9/i.test(css) && /Geist Mono/.test(css) && !/Instrument Serif/.test(css));
       assert.ok(!/blue/i.test(css.replace(/hair.*blue/, "")));
     assert.ok(!/@import "tailwindcss"/.test(css));
   });

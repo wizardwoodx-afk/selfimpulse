@@ -3458,7 +3458,7 @@ describe("the shell is wired", () => {
     const main = fs.readFileSync(path.join(ROOT, "src", "main.tsx"), "utf8");
     assert.ok(main.includes("ui/vh.css"));
     const css = fs.readFileSync(path.join(ROOT, "src", "ui", "vh.css"), "utf8");
-    assert.ok(/#0B0C0E/i.test(css) && /#4FB3AF/i.test(css) && /Instrument Serif/.test(css));
+    assert.ok(/--bg:\s*#000000/i.test(css) && /#3CE8C9/i.test(css) && /Geist Mono/.test(css) && !/Instrument Serif/.test(css));
     assert.ok(!/blue/i.test(css.replace(/hair.*blue/, "")));
     assert.ok(!/@import "tailwindcss"/.test(css));
   });

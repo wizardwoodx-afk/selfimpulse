@@ -85,7 +85,7 @@ function main(): void {
     return !imports.includes("three") && !imports.includes("d3") && !src.includes('require("three")') && !src.includes('require("d3');
   })());
   ok("package.json ships 3d-force-graph plus three (custom meshes) and no d3", (() => { const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")); const deps = { ...pkg.dependencies, ...pkg.devDependencies }; const g = Object.keys(deps).filter((d) => /three|d3|force-graph|sigma/.test(d)).sort(); return g.includes("3d-force-graph") && g.includes("three") && !g.some((d) => d.startsWith("d3")); })());
-  ok("the graph canvas sits on the house dark ground (#0D1010) — no blue, no flat black", /#0D1010/i.test(css) && !/#000000\b/.test(css));
+  ok("the graph canvas sits on the house dark ground (TRUE BLACK) — no blue, no grey compromise", /--bg:\s*#000000/i.test(css) && !/#0D1010/i.test(css));
 
   /* the engine class exposes view state and disposes cleanly */
   ok("Graph3D exposes view + dispose (lifecycle)", typeof Graph3D.prototype.dispose === "function" && typeof Graph3D.prototype.view === "object");

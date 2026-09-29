@@ -16,40 +16,39 @@
 @font-face{font-family:"Geist";src:url(/fonts/Geist-Variable.woff2) format("woff2");font-weight:100 900;font-display:swap}
 @font-face{font-family:"Geist Mono";src:url(/fonts/GeistMono-Variable.woff2) format("woff2");font-weight:100 900;font-display:swap}
 @font-face{font-family:"Geist Pixel";src:url(/fonts/GeistPixel-Square.woff2) format("woff2");font-weight:400;font-display:swap}
-@font-face{font-family:"Instrument Serif";src:url(/fonts/instrument-serif-latin-400-normal.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
-@font-face{font-family:"Instrument Serif";src:url(/fonts/instrument-serif-latin-400-italic.woff2) format("woff2");font-weight:400;font-style:italic;font-display:swap}
 
 :root{
   --font:"Geist",-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
-  --display:"Instrument Serif","Iowan Old Style",Georgia,serif;
+  --display:"Geist Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
   --pixel:"Geist Pixel","Geist Mono",monospace;
 
   /* One spacing scale. Everything is a multiple of 4. */
   --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;--s8:64px;
-  /* One radius scale. Softer for a premium feel; sharp corners reserved
-     only for structural edges like the rail separator. */
-  --r:6px;--r2:10px;--r3:14px;
+  /* ONYX: nothing is rounded. Edges are straight, corners are square — the
+     radius scale survives at zero so component rules keep compiling unchanged. */
+  --r:0px;--r2:0px;--r3:0px;
   --ease:cubic-bezier(.2,.7,.2,1);--t:140ms var(--ease);
   --rail-w:212px;
 }
 
 [data-theme=dark]{
   color-scheme:dark;
-  /* Deep ink with a hair of warm undertone, not pure #000 — deep enough that
-     cards lift off it, warm enough that long reading doesn't tire the eye. */
-  --bg:#0B0C0E;--bg-deep:#090A0C;
-  --s1:#111316;--s2:#15181C;--s3:#1C2025;
-  --line:rgba(255,255,255,.07);--line-2:rgba(255,255,255,.12);
-  --fg:#EDEEF0;--fg-2:#A3A8AE;--fg-3:#6E747C;
-  /* Deep teal accent, pulled slightly desaturated so it reads as graphite
-     with a pulse rather than a neon. One accent, used sparingly. */
-  --accent:#4FB3AF;--accent-fg:#051110;--accent-soft:rgba(79,179,175,.12);
+  /* ONYX: the ground is TRUE BLACK — OLED-off black, no warm undertone, no
+     "deep ink". Depth comes from hairlines and raised near-black surfaces,
+     never from a tint. */
+  --bg:#000000;--bg-deep:#000000;
+  --s1:#0B0B0C;--s2:#101013;--s3:#17171B;
+  --line:rgba(255,255,255,.09);--line-2:rgba(255,255,255,.16);
+  --fg:#F6F6F7;--fg-2:#9BA1A8;--fg-3:#5D6167;
+  /* Live mint — the same teal family the doctrine names, tuned to sing on
+     black instead of on grey. One accent, used sparingly. */
+  --accent:#3CE8C9;--accent-fg:#000000;--accent-soft:rgba(60,232,201,.10);
   --ok:#8DA874;--warn:#C9A066;--bad:#CF7263;
   --ok-soft:rgba(141,168,116,.13);--warn-soft:rgba(201,160,102,.13);--bad-soft:rgba(207,114,99,.13);
   --shadow-1:0 0 0 1px var(--line);
   --shadow-2:0 1px 2px rgba(0,0,0,.4),0 0 0 1px var(--line);
-  --glass:rgba(17,19,22,.72);
+  --glass:rgba(8,8,9,.78);
   --on-accent:#051110;
 }
 
@@ -77,12 +76,13 @@ b,strong{font-weight:500}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left}
 button:disabled{opacity:.4;cursor:not-allowed}
 a{color:inherit;text-decoration:none}
+::selection{background:var(--accent);color:var(--accent-fg)}
 code,.mono{font-family:var(--mono);font-size:12.5px;letter-spacing:0}
-h1{font-family:var(--display);font-size:34px;font-weight:400;letter-spacing:-.015em;line-height:1.08}
+h1{font-family:var(--display);font-size:24px;font-weight:500;letter-spacing:.01em;line-height:1.15;text-transform:uppercase}
 h2{font-size:20px;font-weight:500;letter-spacing:-.018em}
 h3{font-size:14.5px;font-weight:500;letter-spacing:-.01em}
 .muted{color:var(--fg-2)}.faint{color:var(--fg-3)}.sm{font-size:12px}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:0}
 .lbl{font:10.5px var(--pixel);letter-spacing:.08em;color:var(--fg-3);text-transform:uppercase}
 .agent-tag{font:10.5px var(--pixel);letter-spacing:.08em;color:var(--fg-3)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -94,10 +94,14 @@ h3{font-size:14.5px;font-weight:500;letter-spacing:-.01em}
    panel, and closer to Apple Notes / Arc sidebar feel. */
 .side{background:transparent;color:var(--fg);border-right:1px solid var(--line);padding:18px 14px 14px;display:flex;flex-direction:column;gap:18px;min-height:0}
 .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 10px}
-.brand .mark{width:24px;height:24px;border-radius:8px;background:linear-gradient(160deg,var(--fg) 0%,var(--fg-2) 100%);position:relative;box-shadow:0 1px 2px rgba(0,0,0,.25);flex:none}
-.brand .mark:after{content:"";position:absolute;inset:8px;border-radius:2px;background:var(--bg)}
-.brand b{display:block;font-family:var(--display);font-weight:400;font-size:20px;line-height:1.05;letter-spacing:-.01em}
-.brand small{display:block;font:10px var(--pixel);color:var(--fg-3);letter-spacing:.08em;margin-top:3px;text-transform:uppercase}
+.brand .mark{width:22px;height:22px;border:1px solid var(--line-2);background:var(--bg);position:relative;flex:none}
+.brand .mark:before{content:"";position:absolute;inset:3px;background:var(--fg);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'%3E%3Cpath d='M1 13h4l3-9 4 16 3-11 2 4h6'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'%3E%3Cpath d='M1 13h4l3-9 4 16 3-11 2 4h6'/%3E%3C/svg%3E") center/contain no-repeat}
+@keyframes beacon{0%,49.9%{opacity:1}50%,100%{opacity:.15}}
+.brand .mark:after{content:"";position:absolute;right:-3px;bottom:-3px;width:5px;height:5px;background:var(--accent);animation:beacon 2.2s steps(1,end) infinite}
+@media (prefers-reduced-motion:reduce){.brand .mark:after{animation:none}}
+.brand .mark:after{content:"";position:absolute;inset:8px;border-radius:0;background:var(--bg)}
+.brand b{display:block;font-family:var(--display);font-weight:500;font-size:14px;line-height:1.05;letter-spacing:.09em;text-transform:uppercase}
+.brand small{display:block;font:9.5px var(--pixel);color:var(--fg-3);letter-spacing:.14em;margin-top:3px;text-transform:uppercase}
 /* New mission is the rail's primary action, but it is a SOFT accent. A solid
    teal fill here made the rail the loudest thing on screen and pulled the eye
    off the work area; the only fully filled accent in the interface is the
@@ -105,13 +109,13 @@ h3{font-size:14.5px;font-weight:500;letter-spacing:-.01em}
 /* The rail carries no filled surfaces at all. Active state is a 2px accent
    rule at the left edge plus brighter ink — a filled pill here was one of the
    permanent "open boxes", and it made the rail heavier than the work area. */
-.new{display:flex;align-items:center;gap:var(--s3);padding:9px 12px;border-radius:10px;color:var(--fg-2);font-size:13.5px;font-weight:500;width:100%;transition:color var(--t),background var(--t)}
+.new{display:flex;align-items:center;gap:var(--s3);padding:9px 12px;border-radius:0;color:var(--fg-2);font-size:13.5px;font-weight:500;width:100%;transition:color var(--t),background var(--t)}
 .new:hover{color:var(--fg);background:var(--s1)}
 .nav{display:flex;flex-direction:column;gap:2px;margin-top:2px}
-.nav a,.nav button{position:relative;display:flex;align-items:center;gap:11px;padding:8px 10px 8px 13px;border-radius:8px;color:var(--fg-2);font-size:13.5px;font-weight:450;width:100%;transition:color var(--t),background var(--t)}
+.nav a,.nav button{position:relative;display:flex;align-items:center;gap:11px;padding:8px 10px 8px 13px;color:var(--fg-2);font-size:12.5px;font-weight:450;letter-spacing:.02em;width:100%;transition:color var(--t),background var(--t)}
 .nav a:hover,.nav button:hover{background:var(--s1);color:var(--fg)}
-.nav [aria-current]{color:var(--fg);background:var(--s1)}
-.nav [aria-current]:before{content:"";position:absolute;left:2px;top:8px;bottom:8px;width:2px;background:var(--accent);border-radius:2px}
+.nav [aria-current]{color:var(--fg);background:var(--s1);box-shadow:inset 2px 0 0 var(--accent)}
+
 .nav .n{margin-left:auto;font:11px var(--mono);color:var(--fg-3);font-variant-numeric:tabular-nums}
 .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:6px}
 .status{display:flex;align-items:center;gap:8px;padding:6px 8px;font:11px var(--pixel);letter-spacing:.06em;text-transform:uppercase;color:var(--fg-2);width:100%;border-radius:var(--r);transition:background var(--t)}
@@ -137,7 +141,8 @@ h3{font-size:14.5px;font-weight:500;letter-spacing:-.01em}
    minimise/maximise/close buttons and become unclickable, because the controls
    paint above everything at the top of the window. */
 .top{height:60px;flex:none;display:flex;align-items:center;gap:18px;border-bottom:1px solid var(--line);padding:0 calc(36px + 138px) 0 40px}
-.top h2{font-family:var(--display);font-size:24px;font-weight:400;letter-spacing:-.01em}
+.top h2{font-family:var(--display);font-size:15px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.top h2:before{content:"";width:8px;height:8px;background:var(--accent);flex:none}
 .top .sub{color:var(--fg-3);font-size:13px;margin-top:2px}
 .top .right{margin-left:auto;display:flex;align-items:center;gap:8px}
 .scroll{flex:1;overflow:auto;min-height:0}
@@ -163,17 +168,20 @@ h3{font-size:14.5px;font-weight:500;letter-spacing:-.01em}
 .sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
 
 /* ---------- primitives ---------- */
-.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:8px;font-size:13px;font-weight:500;background:var(--s2);box-shadow:var(--shadow-1);transition:background var(--t),transform var(--t)}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:0;font-size:13px;font-weight:500;background:var(--s2);box-shadow:var(--shadow-1);transition:background var(--t),transform var(--t)}
 .btn:hover{background:var(--s3)}
 .btn:active{transform:translateY(1px)}
 .btn.primary{background:var(--accent);color:var(--accent-fg);box-shadow:0 1px 2px rgba(0,0,0,.18)}.btn.primary:hover{filter:brightness(1.06);background:var(--accent)}
 .btn.ghost{background:none;box-shadow:none;color:var(--fg-2)}.btn.ghost:hover{background:var(--s1);color:var(--fg)}
 .btn.sm{padding:6px 11px;font-size:12.5px}
-.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:11.5px;color:var(--fg-2);background:var(--s2);box-shadow:var(--shadow-1);letter-spacing:.01em}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:0;font-size:11.5px;color:var(--fg-2);background:var(--s2);box-shadow:var(--shadow-1);letter-spacing:.01em}
 .pill.warn,.pill.ok,.pill.bad{font-family:var(--pixel);letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;box-shadow:none}
 .pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
 .pill.accent{background:var(--accent-soft);color:var(--accent);box-shadow:none}
-.card{background:var(--s1);border-radius:var(--r);box-shadow:var(--shadow-1)}
+.card{background:var(--s1);border-radius:var(--r);box-shadow:var(--shadow-1);position:relative}
+.card:before,.card:after{content:"";position:absolute;top:-1px;width:8px;height:8px;pointer-events:none}
+.card:before{left:-1px;border-top:1px solid var(--fg-3);border-left:1px solid var(--fg-3)}
+.card:after{right:-1px;border-top:1px solid var(--fg-3);border-right:1px solid var(--fg-3)}
 .card>.card-h{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
 .card>.card-h h3{flex:1}
 .card>.card-b{padding:18px}
@@ -186,7 +194,7 @@ h3{font-size:14.5px;font-weight:500;letter-spacing:-.01em}
    The ON state is read from :checked, not [aria-checked] — an <input> element
    never carries aria-checked, so the previous selector never matched and the
    control looked permanently OFF even while memory was on. */
-.switch{width:38px;height:22px;border-radius:999px;background:var(--s3);position:relative;flex:none;box-shadow:inset 0 0 0 1px var(--line-2);transition:background var(--t)}
+.switch{width:38px;height:22px;border-radius:0;background:var(--s3);position:relative;flex:none;box-shadow:inset 0 0 0 1px var(--line-2);transition:background var(--t)}
 .switch:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--fg);transition:transform var(--t);box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .switch input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;z-index:2}
 .switch:has(input:checked){background:var(--accent);box-shadow:none}
@@ -198,13 +206,13 @@ h3{font-size:14.5px;font-weight:500;letter-spacing:-.01em}
 .switch input:checked+i{background:#fff;transform:translateX(16px)}
 .switch>span{margin-left:10px;font-size:12.5px;color:var(--fg-2)}
 .seg{display:inline-flex;background:var(--s3);border-radius:var(--r2);padding:2px;box-shadow:inset 0 0 0 1px var(--line)}
-.seg button{padding:5px 11px;border-radius:6px;font-size:12.5px;color:var(--fg-2)}
+.seg button{padding:5px 11px;border-radius:0;font-size:12.5px;color:var(--fg-2)}
 .seg button[aria-pressed=true]{background:var(--s1);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.2),0 0 0 1px var(--line)}
 .input{background:var(--s3);border-radius:var(--r2);padding:8px 11px;font-size:13px;color:var(--fg);box-shadow:inset 0 0 0 1px var(--line);width:100%;border:0;outline:0;font-family:var(--font)}
 .input::placeholder{color:var(--fg-3)}
 select.input{appearance:none}
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:56px 24px;text-align:center}
-.empty h3{font-family:var(--display);font-size:20px;font-weight:400}
+.empty h3{font-family:var(--display);font-size:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
 .empty p{color:var(--fg-2);max-width:40ch;font-size:13.5px}
 .note{padding:10px 14px;border-radius:var(--r2);background:var(--s2);font-size:12.5px;color:var(--fg-2)}
 .note.warn{background:var(--warn-soft);color:var(--warn)}.note.bad{background:var(--bad-soft);color:var(--bad)}.note.ok{background:var(--ok-soft);color:var(--ok)}
@@ -232,7 +240,7 @@ select.input{appearance:none}
    Left alignment also puts the eye where the text will grow. */
 .hero{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:18px;padding:60px 48px 40px;min-height:calc(100% - 60px);width:100%}
 .hero h1{text-align:left;font-size:clamp(34px,3.6vw,44px);letter-spacing:-.02em;font-weight:400;max-width:22ch;line-height:1.05}
-.hero h1 em{font-style:italic;color:var(--accent);font-family:var(--display)}
+.hero h1{text-transform:none;letter-spacing:0}.hero h1 em{font-style:normal;color:var(--accent)}
 .hero p{text-align:left;color:var(--fg-2);font-size:14.5px;max-width:58ch;line-height:1.55}
 .hero .hint{border-top:1px solid var(--line);padding-top:16px;width:min(780px,100%)}
 .hero .hint p{color:var(--fg-3);font-size:12.5px;line-height:1.6}
@@ -263,22 +271,22 @@ select.input{appearance:none}
    paper you can write into — softer shadow, more padding, larger type, the
    send button clearly the primary action. Border radii follow Apple Notes /
    Messages convention (rounded but not pill). */
-.composer{width:min(780px,100%);border-radius:14px;background:var(--s1);box-shadow:var(--shadow-2);padding:14px 14px 10px;position:relative;margin-top:20px;transition:box-shadow var(--t),border-color var(--t)}
+.composer{width:min(780px,100%);border-radius:0;background:var(--s1);box-shadow:var(--shadow-2);padding:14px 14px 10px;position:relative;margin-top:20px;transition:box-shadow var(--t),border-color var(--t)}
 .composer:focus-within{box-shadow:0 0 0 2px var(--accent-soft),var(--shadow-2)}
 .composer textarea{width:100%;background:none;border:0;outline:0;resize:none;color:var(--fg);font:16px/1.55 var(--font);height:48px;min-height:48px;letter-spacing:-.005em;padding:2px 4px}
 .composer textarea::placeholder{color:var(--fg-3)}
 .composer .bar{display:flex;align-items:center;gap:4px;margin-top:8px}
-.composer .attach{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--fg-3);transition:background var(--t),color var(--t)}
+.composer .attach{width:30px;height:30px;border-radius:0;display:grid;place-items:center;color:var(--fg-3);transition:background var(--t),color var(--t)}
 .composer .attach:hover{background:var(--s2);color:var(--fg-2)}
 .composer .pick{font-size:12px;color:var(--fg-3);padding:0 6px}
-.composer .send{margin-left:auto;width:32px;height:32px;border-radius:9px;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center;transition:filter var(--t),transform var(--t);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.composer .send{margin-left:auto;width:32px;height:32px;border-radius:0;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center;transition:filter var(--t),transform var(--t);box-shadow:0 1px 2px rgba(0,0,0,.2)}
 .composer .send:hover:not(:disabled){filter:brightness(1.06)}
 .composer .send:active:not(:disabled){transform:translateY(1px)}
 .composer .send .ic{background:var(--accent-fg);width:15px;height:15px;opacity:1}
 /* Four ways in, not four steps. No numerals, no separators — a quiet list that
    aligns to the composer's left edge, so the block reads as one surface. */
 .starts{display:flex;flex-direction:column;gap:2px;width:min(780px,100%);margin-top:14px}
-.starts button{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;font-size:13.5px;color:var(--fg-2);transition:background var(--t),color var(--t)}
+.starts button{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:0;font-size:13.5px;color:var(--fg-2);transition:background var(--t),color var(--t)}
 .starts button:hover{background:var(--s1);color:var(--fg)}
 .starts button b{font-weight:500;color:var(--fg);margin-right:4px}
 .starts button span{color:var(--fg-3);font-size:12.5px;margin-left:auto}
@@ -310,7 +318,7 @@ select.input{appearance:none}
 
 /* The contract, not a shrug. What runs, what stops, what is refused. */
 .contract-ledger{border:1px solid var(--line);border-radius:var(--r);background:var(--s1);padding:var(--s5)}
-.contract-ledger h3{font-family:var(--display);font-size:19px;font-weight:400;letter-spacing:-.01em;text-wrap:balance}
+.contract-ledger h3{font-family:var(--display);font-size:13px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;text-wrap:balance}
 .contract-ledger p{margin-top:var(--s2);font-size:13px;max-width:64ch}
 .contract-ledger dl{margin-top:var(--s5);display:flex;flex-direction:column}
 .contract-ledger dl>div{display:grid;grid-template-columns:180px 1fr;gap:var(--s4);padding:var(--s3) 0;border-top:1px solid var(--line)}
@@ -326,8 +334,8 @@ select.input{appearance:none}
 
 .thread{max-width:760px;margin:0 auto;padding:28px 24px 200px}
 .msg{display:grid;grid-template-columns:28px 1fr;gap:14px;margin-bottom:26px}
-.msg .av{width:28px;height:28px;border-radius:9px;background:var(--s3);box-shadow:var(--shadow-1)}
-.msg.user .av{background:linear-gradient(160deg,var(--fg-2),var(--fg-3))}
+.msg .av{width:28px;height:28px;border-radius:0;background:var(--s3);box-shadow:var(--shadow-1)}
+.msg.user .av{background:var(--s3);box-shadow:inset 0 0 0 1px var(--line-2)}
 .msg .who{font-size:12px;color:var(--fg-3);margin-bottom:5px}
 .msg .who b{color:var(--fg-2);font-weight:450}
 .msg p{max-width:66ch;font-size:14.5px;line-height:1.6;white-space:pre-wrap;font-weight:inherit}
@@ -348,27 +356,27 @@ select.input{appearance:none}
 /* ---------- graphs ---------- */
 .graph-wrap{position:relative;flex:1;min-height:0}
 .graph-wrap .g3{position:absolute;inset:0}
-.graph-wrap.work{background:radial-gradient(ellipse at 50% 35%,rgba(213,178,107,.10),transparent 60%),linear-gradient(var(--bg),var(--bg))}
-.graph-wrap.work:after{content:"";position:absolute;inset:auto 0 0 0;height:46%;pointer-events:none;background-image:linear-gradient(rgba(213,178,107,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(213,178,107,.07) 1px,transparent 1px);background-size:44px 44px;transform:perspective(600px) rotateX(64deg);transform-origin:bottom;-webkit-mask-image:linear-gradient(transparent,black 60%);mask-image:linear-gradient(transparent,black 60%)}
-.graph-wrap.memory{background:radial-gradient(ellipse at 50% 45%,rgba(127,199,154,.09),transparent 60%),linear-gradient(var(--bg),var(--bg))}
+.graph-wrap.work{background:linear-gradient(var(--bg),var(--bg))}
+.graph-wrap.work:after{content:"";position:absolute;inset:auto 0 0 0;height:46%;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:44px 44px;transform:perspective(600px) rotateX(64deg);transform-origin:bottom;-webkit-mask-image:linear-gradient(transparent,black 60%);mask-image:linear-gradient(transparent,black 60%)}
+.graph-wrap.memory{background:radial-gradient(ellipse at 50% 45%,rgba(60,232,201,.05),transparent 60%),linear-gradient(var(--bg),var(--bg))}
 .graph-wrap.memory:after{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(rgba(174,184,181,.10) 1px,transparent 1px);background-size:26px 26px;-webkit-mask-image:radial-gradient(ellipse at center,black 30%,transparent 75%);mask-image:radial-gradient(ellipse at center,black 30%,transparent 75%)}
 .hud{position:absolute;top:16px;left:24px;width:300px;pointer-events:none;display:flex;flex-direction:column;gap:8px;z-index:2}
 .hud .card{pointer-events:auto;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .hud .card-b{padding:14px 16px}
-.hud h3{font-family:var(--display);font-size:20px;font-weight:400}
+.hud h3{font-family:var(--display);font-size:13px;font-weight:500;letter-spacing:.07em;text-transform:uppercase}
 .hud-r{position:absolute;top:16px;right:24px;width:290px;pointer-events:none;z-index:2}
 .hud-r .card{pointer-events:auto;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 .mode-tag{display:inline-flex;align-items:center;gap:7px;font:10.5px var(--pixel);letter-spacing:.08em;text-transform:uppercase;color:var(--fg-3);margin-bottom:6px}
-.mode-tag i{width:8px;height:8px;border-radius:2px}
+.mode-tag i{width:8px;height:8px;border-radius:0}
 .mode-tag.work i{background:var(--accent)}.mode-tag.memory i{background:#9BA1A8;border-radius:50%}
-.prog{height:4px;border-radius:2px;background:var(--s3);margin:10px 0 6px;overflow:hidden}
-.prog i{display:block;height:100%;background:var(--accent);border-radius:2px;transition:width 300ms var(--ease)}
+.prog{height:4px;border-radius:0;background:var(--s3);margin:10px 0 6px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);border-radius:0;transition:width 300ms var(--ease)}
 .klist{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--fg-2)}
 .klist div{display:flex;justify-content:space-between;gap:10px}
 .klist span:last-child{font-family:var(--mono);color:var(--fg-3);font-size:11px;flex:none}
 .legend{display:flex;gap:12px;margin-top:12px;font-size:12px;color:var(--fg-2);flex-wrap:wrap}
 .legend i{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%}
-.legend.work i{border-radius:2px}
+.legend.work i{border-radius:0}
 .gate-float{position:absolute;right:24px;bottom:64px;width:520px;z-index:3}
 .gate-float .gatebox{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .graph-foot{position:absolute;bottom:16px;left:24px;right:24px;display:flex;align-items:center;gap:8px;pointer-events:none;z-index:2}
@@ -377,7 +385,7 @@ select.input{appearance:none}
 
 /* ---------- receipts ledger ---------- */
 .kpis{display:flex;gap:22px;align-items:baseline;margin-bottom:18px;padding:0 2px;flex-wrap:wrap}
-.kpis div b{font-family:var(--display);font-size:30px;font-weight:400;color:var(--fg);line-height:1;margin-right:6px}
+.kpis div b{font-family:var(--display);font-size:26px;font-weight:500;color:var(--fg);line-height:1;margin-right:6px;font-variant-numeric:tabular-nums}
 .kpis div span{font-size:12.5px;color:var(--fg-3)}
 .kpis .sep{width:1px;height:22px;background:var(--line-2);align-self:center}
 .ledger{border-radius:var(--r);background:var(--s1);box-shadow:var(--shadow-1);overflow:hidden}
@@ -390,7 +398,7 @@ select.input{appearance:none}
 .ledger .lr code{color:var(--fg-2);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ledger .lr .at{font:11px var(--mono);color:var(--fg-3);text-align:right}
 .ledger .seal{width:18px;height:18px}.ledger .seal .ic{width:9px;height:9px}.ledger .seal.pending:before{width:5px;height:5px}
-.ledger .day{padding:10px 16px 4px;font-family:var(--display);font-size:15px;color:var(--fg-2);border-top:1px solid var(--line)}
+.ledger .day{padding:10px 16px 4px;font-family:var(--display);font-size:11px;font-weight:500;color:var(--fg-2);letter-spacing:.09em;text-transform:uppercase;border-top:1px solid var(--line)}
 
 /* ---------- settings ---------- */
 .settings{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:start}
@@ -398,7 +406,7 @@ select.input{appearance:none}
 .snav button{padding:7px 10px;border-radius:var(--r2);font-size:13px;color:var(--fg-2)}
 .snav button[aria-current]{background:var(--s2);color:var(--fg);box-shadow:var(--shadow-1)}
 .sgroup{margin-bottom:26px;scroll-margin-top:16px}
-.sgroup>h3{font-family:var(--display);font-size:20px;font-weight:400;margin-bottom:8px;padding-left:2px}
+.sgroup>h3{font-family:var(--display);font-size:13px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;padding-left:2px}
 .sgroup>p{color:var(--fg-3);font-size:12.5px;margin:-4px 0 10px 2px}
 
 /* ---------- 19.8 additions: pages, forms, ledger rows, misc ---------- */
@@ -423,17 +431,17 @@ select.input{appearance:none}
 .themes button{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:10px;border-radius:var(--r);background:var(--s1);box-shadow:var(--shadow-1);width:150px;font-size:13px}
 .themes button[aria-pressed=true]{box-shadow:0 0 0 2px var(--accent)}
 .themes b{font-weight:450}.themes small{color:var(--fg-3);font:10.5px var(--pixel);letter-spacing:.06em;text-transform:uppercase;margin-top:-4px}
-.themes .sw{width:100%;height:56px;border-radius:8px;box-shadow:inset 0 0 0 1px var(--line-2)}
-.themes .sw.dark{background:linear-gradient(160deg,#232B2B,#0D1010)}.themes .sw.light{background:linear-gradient(160deg,#FAEBD7,#E3DAC9)}
+.themes .sw{width:100%;height:56px;border-radius:0;box-shadow:inset 0 0 0 1px var(--line-2)}
+.themes .sw.dark{background:linear-gradient(160deg,#17171B,#000000)}.themes .sw.light{background:linear-gradient(160deg,#FAF7F1,#E3DAC9)}
 .klist.about span:last-child{font-family:var(--font);font-size:12.5px;color:var(--fg-2);text-align:right;max-width:34ch;flex:1}
 .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px}
-.tags span{font:11px var(--mono);padding:2px 7px;border-radius:999px;background:var(--s3);color:var(--fg-2)}
+.tags span{font:11px var(--mono);padding:2px 7px;border-radius:0;background:var(--s3);color:var(--fg-2)}
 .card.soft{opacity:.85}
 /* switch as label+checkbox */
 label.switch{width:auto;height:auto;background:none;box-shadow:none;display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--fg-2);cursor:pointer}
 label.switch:after{display:none}
 label.switch input{position:absolute;opacity:0;width:0;height:0}
-label.switch i{width:34px;height:20px;border-radius:999px;background:var(--s3);box-shadow:inset 0 0 0 1px var(--line-2);position:relative;transition:background var(--t)}
+label.switch i{width:34px;height:20px;border-radius:0;background:var(--s3);box-shadow:inset 0 0 0 1px var(--line-2);position:relative;transition:background var(--t)}
 label.switch i:after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--fg);transition:transform var(--t)}
 label.switch input:checked+i{background:var(--accent)}label.switch input:checked+i:after{transform:translateX(14px);background:#fff}
 /* `.switch:has(input:checked)` paints the accent across the whole element. The
@@ -467,14 +475,14 @@ label.switch:has(input:checked){background:none;box-shadow:none}
 .keyrow .input{flex:1}
 .keyinput{font-family:var(--mono);letter-spacing:.12em;font-size:12.5px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
-.chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:9px 12px;border-radius:10px;background:var(--s1);box-shadow:var(--shadow-1);font-size:12.5px;color:var(--fg-2);max-width:210px;transition:box-shadow var(--t),color var(--t),transform var(--t)}
+.chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:9px 12px;border-radius:0;background:var(--s1);box-shadow:var(--shadow-1);font-size:12.5px;color:var(--fg-2);max-width:210px;transition:box-shadow var(--t),color var(--t),transform var(--t)}
 .chip:hover{box-shadow:0 0 0 1px var(--accent),var(--shadow-1);color:var(--fg);transform:translateY(-1px)}
 .chip b{font-weight:500;color:var(--fg);font-size:13px}
 .chip span{font-size:11.5px;color:var(--fg-3);line-height:1.35}
 /* calm, themed scrollbars */
 *{scrollbar-width:thin;scrollbar-color:var(--s3) transparent}
 *::-webkit-scrollbar{width:9px;height:9px}
-*::-webkit-scrollbar-thumb{background:var(--s3);border-radius:8px;border:2px solid var(--bg)}
+*::-webkit-scrollbar-thumb{background:var(--s3);border-radius:0;border:2px solid var(--bg)}
 *::-webkit-scrollbar-thumb:hover{background:var(--fg-3)}
 *::-webkit-scrollbar-track{background:transparent}
 /* buttons: visible keyboard focus + gentler motion */

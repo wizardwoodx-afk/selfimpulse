@@ -384,7 +384,7 @@ function main() {
     const g = Object.keys(deps).filter((d) => /three|d3|force-graph|sigma/.test(d)).sort();
     return g.includes("3d-force-graph") && g.includes("three") && !g.some((d) => d.startsWith("d3"));
   })());
-  ok("the graph canvas sits on the house dark ground (#0D1010) \u2014 no blue, no flat black", /#0D1010/i.test(css) && !/#000000\b/.test(css));
+  ok("the graph canvas sits on the house dark ground (TRUE BLACK) \u2014 no blue, no grey compromise", /--bg:\s*#000000/i.test(css) && !/#0D1010/i.test(css));
   ok("Graph3D exposes view + dispose (lifecycle)", typeof Graph3D.prototype.dispose === "function" && typeof Graph3D.prototype.view === "object");
   console.log(`
 ${passed} passed, ${failed} failed`);
