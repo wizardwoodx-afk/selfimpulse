@@ -19,6 +19,7 @@
  * Both exclude node_modules, .git and the scratch files a working tree gathers.
  */
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
@@ -35,7 +36,13 @@ const stem = `SI-${version}-${codename}`;
 const ALWAYS_EXCLUDE = [
   "node_modules", ".git", "dist", "target", "__pycache__", ".vite", ".cache",
   "sigil-sheet.html", "sheet.html", "scratch-agentic-result.json",
+  // audit H1: browser-profile data must never ride a release archive, even
+  // when a developer ran the browser service in-tree (the packer walks the
+  // filesystem, so .gitignore alone protects nothing here).
+  "profile", "profiles", "browser-profile", "browser-profiles",
+  "User Data", "Default",
 ];
+const PROFILE_SUFFIXES = ["Logindata", "Cookies", "History", "NetworkPersistentState"];
 const SCRATCH_FILES = new Set([
   "montage.cjs", "fleet-check.mjs", "shot.mjs", "dist.mjs", "run1.mjs", "run2.mjs",
 ]);
@@ -74,8 +81,12 @@ function makeZip(name, rels) {
   const outFile = path.join(outDir, `${stem}-${name}.zip`);
   if (fs.existsSync(outFile)) fs.unlinkSync(outFile);
   execFileSync("zip", ["-q", "-X", "-9", outFile, "-@"], { input: fs.readFileSync(listPath) });
+  // audit H3: every archive ships with its checksum, emitted next to it. CI's
+  // release job uploads both; a download without its sum is only a promise.
+  const sum = createHash("sha256").update(fs.readFileSync(outFile)).digest("hex");
+  fs.writeFileSync(outFile.replace(/\.zip$/, ".SHA256SUMS.txt"), `${sum}  ${path.basename(outFile)}\n`);
   const size = (fs.statSync(outFile).size / 1024 / 1024).toFixed(1);
-  console.log(`${name.padEnd(8)} ${outFile}  —  ${rels.length} files, ${size} MB`);
+  console.log(`${name.padEnd(8)} ${outFile}  —  ${rels.length} files, ${size} MB, sha256 ${sum.slice(0, 16)}…`);
   return outFile;
 }
 
@@ -123,3 +134,15 @@ if (missing.length > 0) {
 }
 console.log(`\nfull tree self-check: ${REQUIRED_IN_FULL.length}/${REQUIRED_IN_FULL.length} required files present`);
 console.log("verify the full artifact with: unzip it, then  sh scripts/verify.sh  (zero install)  ·  npm ci && npm test  (with deps)");
+
+
+// ── audit H3: the archive ships with its checksums, or it ships with nothing
+// but a promise. Emitted next to the archive; CI's release job uploads both.
+{
+  const { createHash } = await import("node:crypto");
+  const sum = createHash("sha256").update(fs.readFileSync(zipPath)).digest("hex");
+  const sumsPath = zipPath.replace(/\.zip$/, ".SHA256SUMS.txt");
+  fs.writeFileSync(sumsPath, `${sum}  ${path.basename(zipPath)}\n`);
+  console.log(`sha256: ${sum}`);
+  console.log(`wrote ${sumsPath}`);
+}

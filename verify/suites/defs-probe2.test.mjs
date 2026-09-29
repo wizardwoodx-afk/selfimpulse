@@ -1086,3 +1086,27 @@ for (const d of NODE_DEFINITIONS) {
   const reqIn = (d.inputs ?? []).filter((p2) => p2.required);
   if (outs[0]?.dataType === "Text" && reqIn.length === 0) console.log(" ", d.id, "|", d.title, "| outs:", outs.map((p2) => p2.id + ":" + p2.dataType).join(","));
 }
+var _pass = 0;
+var _fail = 0;
+function _ok(label, cond, detail = "") {
+  if (cond) {
+    _pass += 1;
+    console.log(" ok  ", label);
+  } else {
+    _fail += 1;
+    console.log("  FAIL", label, detail);
+  }
+}
+var _textFirst = 0;
+for (const d of NODE_DEFINITIONS) {
+  const outs = d.outputs ?? [];
+  const reqIn = (d.inputs ?? []).filter((p2) => p2.required);
+  if (outs[0]?.dataType === "Text" && reqIn.length === 0) _textFirst += 1;
+}
+for (const id of ["control.start", "control.end", "cap.transform", "control.approval"]) {
+  _ok(`node definition ships: ${id}`, !!DEFINITIONS_BY_ID.get(id), "missing");
+}
+_ok("the node library is non-empty and fully iterated", NODE_DEFINITIONS.length >= 1, String(NODE_DEFINITIONS.length));
+console.log(`
+${_pass} passed, ${_fail} failed`);
+if (_fail > 0) process.exit(1);

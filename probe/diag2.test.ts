@@ -20,3 +20,15 @@ for (const k of ["REPAIR_STARTED","REPAIR_COMPLETED"]) {
 }
 const seqs = ev.map((e)=>e.seq);
 console.log("total", ev.length, "min seq", seqs[0], "max seq", seqs[seqs.length-1], "unique seqs", new Set(seqs).size);
+
+/* ── audit H5: this suite used to only PRINT (exit 0 no matter what). It
+   asserts now — a diagnostic that cannot fail is not a check. ── */
+let _pass = 0, _fail = 0;
+function _ok(label: string, cond: boolean, detail = ""): void {
+  if (cond) { _pass += 1; console.log(" ok  ", label); }
+  else { _fail += 1; console.log("  FAIL", label, detail); }
+}
+_ok("the runtime recorded events", ev.length > 0, String(ev.length));
+_ok("event sequence numbers are unique (ledger integrity)", new Set(seqs).size === ev.length, `unique ${new Set(seqs).size} of ${ev.length}`);
+console.log(`\n${_pass} passed, ${_fail} failed`);
+if (_fail > 0) process.exit(1);

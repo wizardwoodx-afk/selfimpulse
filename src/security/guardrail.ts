@@ -197,6 +197,8 @@ const BLOCKED_HOST_SUFFIXES = [".internal", ".local", ".localhost"];
  * because self-hosted local services (SearXNG, a local LLM) are documented,
  * consented product surface — the desktop CSP pins the same allowance.
  */
+import { classifyIp, isObfuscatedIpv4Literal, normalizeHost } from "./egressNet";
+
 export function checkEgressUrl(raw: string): { ok: boolean; reason: string } {
   let u: URL;
   try {
@@ -208,6 +210,21 @@ export function checkEgressUrl(raw: string): { ok: boolean; reason: string } {
     return { ok: false, reason: `scheme "${u.protocol}" refused — only http(s) egress is allowed` };
   }
   const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  /* LITERAL addresses go through the ONE classifier (egressNet): IPv4-mapped
+     IPv6, expanded IPv6 and every other spelling of a private address are
+     classified by the implementation the rest of the product trusts, so this
+     guard cannot drift from it the way a second hand-written regex always
+     eventually does (the audit finding that motivated the delegation).
+     metadata.google.internal is a NAME, not an address — kept below. */
+  const literal = normalizeHost(host);
+  if (literal.kind !== "unknown") {
+    const cls = classifyIp(literal, true); // loopback stays allowed: local LLM / SearXNG surface
+    if (!cls.ok) return { ok: false, reason: `${literal.ip} — ${cls.reason}` };
+    return { ok: true, reason: "" };
+  }
+  if (isObfuscatedIpv4Literal(host)) {
+    return { ok: false, reason: `obfuscated IP literal "${host}" refused — write the address in dotted-quad form (SSRF guard)` };
+  }
   if (host === "169.254.169.254" || host === "metadata.google.internal") {
     return { ok: false, reason: "cloud metadata endpoint refused (SSRF guard)" };
   }

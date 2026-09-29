@@ -18,6 +18,7 @@
  *   • JSON-RPC errors surface as typed A2AClientError (code + message),
  *     never as silent undefined.
  */
+import { safeEgressFetch } from "../security/egressNet";
 import { recordA2AVerifiedPeer } from "./a2aIdentityBridge";
 import { checkEgressUrl } from "../security/guardrail";
 import {
@@ -237,11 +238,15 @@ export async function sendFileToPeer(opts: {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 30_000);
   try {
-    const res = await fetch(`${opts.baseUrl.replace(/\/+$/, "")}/vh/altersend`, {
+    /* Egress-guarded (audit C5): raw file bytes leave only through the guarded
+       fetch; private ranges allowed — the peer is an explicitly paired endpoint. */
+    const res = await safeEgressFetch(`${opts.baseUrl.replace(/\/+$/, "")}/vh/altersend`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${opts.token}` },
       body: JSON.stringify({ name: opts.name, data: opts.bytes.toString("base64") }),
       signal: ctl.signal,
+      allowLoopback: true,
+      allowPrivate: true,
     });
     const body = (await res.json()) as Record<string, unknown>;
     if (!res.ok) return { ok: false, reason: String(body.reason ?? body.error ?? res.status) };
@@ -262,9 +267,12 @@ export async function fetchFileFromPeer(opts: {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 30_000);
   try {
-    const res = await fetch(`${opts.baseUrl.replace(/\/+$/, "")}/vh/altersend/${encodeURIComponent(opts.id)}`, {
+    /* Egress-guarded (audit C5) — same policy as the offer above. */
+    const res = await safeEgressFetch(`${opts.baseUrl.replace(/\/+$/, "")}/vh/altersend/${encodeURIComponent(opts.id)}`, {
       headers: { authorization: `Bearer ${opts.token}` },
       signal: ctl.signal,
+      allowLoopback: true,
+      allowPrivate: true,
     });
     const body = (await res.json()) as Record<string, unknown>;
     if (!res.ok) return { ok: false, reason: String(body.reason ?? body.error ?? res.status) };

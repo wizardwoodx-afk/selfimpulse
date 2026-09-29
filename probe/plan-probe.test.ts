@@ -19,3 +19,16 @@ console.log("graph nodes:", g.nodes.length, "wires:", g.connections.length);
 const v = validateWorkflow(g);
 console.log("validation issues:", JSON.stringify(v, null, 1));
 for (const n of g.nodes) console.log("  node", n.id, n.definitionId, "| purpose set:", n.purpose.trim().length > 0);
+
+/* ── audit H5: this suite used to only PRINT (exit 0 no matter what). It
+   asserts now — a diagnostic that cannot fail is not a check. ── */
+let _pass = 0, _fail = 0;
+function _ok(label: string, cond: boolean, detail = ""): void {
+  if (cond) { _pass += 1; console.log(" ok  ", label); }
+  else { _fail += 1; console.log("  FAIL", label, detail); }
+}
+_ok("the plan has steps", plan.steps.length >= 1, String(plan.steps.length));
+_ok("every step carries id, kind and risk", plan.steps.every((s) => !!s.id && !!s.kind && typeof s.risk === "string"));
+_ok("approval checkpoints are an array", Array.isArray(plan.approvalCheckpoints));
+console.log(`\n${_pass} passed, ${_fail} failed`);
+if (_fail > 0) process.exit(1);

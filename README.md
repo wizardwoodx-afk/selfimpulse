@@ -49,10 +49,39 @@ can verify later. Built on the **MJ** engine.
 - **Settings** — provider, vault, autonomy level, federation with another
   owner, appearance, and the guardrail manifest.
 
+## Security notes (say it plainly)
+
+- **Egress.** One classifier decides what an address IS (`src/security/egressNet.ts`);
+  every literal-address guard delegates to it, and redirects are followed manually
+  with every hop re-checked. On hosts with DNS (node runtimes), names are resolved
+  and every answer is classified before anything is sent; a name resolving to both
+  public and internal addresses is refused. In the webview — which cannot resolve
+  or pin addresses — literal addresses are fully classified and hostnames are
+  policy-checked per hop; this window is stated rather than papered over.
+- **Desktop IPC.** The 80+ commands assume the renderer is the app's own. The
+  browser service demands a per-spawn token and an allowed origin, the MCP path
+  and workspace registration are allowlisted and capped — but the Tauri global
+  API exposure stays ON on purpose: turning it off previously broke host
+  detection and every native affordance (a recorded regression), and the
+  capability-token model that would replace it is future work. This paragraph
+  is the honest placeholder for that work, not a claim that it is done.
+- **The browser service.** Loopback-only, spawned lazily, requires a per-spawn
+  token on every data route (GET /health stays open as a data-free liveness probe).
+- **MCP servers.** A configured server command must be a dev-tool binary
+  (node/npm/npx/python/pip/pytest/cargo/git/go/uvx/uv) or an executable in the
+  vendored servers directory — enforced at save AND at call time. The save+call
+  pair used to be an arbitrary-execution hole (audit C2); it is closed.
+- **Workspace roots.** A filesystem/drive root is never a workspace; credential
+  directories (.ssh, .aws, ...) are refused as roots AND refused inside every
+  fs_* path check; roots cap at 16 (audit C1).
+
 ## Principles the code enforces
 
-- **On-device.** Nothing leaves your machine without a signed authority and a
-  receipt. No telemetry.
+- **On-device.** Routine work never leaves your machine. The ONE egress path
+  is federation you pair explicitly: a crossing needs a signed authority from
+  both owners, a replay-guarded envelope, and receipts on both sides — and the
+  federation fetches now go through the same egress guard as everything else
+  (audit C5: two federation sinks used to bypass it). No telemetry.
 - **Your key, sealed.** Provider keys live in memory for the session, or
   encrypted at rest behind a passphrase vault — never plaintext.
 - **The human gate.** Actions above the safe tier stop and ask. Approvals

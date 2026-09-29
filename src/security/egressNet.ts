@@ -96,7 +96,7 @@ function parseIpv4(input: string): number[] | null {
 }
 
 /** True for a bare-integer / octal / hex IPv4 literal like 2130706433 or 0x7f000001. */
-function isObfuscatedIpv4Literal(host: string): boolean {
+export function isObfuscatedIpv4Literal(host: string): boolean {
   if (/^\d{1,3}(\.\d{1,3}){0,2}$/.test(host)) return true;      // 2130706433, 127.1
   if (/^0[xX][0-9a-fA-F]{1,8}$/.test(host)) return true;       // 0x7f000001
   return false;
@@ -259,9 +259,10 @@ export interface EgressDecision {
  */
 export async function resolveEgress(
   raw: string,
-  opts: { allowLoopback?: boolean; resolve?: Resolver } = {},
+  opts: { allowLoopback?: boolean; allowPrivate?: boolean; resolve?: Resolver } = {},
 ): Promise<EgressDecision> {
   const allowLoopback = opts.allowLoopback ?? false;
+  const allowPrivate = opts.allowPrivate ?? false;
   const resolve = opts.resolve ?? systemResolver;
 
   // The string policy still runs first — it owns scheme and suffix policy.
@@ -295,7 +296,10 @@ export async function resolveEgress(
   let pinned: { ip: string; scope: IpClass["scope"] } | null = null;
   for (const a of answers) {
     const n = normalizeHost(a);
-    const cls = classifyIp(n, allowLoopback);
+    let cls = classifyIp(n, allowLoopback);
+    if (!cls.ok && allowPrivate && cls.scope === "private") {
+      cls = { ok: true, reason: "private range allowed — explicitly paired peer", scope: "private" };
+    }
     if (!cls.ok) {
       return { ok: false, reason: `"${host}" resolves to ${n.ip || a} — ${cls.reason}`, scope: cls.scope };
     }
@@ -310,6 +314,9 @@ const DEFAULT_MAX_REDIRECTS = 5;
 export interface SafeEgressInit extends RequestInit {
   fetchImpl?: typeof fetch;
   allowLoopback?: boolean;
+  /** Private-range targets allowed (user-PAIRED federation peers) — never a
+   * default: tool egress must not reach the LAN even when DNS says so. */
+  allowPrivate?: boolean;
   resolve?: Resolver;
   maxRedirects?: number;
 }

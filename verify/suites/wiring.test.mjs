@@ -1756,3 +1756,20 @@ console.log(`
 == every dropped wire (${dropped.length}) ==`);
 for (const d of [...new Set(dropped)].slice(0, 12)) console.log("  " + d);
 console.log(`  distinct drop reasons: ${new Set(dropped.map((s) => s.split(": ")[1])).size}`);
+var _pass = 0;
+var _fail = 0;
+function _ok(label, cond, detail = "") {
+  if (cond) {
+    _pass += 1;
+    console.log(" ok  ", label);
+  } else {
+    _fail += 1;
+    console.log("  FAIL", label, detail);
+  }
+}
+_ok("the frameworks declare wires", dF >= 1, String(dF));
+_ok("materialisation kept validated connections", kF >= 1 && dF >= kF, `declared ${dF} kept ${kF}`);
+_ok("drop accounting balances", dF - kF === dropped.length, `dropped ${dropped.length}`);
+console.log(`
+${_pass} passed, ${_fail} failed`);
+if (_fail > 0) process.exit(1);

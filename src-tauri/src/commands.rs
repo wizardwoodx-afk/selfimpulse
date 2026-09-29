@@ -409,7 +409,29 @@ fn egress_guard(raw: &str) -> Result<(), String> {
         return Err(format!("scheme \"{scheme}\" refused — only http(s) egress is allowed"));
     }
     let host = u.host_str().unwrap_or("").to_ascii_lowercase();
-    let bare = host.trim_start_matches('[').trim_end_matches(']');
+    let mut bare = host.trim_start_matches('[').trim_end_matches(']').to_string();
+    // Audit C3 parity: an IPv4-mapped IPv6 literal is an IPv4 address wearing
+    // an IPv6 hat — unwrap it here exactly as egressNet.normalizeHost does in
+    // TypeScript, or every v4 rule below silently stops applying. An obfuscated
+    // dotted form (decimal / hex / octal components) is refused outright and
+    // the caller is told to write the address plainly.
+    if let Some(rest) = bare.strip_prefix("::ffff:") {
+        let parts: Vec<&str> = rest.split(':').collect();
+        if parts.len() == 2 {
+            if let (Ok(hi), Ok(lo)) = (u16::from_str_radix(parts[0], 16), u16::from_str_radix(parts[1], 16)) {
+                bare = format!("{}.{}.{}.{}", hi >> 8, hi & 0xff, lo >> 8, lo & 0xff);
+            }
+        } else if rest.contains('.') {
+            bare = rest.to_string(); // ::ffff:a.b.c.d dotted tail
+        }
+    }
+    {
+        let octets: Vec<&str> = bare.split('.').collect();
+        let all_numeric = !octets.is_empty() && octets.iter().all(|o| !o.is_empty() && o.chars().all(|c| c.is_ascii_digit() || c == 'x' || c.is_ascii_hexdigit()));
+        if all_numeric && octets.len() != 4 {
+            return Err(format!("obfuscated IP literal \"{bare}\" refused — write the address in dotted-quad form (SSRF guard)"));
+        }
+    }
     if bare == "169.254.169.254" || bare == "metadata.google.internal" {
         return Err("cloud metadata endpoint refused (SSRF guard)".into());
     }
@@ -743,11 +765,32 @@ fn allowed_roots(state: &AppState) -> Vec<String> {
     roots
 }
 
+/// Audit C1 defence-in-depth: even inside a registered root, credential
+/// directories are never readable through the fs commands. Checked on every
+/// fs_* call, not only at registration, so a bad registration cannot open
+/// this hole either.
+fn refuse_sensitive_path(normalized: &str) -> Result<(), String> {
+    let mut lower = normalized.to_lowercase();
+    lower = lower.replace('\\', "/");
+    for seg in lower.split('/').filter(|s| !s.is_empty()) {
+        if matches!(
+            seg,
+            ".ssh" | ".aws" | ".gnupg" | ".kube" | ".docker" | ".azure" | ".gcloud" | ".password-store" | ".netrc" | ".env"
+        ) {
+            return Err(format!(
+                "sandbox: '{normalized}' crosses the credential directory '{seg}/' — refused in words; nothing was read, written or listed."
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn ensure_allowed(state: &AppState, path: &str) -> Result<String, String> {
     let normalized = canonicalize_best(&normalize_path_str(path)); // 16.10.1: real path, symlink-proof
     if normalized.is_empty() {
         return Err("sandbox: empty path".into());
     }
+    refuse_sensitive_path(&normalized)?;
     if allowed_roots(state).iter().any(|root| is_within(&normalized, root)) {
         Ok(normalized)
     } else {
@@ -757,11 +800,51 @@ fn ensure_allowed(state: &AppState, path: &str) -> Result<String, String> {
     }
 }
 
+/// Audit C1: registration used to check only `is_dir()`, which made the whole
+/// fs sandbox self-service — the webview could register C:\ (or /) and then
+/// read anything through fs_read. The gate is now three refusals deep:
+///   1. a filesystem/drive root (C:\ , / , \\server) is never a workspace;
+///   2. credential directories (.ssh, .aws, ...) are never a workspace;
+///   3. the table caps at 16 roots, so a compromise cannot carpet the disk.
+/// The human still chooses project folders in the UI; a compromise now hits
+/// walls at every turn instead of one boolean.
+fn workspace_root_refused(normalized: &str) -> Option<String> {
+    let p = PathBuf::from(normalized);
+    let mut ancestors = p.ancestors();
+    let self_is_root = ancestors.next().map(|a| a.as_os_str()) == Some(std::ffi::OsStr::new(normalized))
+        && p.parent().map(|par| par.as_os_str()) == Some(std::ffi::OsStr::new(normalized));
+    if self_is_root || normalized == "/" || normalized.len() <= 3 && normalized.ends_with(':') || normalized.ends_with(":/") || normalized.ends_with(":\\") {
+        return Some(format!(
+            "sandbox: '{normalized}' is a filesystem or drive root — a workspace is a project folder, never a volume. Refused in words; nothing was registered."
+        ));
+    }
+    let mut lower = normalized.to_lowercase().replace('\\', "/");
+    lower = lower.trim_end_matches('/').to_string();
+    for seg in lower.split('/').filter(|s| !s.is_empty()) {
+        if matches!(seg, ".ssh" | ".aws" | ".gnupg" | ".kube" | ".docker" | ".azure" | ".gcloud" | ".password-store") {
+            return Some(format!(
+                "sandbox: a credential directory ('{seg}/') can never be a workspace root. Refused in words; nothing was registered."
+            ));
+        }
+    }
+    None
+}
+
 #[tauri::command]
 pub fn workspace_root_add(state: State<Arc<AppState>>, root: String) -> Result<Value, String> {
     let normalized = normalize_path_str(&root);
     if normalized.is_empty() || !PathBuf::from(&root).is_dir() {
         return Err(format!("sandbox: '{root}' is not an existing directory"));
+    }
+    if let Some(why) = workspace_root_refused(&normalized) {
+        return Err(why);
+    }
+    {
+        let db = lock_db(&state)?;
+        let existing = db::workspace_root_list(&*db).unwrap_or_default();
+        if existing.as_array().map(|a| a.len()).unwrap_or(0) >= 16 {
+            return Err("sandbox: 16 workspace roots are already registered — remove one before adding another. Refused in words; nothing was registered.".into());
+        }
     }
     db::workspace_root_add(&*lock_db(&state)?, &normalized).map_err(|e| e.to_string())
 }
@@ -859,8 +942,45 @@ pub fn shell_exec(state: State<Arc<AppState>>, program: String, args: Vec<String
 pub fn mcp_server_list(state: State<Arc<AppState>>) -> Result<Value, String> {
     db::mcp_list(&*lock_db(&state)?).map_err(|e| e.to_string())
 }
+/// Audit C2: `mcp_server_save` + `mcp_call` used to spawn the configured
+/// command string verbatim — the ONLY allowlist in the codebase
+/// (SHELL_ALLOWED_PROGRAMS) was never applied on this path, which made the
+/// pair an arbitrary-execution primitive: save {command:"calc.exe"}, call,
+/// done. The same boundary now guards the whole MCP path: the program must be
+/// a dev-tool binary (plus the Python-family runners the MCP ecosystem
+/// actually uses) or an executable inside the vendored servers directory.
+/// Checked at SAVE time (bad configs are refused before they persist) and
+/// again at CALL/TEST time (a config edited behind the app's back persists
+/// nothing).
+const MCP_EXTRA_PROGRAMS: &[&str] = &["uvx", "uv", "py"];
+
+fn mcp_command_allowed(state: &AppState, command: &str) -> Result<(), String> {
+    let first = command.split_whitespace().next().unwrap_or("");
+    let bare = std::path::Path::new(first)
+        .file_name()
+        .map(|f| f.to_string_lossy().trim_end_matches(".exe").to_string())
+        .unwrap_or_else(|| first.to_string());
+    let dev_tool = SHELL_ALLOWED_PROGRAMS.contains(&bare.as_str()) || MCP_EXTRA_PROGRAMS.contains(&bare.as_str());
+    let vendored = !state.vendor_dir.as_os_str().is_empty()
+        && std::path::Path::new(command).starts_with(&state.vendor_dir);
+    if !(dev_tool || vendored) {
+        return Err(format!(
+            "MCP capability boundary: '{command}' is not a dev-tool binary or a vendored server (allowed: node/npm/npx/python/pip/pytest/cargo/git/go/uvx/uv, or an executable inside the vendored servers directory). Refused in words; nothing was saved and nothing ran."
+        ));
+    }
+    Ok(())
+}
+
+fn mcp_server_command<'a>(cfg: &'a Value) -> &'a str {
+    cfg.pointer("/config/command").and_then(|v| v.as_str()).unwrap_or("")
+}
+
 #[tauri::command]
 pub fn mcp_server_save(state: State<Arc<AppState>>, cfg: Value) -> Result<Value, String> {
+    let command = mcp_server_command(&cfg).to_string();
+    if !command.is_empty() {
+        mcp_command_allowed(&state, &command)?;
+    }
     db::mcp_save(&*lock_db(&state)?, &cfg).map_err(|e| e.to_string())
 }
 #[tauri::command]
@@ -873,6 +993,9 @@ pub fn mcp_connect_test(state: State<Arc<AppState>>, server_id: String) -> Resul
     let found = list.as_array().and_then(|a| a.iter().find(|s| s["id"] == server_id)).cloned();
     let Some(s) = found else { return Ok(json!({"connected": false, "lastError": "unknown server", "toolCount": 0})); };
     let cmd = s.pointer("/config/command").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    if let Err(why) = mcp_command_allowed(&state, &cmd) {
+        return Ok(json!({ "connected": false, "lastError": why, "toolCount": 0 }));
+    }
     let args: Vec<String> = s.pointer("/config/args").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect()).unwrap_or_default();
     let cwd = state.vendor_dir.parent().unwrap_or(&state.vendor_dir).to_path_buf();
     Ok(mcp::connect_test(&cmd, &args, &cwd))
@@ -891,6 +1014,9 @@ pub fn mcp_call(state: State<Arc<AppState>>, server_id: String, tool: String, ar
     let found = list.as_array().and_then(|a| a.iter().find(|s| s["id"] == server_id)).cloned();
     let Some(s) = found else { return Err(format!("unknown MCP server {server_id}")); };
     let cmd = s.pointer("/config/command").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    if let Err(why) = mcp_command_allowed(&state, &cmd) {
+        return Err(why);
+    }
     let args: Vec<String> = s.pointer("/config/args").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect()).unwrap_or_default();
     let cwd = state.vendor_dir.parent().unwrap_or(&state.vendor_dir).to_path_buf();
     Ok(mcp::call_tool(&cmd, &args, &cwd, &tool, &arguments))
@@ -926,7 +1052,17 @@ fn browser_down_reason(e: &str) -> String {
 }
 
 fn browser_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
+    let mut builder = reqwest::Client::builder();
+    // Audit H6: the per-spawn token rides every call. GET /health stays open
+    // so the liveness probe needs no secret (it carries no data).
+    if let Some(t) = BROWSER_TOKEN.get() {
+        if let Ok(hv) = reqwest::header::HeaderValue::from_str(t) {
+            let mut headers = reqwest::header::HeaderMap::new();
+            headers.insert(reqwest::header::HeaderName::from_static("x-si-token"), hv);
+            builder = builder.default_headers(headers);
+        }
+    }
+    builder
         // The service caps a navigation at 120 s; leave headroom on this side.
         .timeout(std::time::Duration::from_secs(150))
         .build()
@@ -984,6 +1120,10 @@ fn served(r: &Value) -> bool {
 
 /// Cooldown so a service that refuses to start does not turn every command into a process spawn.
 static BROWSER_BOOT: std::sync::OnceLock<Mutex<Option<std::time::Instant>>> = std::sync::OnceLock::new();
+/// Audit H6: the per-spawn token the browser service demands on every route
+/// except /health. Generated fresh at each launch, never leaves this process
+/// except as the spawn argument.
+static BROWSER_TOKEN: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 const BROWSER_BOOT_COOLDOWN: std::time::Duration = std::time::Duration::from_secs(10);
 const BROWSER_BOOT_WAIT: std::time::Duration = std::time::Duration::from_secs(25);
 
@@ -1061,9 +1201,11 @@ pub fn node_binary() -> String {
 /// Starts the browser service, trying each Node candidate until one actually launches.
 fn spawn_browser_service(server: &std::path::Path, dir: &std::path::Path) -> Result<(), String> {
     let mut attempts = Vec::new();
+    let token = uuid::Uuid::new_v4().simple().to_string();
     for bin in browser_node_candidates() {
         let mut cmd = std::process::Command::new(&bin);
-        cmd.arg(server).current_dir(dir);
+        // Audit H6: the service is only reachable with this run's token.
+        cmd.arg(server).arg("--token").arg(token.clone()).current_dir(dir);
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -1071,7 +1213,10 @@ fn spawn_browser_service(server: &std::path::Path, dir: &std::path::Path) -> Res
             cmd.creation_flags(0x08000000);
         }
         match cmd.spawn() {
-            Ok(_) => return Ok(()),
+            Ok(_) => {
+                let _ = BROWSER_TOKEN.set(token);
+                return Ok(());
+            }
             Err(e) => attempts.push(format!("`{bin}` ({e})")),
         }
     }

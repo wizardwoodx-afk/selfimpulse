@@ -32,6 +32,15 @@ function checkEgressUrl(raw) {
     return { ok: false, reason: `scheme "${u.protocol}" refused \u2014 only http(s) egress is allowed` };
   }
   const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const literal = normalizeHost(host);
+  if (literal.kind !== "unknown") {
+    const cls = classifyIp(literal, true);
+    if (!cls.ok) return { ok: false, reason: `${literal.ip} \u2014 ${cls.reason}` };
+    return { ok: true, reason: "" };
+  }
+  if (isObfuscatedIpv4Literal(host)) {
+    return { ok: false, reason: `obfuscated IP literal "${host}" refused \u2014 write the address in dotted-quad form (SSRF guard)` };
+  }
   if (host === "169.254.169.254" || host === "metadata.google.internal") {
     return { ok: false, reason: "cloud metadata endpoint refused (SSRF guard)" };
   }
@@ -67,6 +76,7 @@ var CONTROL_CHARS, INVISIBLE_UNICODE, INJECTION_DETECTORS, RateGate, BLOCKED_HOS
 var init_guardrail = __esm({
   "src/security/guardrail.ts"() {
     "use strict";
+    init_egressNet();
     CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
     INVISIBLE_UNICODE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF\u{E0000}-\u{E007F}]/gu;
     INJECTION_DETECTORS = [
@@ -128,33 +138,6 @@ var init_guardrail = __esm({
     };
     BLOCKED_HOST_SUFFIXES = [".internal", ".local", ".localhost"];
     callRateGate = new RateGate(120, 6e4);
-  }
-});
-
-// src/version.ts
-var ENGINE_VERSION, ENGINE_SHORT, ENGINE_CODENAME, PRODUCT_TITLE;
-var init_version = __esm({
-  "src/version.ts"() {
-    "use strict";
-    ENGINE_VERSION = "19.7.15";
-    ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "SelfImpulse";
-    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
-  }
-});
-
-// src/app/desktop.ts
-function detectHost() {
-  if (typeof window === "undefined") return "web";
-  const w = window;
-  if (w.__TAURI_INTERNALS__) return "tauri";
-  if (w.__TAURI__) return "tauri";
-  if (typeof navigator !== "undefined" && /tauri/i.test(navigator.userAgent)) return "tauri";
-  return "web";
-}
-var init_desktop = __esm({
-  "src/app/desktop.ts"() {
-    "use strict";
   }
 });
 
@@ -285,6 +268,7 @@ function classifyIp(n, allowLoopback) {
 }
 async function resolveEgress(raw, opts = {}) {
   const allowLoopback = opts.allowLoopback ?? false;
+  const allowPrivate = opts.allowPrivate ?? false;
   const resolve2 = opts.resolve ?? systemResolver;
   const base = checkEgressUrl(raw);
   if (!base.ok) return { ok: false, reason: base.reason };
@@ -308,7 +292,10 @@ async function resolveEgress(raw, opts = {}) {
   let pinned = null;
   for (const a of answers) {
     const n = normalizeHost(a);
-    const cls = classifyIp(n, allowLoopback);
+    let cls = classifyIp(n, allowLoopback);
+    if (!cls.ok && allowPrivate && cls.scope === "private") {
+      cls = { ok: true, reason: "private range allowed \u2014 explicitly paired peer", scope: "private" };
+    }
     if (!cls.ok) {
       return { ok: false, reason: `"${host}" resolves to ${n.ip || a} \u2014 ${cls.reason}`, scope: cls.scope };
     }
@@ -364,6 +351,33 @@ var init_egressNet = __esm({
       return out;
     };
     DEFAULT_MAX_REDIRECTS = 5;
+  }
+});
+
+// src/version.ts
+var ENGINE_VERSION, ENGINE_SHORT, ENGINE_CODENAME, PRODUCT_TITLE;
+var init_version = __esm({
+  "src/version.ts"() {
+    "use strict";
+    ENGINE_VERSION = "19.7.15";
+    ENGINE_SHORT = "19.7";
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+  }
+});
+
+// src/app/desktop.ts
+function detectHost() {
+  if (typeof window === "undefined") return "web";
+  const w = window;
+  if (w.__TAURI_INTERNALS__) return "tauri";
+  if (w.__TAURI__) return "tauri";
+  if (typeof navigator !== "undefined" && /tauri/i.test(navigator.userAgent)) return "tauri";
+  return "web";
+}
+var init_desktop = __esm({
+  "src/app/desktop.ts"() {
+    "use strict";
   }
 });
 
@@ -1526,6 +1540,7 @@ import { spawn as spawn2, execFileSync } from "node:child_process";
 import { createHash as createHash4 } from "node:crypto";
 
 // src/mission/a2aRuntime.ts
+init_egressNet();
 import { spawn } from "node:child_process";
 import { createHash as createHash3 } from "node:crypto";
 import fs2 from "node:fs";
@@ -5424,6 +5439,9 @@ async function runInboundDelegation(teammate, task, fromUser, cfg = {}) {
   };
 }
 
+// src/mission/a2aClient.ts
+init_egressNet();
+
 // src/mission/a2aIdentityBridge.ts
 var A2A_PEERS_KEY = "engine.collab.a2a.v1";
 function storage() {
@@ -7053,9 +7071,11 @@ function nodeRunnerDeps(opts) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), req.timeoutSecs * 1e3);
       try {
-        const r = await fetch(`${p.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+        const r = await safeEgressFetch(`${p.baseUrl.replace(/\/$/, "")}/chat/completions`, {
           method: "POST",
           signal: ctrl.signal,
+          allowLoopback: true,
+          allowPrivate: true,
           headers: { "content-type": "application/json", authorization: `Bearer ${p.apiKey}` },
           body: JSON.stringify({
             model: req.model || p.model,

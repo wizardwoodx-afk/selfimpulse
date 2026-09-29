@@ -33,6 +33,15 @@ function checkEgressUrl(raw) {
     return { ok: false, reason: `scheme "${u.protocol}" refused \u2014 only http(s) egress is allowed` };
   }
   const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const literal = normalizeHost(host);
+  if (literal.kind !== "unknown") {
+    const cls = classifyIp(literal, true);
+    if (!cls.ok) return { ok: false, reason: `${literal.ip} \u2014 ${cls.reason}` };
+    return { ok: true, reason: "" };
+  }
+  if (isObfuscatedIpv4Literal(host)) {
+    return { ok: false, reason: `obfuscated IP literal "${host}" refused \u2014 write the address in dotted-quad form (SSRF guard)` };
+  }
   if (host === "169.254.169.254" || host === "metadata.google.internal") {
     return { ok: false, reason: "cloud metadata endpoint refused (SSRF guard)" };
   }
@@ -195,6 +204,7 @@ var systemResolver = async (hostname) => {
 };
 async function resolveEgress(raw, opts = {}) {
   const allowLoopback = opts.allowLoopback ?? false;
+  const allowPrivate = opts.allowPrivate ?? false;
   const resolve = opts.resolve ?? systemResolver;
   const base = checkEgressUrl(raw);
   if (!base.ok) return { ok: false, reason: base.reason };
@@ -218,7 +228,10 @@ async function resolveEgress(raw, opts = {}) {
   let pinned = null;
   for (const a of answers) {
     const n = normalizeHost(a);
-    const cls = classifyIp(n, allowLoopback);
+    let cls = classifyIp(n, allowLoopback);
+    if (!cls.ok && allowPrivate && cls.scope === "private") {
+      cls = { ok: true, reason: "private range allowed \u2014 explicitly paired peer", scope: "private" };
+    }
     if (!cls.ok) {
       return { ok: false, reason: `"${host}" resolves to ${n.ip || a} \u2014 ${cls.reason}`, scope: cls.scope };
     }
@@ -286,9 +299,9 @@ section("1. the IPv4-mapped IPv6 bypass \u2014 LIVE in the previous build");
 {
   const sneaky = "http://[::ffff:a9fe:a9fe]/latest/meta-data/";
   ok(
-    "the old string policy DID allow the mapped metadata address (so this test is not vacuous)",
-    checkEgressUrl(sneaky).ok,
-    "if this fails the bypass is already gone \u2014 update the comment above"
+    "checkEgressUrl now REFUSES the mapped metadata address (the audit bypass is closed)",
+    !checkEgressUrl(sneaky).ok,
+    "if this fails the bypass is back \u2014 fix the guard, not this line"
   );
   const n = normalizeHost("::ffff:a9fe:a9fe");
   ok("normalizeHost unwraps it to 169.254.169.254", n.kind === "ipv4" && n.ip === "169.254.169.254", `${n.kind} ${n.ip}`);

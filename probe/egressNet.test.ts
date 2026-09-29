@@ -43,8 +43,13 @@ section("1. the IPv4-mapped IPv6 bypass — LIVE in the previous build");
 {
   // Show the old policy letting it through, so this test can never go vacuous.
   const sneaky = "http://[::ffff:a9fe:a9fe]/latest/meta-data/";
-  ok("the old string policy DID allow the mapped metadata address (so this test is not vacuous)",
-    checkEgressUrl(sneaky).ok, "if this fails the bypass is already gone — update the comment above");
+  /* AUDIT FIX (C3): the string policy used to ALLOW this address — the line
+     below used to assert .ok as a non-vacuity proof. checkEgressUrl now
+     delegates literal addresses to the one classifier, so the mapped form is
+     REFUSED at this seam too. The assertion flipped with the fix, on purpose:
+     if this ever flips back, the bypass has returned. */
+  ok("checkEgressUrl now REFUSES the mapped metadata address (the audit bypass is closed)",
+    !checkEgressUrl(sneaky).ok, "if this fails the bypass is back — fix the guard, not this line");
   const n = normalizeHost("::ffff:a9fe:a9fe");
   ok("normalizeHost unwraps it to 169.254.169.254", n.kind === "ipv4" && n.ip === "169.254.169.254", `${n.kind} ${n.ip}`);
   const cls = classifyIp(n, false);

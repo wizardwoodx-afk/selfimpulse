@@ -544,8 +544,43 @@ const routes = {
   },
 };
 
+/* ── audit H6: this service used to be an unauthenticated loopback listener,
+   which meant ANY page you visited could drive your browser (loopback CSRF:
+   POST /act with evaluate + navigate from a hostile page). Two defences:
+   1. TOKEN — the app spawns this server with `--token <per-spawn hex>`; every
+      route except GET /health (a liveness probe that carries no data) must
+      present it in `x-si-token`. A page that does not know the token is
+      refused before its request reaches any handler.
+   2. ORIGIN — a request that carries an Origin header (every cross-origin
+      browser fetch does) must name an allowed shell origin. A hostile page's
+      Origin is refused even before the token check can matter. */
+const SPAWN_TOKEN = (() => {
+  const i = process.argv.indexOf("--token");
+  return i >= 0 ? String(process.argv[i + 1] ?? "") : "";
+})();
+const ALLOWED_ORIGINS = new Set([
+  "http://tauri.localhost", "https://tauri.localhost",
+  "http://localhost:5173", "http://127.0.0.1:5173",
+]);
+function request_allowed(req) {
+  const origin = String(req.headers.origin ?? "");
+  if (origin && !ALLOWED_ORIGINS.has(origin)) return `origin "${origin}" is not an allowed shell origin`;
+  if (!SPAWN_TOKEN) return ""; // manual CLI start: token enforcement impossible; origin still checked
+  return req.headers["x-si-token"] === SPAWN_TOKEN ? "" : "missing or wrong x-si-token";
+}
+if (SPAWN_TOKEN) console.log("selfimpulse-browser: token enforcement ON");
+else console.warn("selfimpulse-browser: NO --token given (manual start?) — token enforcement OFF, origin check only");
+
 const server = http.createServer((req, res) => {
   const key = `${req.method} ${req.url?.split("?")[0]}`;
+  if (key !== "GET /health") {
+    const denied = request_allowed(req);
+    if (denied) {
+      res.writeHead(401, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: false, reason: `refused: ${denied}. This is a localhost browser-control service; requests must come from the SelfImpulse shell.` }));
+      return;
+    }
+  }
   const handler = routes[key];
   if (!handler) {
     res.writeHead(404, { "content-type": "application/json" });

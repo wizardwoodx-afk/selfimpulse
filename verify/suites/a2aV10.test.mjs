@@ -9,155 +9,6 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// src/security/guardrail.ts
-function sanitizeText(text, maxLen = 2e3) {
-  return text.replace(CONTROL_CHARS, "").replace(INVISIBLE_UNICODE, "").slice(0, maxLen).trim();
-}
-function detectInjection(text) {
-  if (!text) return [];
-  const findings = [];
-  for (const d of INJECTION_DETECTORS) {
-    if (d.test(text)) findings.push({ code: d.code, reason: d.reason });
-  }
-  return findings;
-}
-function checkEgressUrl(raw) {
-  let u;
-  try {
-    u = new URL(raw);
-  } catch {
-    return { ok: false, reason: "not a parseable URL" };
-  }
-  if (u.protocol !== "http:" && u.protocol !== "https:") {
-    return { ok: false, reason: `scheme "${u.protocol}" refused \u2014 only http(s) egress is allowed` };
-  }
-  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (host === "169.254.169.254" || host === "metadata.google.internal") {
-    return { ok: false, reason: "cloud metadata endpoint refused (SSRF guard)" };
-  }
-  if (/^169\.254\./.test(host)) {
-    return { ok: false, reason: "link-local address refused (SSRF guard)" };
-  }
-  if (host === "0.0.0.0" || host === "::") {
-    return { ok: false, reason: "unspecified address refused" };
-  }
-  if (/^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) {
-    return { ok: false, reason: "private network address refused (SSRF guard)" };
-  }
-  if (/^(fc|fd)[0-9a-f]{0,2}:/i.test(host) || /^fe80:/i.test(host)) {
-    return { ok: false, reason: "IPv6 unique-local / link-local refused (SSRF guard)" };
-  }
-  for (const sfx of BLOCKED_HOST_SUFFIXES) {
-    if (host.endsWith(sfx)) return { ok: false, reason: `host suffix "${sfx}" refused` };
-  }
-  return { ok: true, reason: "" };
-}
-function secureId(prefix) {
-  const c = globalThis.crypto;
-  const hex = (bytes) => [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
-  if (c && typeof c.randomUUID === "function") return `${prefix}${c.randomUUID().replace(/-/g, "")}`;
-  if (c && typeof c.getRandomValues === "function") {
-    const bytes = new Uint8Array(16);
-    c.getRandomValues(bytes);
-    return `${prefix}${hex(bytes)}`;
-  }
-  throw new Error("no secure random source available \u2014 refusing to mint an id");
-}
-var CONTROL_CHARS, INVISIBLE_UNICODE, INJECTION_DETECTORS, RateGate, BLOCKED_HOST_SUFFIXES, callRateGate;
-var init_guardrail = __esm({
-  "src/security/guardrail.ts"() {
-    "use strict";
-    CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
-    INVISIBLE_UNICODE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF\u{E0000}-\u{E007F}]/gu;
-    INJECTION_DETECTORS = [
-      {
-        code: "role-hijack",
-        reason: "content tries to override the agent's role or instructions",
-        test: (t) => /ignore\s+(all\s+|any\s+|previous\s+|prior\s+|above\s+)*instructions/i.test(t) || /disregard\s+(all\s+|any\s+|previous\s+|prior\s+)*instructions/i.test(t) || /you\s+are\s+now\s+(a|an|in)\b/i.test(t) || /new\s+system\s+prompt/i.test(t)
-      },
-      {
-        code: "fake-system-marker",
-        reason: "content contains forged system/role delimiters",
-        test: (t) => /<\/?\s*system\s*>/i.test(t) || /\[\s*(SYSTEM|INST|SYS)\s*\]/i.test(t) || /^system\s*:/im.test(t) && /assistant\s*:/i.test(t)
-      },
-      {
-        code: "fake-tool-call",
-        reason: "content embeds forged tool/function-call markup",
-        test: (t) => /\[\s*tool(_use|_call|_result)?\s*\]/i.test(t) || /<\s*\/?\s*(antml|function_call|tool_use|invoke)\b/i.test(t) || /\{\s*"name"\s*:\s*"[a-z0-9_.-]{1,64}"\s*,\s*"arguments"/i.test(t)
-      },
-      {
-        code: "encoded-payload",
-        reason: "content carries a long encoded blob (base64-class) that hides instructions from review",
-        test: (t) => /[A-Za-z0-9+/]{80,}={0,2}/.test(t)
-      },
-      {
-        code: "exfiltration-prompt",
-        reason: "content asks for credentials/secrets to be sent somewhere",
-        test: (t) => /(api[_ -]?key|secret[_ -]?key|access[_ -]?token|password|credentials?).{0,60}(send|post|upload|fetch|transmit|exfiltrate|to\s+https?:)/i.test(t)
-      },
-      {
-        code: "html-data-uri",
-        reason: "content embeds an executable data: URI",
-        test: (t) => /data\s*:\s*text\/html/i.test(t) || /javascript\s*:/i.test(t)
-      },
-      {
-        code: "invisible-characters",
-        reason: "content contains invisible/zero-width characters (smuggling surface)",
-        test: (t) => INVISIBLE_UNICODE.test(t)
-      }
-    ];
-    RateGate = class {
-      constructor(limit, windowMs, now = () => Date.now()) {
-        this.limit = limit;
-        this.windowMs = windowMs;
-        this.now = now;
-      }
-      hits = /* @__PURE__ */ new Map();
-      /** Returns true when the action is within budget (and records it). */
-      check(key) {
-        const t = this.now();
-        const arr = (this.hits.get(key) ?? []).filter((x) => t - x < this.windowMs);
-        if (arr.length >= this.limit) {
-          this.hits.set(key, arr);
-          return false;
-        }
-        arr.push(t);
-        this.hits.set(key, arr);
-        return true;
-      }
-    };
-    BLOCKED_HOST_SUFFIXES = [".internal", ".local", ".localhost"];
-    callRateGate = new RateGate(120, 6e4);
-  }
-});
-
-// src/version.ts
-var ENGINE_VERSION, ENGINE_SHORT, ENGINE_CODENAME, PRODUCT_TITLE;
-var init_version = __esm({
-  "src/version.ts"() {
-    "use strict";
-    ENGINE_VERSION = "19.7.15";
-    ENGINE_SHORT = "19.7";
-    ENGINE_CODENAME = "SelfImpulse";
-    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
-  }
-});
-
-// src/app/desktop.ts
-function detectHost() {
-  if (typeof window === "undefined") return "web";
-  const w = window;
-  if (w.__TAURI_INTERNALS__) return "tauri";
-  if (w.__TAURI__) return "tauri";
-  if (typeof navigator !== "undefined" && /tauri/i.test(navigator.userAgent)) return "tauri";
-  return "web";
-}
-var init_desktop = __esm({
-  "src/app/desktop.ts"() {
-    "use strict";
-  }
-});
-
 // src/security/egressNet.ts
 function expandIpv6(input) {
   let s = input;
@@ -285,6 +136,7 @@ function classifyIp(n, allowLoopback) {
 }
 async function resolveEgress(raw, opts = {}) {
   const allowLoopback = opts.allowLoopback ?? false;
+  const allowPrivate = opts.allowPrivate ?? false;
   const resolve2 = opts.resolve ?? systemResolver;
   const base = checkEgressUrl(raw);
   if (!base.ok) return { ok: false, reason: base.reason };
@@ -308,7 +160,10 @@ async function resolveEgress(raw, opts = {}) {
   let pinned = null;
   for (const a of answers) {
     const n = normalizeHost(a);
-    const cls = classifyIp(n, allowLoopback);
+    let cls = classifyIp(n, allowLoopback);
+    if (!cls.ok && allowPrivate && cls.scope === "private") {
+      cls = { ok: true, reason: "private range allowed \u2014 explicitly paired peer", scope: "private" };
+    }
     if (!cls.ok) {
       return { ok: false, reason: `"${host}" resolves to ${n.ip || a} \u2014 ${cls.reason}`, scope: cls.scope };
     }
@@ -364,6 +219,165 @@ var init_egressNet = __esm({
       return out;
     };
     DEFAULT_MAX_REDIRECTS = 5;
+  }
+});
+
+// src/security/guardrail.ts
+function sanitizeText(text, maxLen = 2e3) {
+  return text.replace(CONTROL_CHARS, "").replace(INVISIBLE_UNICODE, "").slice(0, maxLen).trim();
+}
+function detectInjection(text) {
+  if (!text) return [];
+  const findings = [];
+  for (const d of INJECTION_DETECTORS) {
+    if (d.test(text)) findings.push({ code: d.code, reason: d.reason });
+  }
+  return findings;
+}
+function checkEgressUrl(raw) {
+  let u;
+  try {
+    u = new URL(raw);
+  } catch {
+    return { ok: false, reason: "not a parseable URL" };
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    return { ok: false, reason: `scheme "${u.protocol}" refused \u2014 only http(s) egress is allowed` };
+  }
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const literal = normalizeHost(host);
+  if (literal.kind !== "unknown") {
+    const cls = classifyIp(literal, true);
+    if (!cls.ok) return { ok: false, reason: `${literal.ip} \u2014 ${cls.reason}` };
+    return { ok: true, reason: "" };
+  }
+  if (isObfuscatedIpv4Literal(host)) {
+    return { ok: false, reason: `obfuscated IP literal "${host}" refused \u2014 write the address in dotted-quad form (SSRF guard)` };
+  }
+  if (host === "169.254.169.254" || host === "metadata.google.internal") {
+    return { ok: false, reason: "cloud metadata endpoint refused (SSRF guard)" };
+  }
+  if (/^169\.254\./.test(host)) {
+    return { ok: false, reason: "link-local address refused (SSRF guard)" };
+  }
+  if (host === "0.0.0.0" || host === "::") {
+    return { ok: false, reason: "unspecified address refused" };
+  }
+  if (/^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) {
+    return { ok: false, reason: "private network address refused (SSRF guard)" };
+  }
+  if (/^(fc|fd)[0-9a-f]{0,2}:/i.test(host) || /^fe80:/i.test(host)) {
+    return { ok: false, reason: "IPv6 unique-local / link-local refused (SSRF guard)" };
+  }
+  for (const sfx of BLOCKED_HOST_SUFFIXES) {
+    if (host.endsWith(sfx)) return { ok: false, reason: `host suffix "${sfx}" refused` };
+  }
+  return { ok: true, reason: "" };
+}
+function secureId(prefix) {
+  const c = globalThis.crypto;
+  const hex = (bytes) => [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (c && typeof c.randomUUID === "function") return `${prefix}${c.randomUUID().replace(/-/g, "")}`;
+  if (c && typeof c.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    c.getRandomValues(bytes);
+    return `${prefix}${hex(bytes)}`;
+  }
+  throw new Error("no secure random source available \u2014 refusing to mint an id");
+}
+var CONTROL_CHARS, INVISIBLE_UNICODE, INJECTION_DETECTORS, RateGate, BLOCKED_HOST_SUFFIXES, callRateGate;
+var init_guardrail = __esm({
+  "src/security/guardrail.ts"() {
+    "use strict";
+    init_egressNet();
+    CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+    INVISIBLE_UNICODE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF\u{E0000}-\u{E007F}]/gu;
+    INJECTION_DETECTORS = [
+      {
+        code: "role-hijack",
+        reason: "content tries to override the agent's role or instructions",
+        test: (t) => /ignore\s+(all\s+|any\s+|previous\s+|prior\s+|above\s+)*instructions/i.test(t) || /disregard\s+(all\s+|any\s+|previous\s+|prior\s+)*instructions/i.test(t) || /you\s+are\s+now\s+(a|an|in)\b/i.test(t) || /new\s+system\s+prompt/i.test(t)
+      },
+      {
+        code: "fake-system-marker",
+        reason: "content contains forged system/role delimiters",
+        test: (t) => /<\/?\s*system\s*>/i.test(t) || /\[\s*(SYSTEM|INST|SYS)\s*\]/i.test(t) || /^system\s*:/im.test(t) && /assistant\s*:/i.test(t)
+      },
+      {
+        code: "fake-tool-call",
+        reason: "content embeds forged tool/function-call markup",
+        test: (t) => /\[\s*tool(_use|_call|_result)?\s*\]/i.test(t) || /<\s*\/?\s*(antml|function_call|tool_use|invoke)\b/i.test(t) || /\{\s*"name"\s*:\s*"[a-z0-9_.-]{1,64}"\s*,\s*"arguments"/i.test(t)
+      },
+      {
+        code: "encoded-payload",
+        reason: "content carries a long encoded blob (base64-class) that hides instructions from review",
+        test: (t) => /[A-Za-z0-9+/]{80,}={0,2}/.test(t)
+      },
+      {
+        code: "exfiltration-prompt",
+        reason: "content asks for credentials/secrets to be sent somewhere",
+        test: (t) => /(api[_ -]?key|secret[_ -]?key|access[_ -]?token|password|credentials?).{0,60}(send|post|upload|fetch|transmit|exfiltrate|to\s+https?:)/i.test(t)
+      },
+      {
+        code: "html-data-uri",
+        reason: "content embeds an executable data: URI",
+        test: (t) => /data\s*:\s*text\/html/i.test(t) || /javascript\s*:/i.test(t)
+      },
+      {
+        code: "invisible-characters",
+        reason: "content contains invisible/zero-width characters (smuggling surface)",
+        test: (t) => INVISIBLE_UNICODE.test(t)
+      }
+    ];
+    RateGate = class {
+      constructor(limit, windowMs, now = () => Date.now()) {
+        this.limit = limit;
+        this.windowMs = windowMs;
+        this.now = now;
+      }
+      hits = /* @__PURE__ */ new Map();
+      /** Returns true when the action is within budget (and records it). */
+      check(key) {
+        const t = this.now();
+        const arr = (this.hits.get(key) ?? []).filter((x) => t - x < this.windowMs);
+        if (arr.length >= this.limit) {
+          this.hits.set(key, arr);
+          return false;
+        }
+        arr.push(t);
+        this.hits.set(key, arr);
+        return true;
+      }
+    };
+    BLOCKED_HOST_SUFFIXES = [".internal", ".local", ".localhost"];
+    callRateGate = new RateGate(120, 6e4);
+  }
+});
+
+// src/version.ts
+var ENGINE_VERSION, ENGINE_SHORT, ENGINE_CODENAME, PRODUCT_TITLE;
+var init_version = __esm({
+  "src/version.ts"() {
+    "use strict";
+    ENGINE_VERSION = "19.7.15";
+    ENGINE_SHORT = "19.7";
+    ENGINE_CODENAME = "SelfImpulse";
+    PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+  }
+});
+
+// src/app/desktop.ts
+function detectHost() {
+  if (typeof window === "undefined") return "web";
+  const w = window;
+  if (w.__TAURI_INTERNALS__) return "tauri";
+  if (w.__TAURI__) return "tauri";
+  if (typeof navigator !== "undefined" && /tauri/i.test(navigator.userAgent)) return "tauri";
+  return "web";
+}
+var init_desktop = __esm({
+  "src/app/desktop.ts"() {
+    "use strict";
   }
 });
 
@@ -2231,6 +2245,9 @@ function createA2AServer(opts) {
     }
   };
 }
+
+// src/mission/a2aClient.ts
+init_egressNet();
 
 // src/mission/a2aIdentityBridge.ts
 var A2A_PEERS_KEY = "engine.collab.a2a.v1";

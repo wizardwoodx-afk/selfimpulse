@@ -320,11 +320,30 @@ async function execNetFetch(input: Record<string, unknown>, ctx: ToolContext): P
   if (!doFetch) return { outcome: "error", output: "no fetch available in this runtime" };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  /* Redirects are followed MANUALLY and every hop re-passes the egress gate:
+     an auto-following fetch would let a vetted URL bounce to 169.254.169.254
+     (or any internal address) without the guard ever seeing the second hop —
+     the redirect bypass named in the security audit. Budget: 4 hops. */
+  const REDIRECT_BUDGET = 4;
   try {
-    const res = await doFetch(url, { signal: controller.signal, headers: { accept: "text/html,application/json;q=0.9,*/*;q=0.8", "user-agent": "SelfImpulse/19.7 (+evidence-fetch)" } });
-    if (!res.ok) return { outcome: "error", output: `HTTP ${res.status} from ${url}` };
-    const text = (await res.text()).slice(0, MAX_FETCH_CHARS);
-    return { outcome: "ok", output: text };
+    let current = url;
+    for (let hop = 0; ; hop += 1) {
+      const hopGuard = checkEgressUrl(current);
+      if (!hopGuard.ok) return { outcome: "refused", output: `egress refused at hop ${hop}: ${hopGuard.reason}` };
+      const res = await doFetch(current, { signal: controller.signal, redirect: "manual", headers: { accept: "text/html,application/json;q=0.9,*/*;q=0.8", "user-agent": "SelfImpulse/19.7 (+evidence-fetch)" } });
+      const location = res.headers.get("location");
+      if (res.status >= 300 && res.status <= 399 && location) {
+        if (hop >= REDIRECT_BUDGET) return { outcome: "refused", output: `egress refused: more than ${REDIRECT_BUDGET} redirects — possible redirect loop` };
+        let next: string;
+        try { next = new URL(location, current).toString(); }
+        catch { return { outcome: "refused", output: "egress refused: a hop returned an unparseable Location — nothing further was sent" }; }
+        current = next;
+        continue;
+      }
+      if (!res.ok) return { outcome: "error", output: `HTTP ${res.status} from ${current}` };
+      const text = (await res.text()).slice(0, MAX_FETCH_CHARS);
+      return { outcome: "ok", output: text };
+    }
   } catch (err) {
     const aborted = err instanceof Error && err.name === "AbortError";
     return { outcome: "error", output: aborted ? `fetch timed out after ${FETCH_TIMEOUT_MS}ms` : `fetch failed: ${err instanceof Error ? err.message : String(err)}` };

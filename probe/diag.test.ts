@@ -22,3 +22,16 @@ console.log("tasks:"); for (const t of rt.org.tasks_()) console.log("  ", t.titl
 console.log("distinct event kinds", new Set(ev.map((e)=>e.kind)).size, "total", ev.length);
 console.log("checkpoints", rt.getCheckpoints ? "?" : "?");
 console.log("last 5 events:", ev.slice(-5).map((e)=>e.kind+" :: "+e.reason.slice(0,90)).join("\n  "));
+
+/* ── audit H5: this suite used to only PRINT (exit 0 no matter what). It
+   asserts now — a diagnostic that cannot fail is not a check. ── */
+let _pass = 0, _fail = 0;
+function _ok(label: string, cond: boolean, detail = ""): void {
+  if (cond) { _pass += 1; console.log(" ok  ", label); }
+  else { _fail += 1; console.log("  FAIL", label, detail); }
+}
+_ok("the approval flow fired (onApprovalRequired called)", approvals >= 1, String(approvals));
+_ok("the runtime recorded events", ev.length > 0, String(ev.length));
+_ok("the mission carries a status", typeof m.status === "string" && m.status.length > 0, String(m.status));
+console.log(`\n${_pass} passed, ${_fail} failed`);
+if (_fail > 0) process.exit(1);

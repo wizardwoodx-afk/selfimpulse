@@ -24,67 +24,6 @@ var init_desktop = __esm({
   }
 });
 
-// src/security/guardrail.ts
-function checkEgressUrl(raw) {
-  let u;
-  try {
-    u = new URL(raw);
-  } catch {
-    return { ok: false, reason: "not a parseable URL" };
-  }
-  if (u.protocol !== "http:" && u.protocol !== "https:") {
-    return { ok: false, reason: `scheme "${u.protocol}" refused \u2014 only http(s) egress is allowed` };
-  }
-  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (host === "169.254.169.254" || host === "metadata.google.internal") {
-    return { ok: false, reason: "cloud metadata endpoint refused (SSRF guard)" };
-  }
-  if (/^169\.254\./.test(host)) {
-    return { ok: false, reason: "link-local address refused (SSRF guard)" };
-  }
-  if (host === "0.0.0.0" || host === "::") {
-    return { ok: false, reason: "unspecified address refused" };
-  }
-  if (/^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) {
-    return { ok: false, reason: "private network address refused (SSRF guard)" };
-  }
-  if (/^(fc|fd)[0-9a-f]{0,2}:/i.test(host) || /^fe80:/i.test(host)) {
-    return { ok: false, reason: "IPv6 unique-local / link-local refused (SSRF guard)" };
-  }
-  for (const sfx of BLOCKED_HOST_SUFFIXES) {
-    if (host.endsWith(sfx)) return { ok: false, reason: `host suffix "${sfx}" refused` };
-  }
-  return { ok: true, reason: "" };
-}
-var RateGate, BLOCKED_HOST_SUFFIXES, callRateGate;
-var init_guardrail = __esm({
-  "src/security/guardrail.ts"() {
-    "use strict";
-    RateGate = class {
-      constructor(limit, windowMs, now = () => Date.now()) {
-        this.limit = limit;
-        this.windowMs = windowMs;
-        this.now = now;
-      }
-      hits = /* @__PURE__ */ new Map();
-      /** Returns true when the action is within budget (and records it). */
-      check(key2) {
-        const t = this.now();
-        const arr = (this.hits.get(key2) ?? []).filter((x) => t - x < this.windowMs);
-        if (arr.length >= this.limit) {
-          this.hits.set(key2, arr);
-          return false;
-        }
-        arr.push(t);
-        this.hits.set(key2, arr);
-        return true;
-      }
-    };
-    BLOCKED_HOST_SUFFIXES = [".internal", ".local", ".localhost"];
-    callRateGate = new RateGate(120, 6e4);
-  }
-});
-
 // src/security/egressNet.ts
 function expandIpv6(input) {
   let s = input;
@@ -212,6 +151,7 @@ function classifyIp(n, allowLoopback) {
 }
 async function resolveEgress(raw, opts = {}) {
   const allowLoopback = opts.allowLoopback ?? false;
+  const allowPrivate = opts.allowPrivate ?? false;
   const resolve = opts.resolve ?? systemResolver;
   const base = checkEgressUrl(raw);
   if (!base.ok) return { ok: false, reason: base.reason };
@@ -235,7 +175,10 @@ async function resolveEgress(raw, opts = {}) {
   let pinned = null;
   for (const a of answers) {
     const n = normalizeHost(a);
-    const cls = classifyIp(n, allowLoopback);
+    let cls = classifyIp(n, allowLoopback);
+    if (!cls.ok && allowPrivate && cls.scope === "private") {
+      cls = { ok: true, reason: "private range allowed \u2014 explicitly paired peer", scope: "private" };
+    }
     if (!cls.ok) {
       return { ok: false, reason: `"${host}" resolves to ${n.ip || a} \u2014 ${cls.reason}`, scope: cls.scope };
     }
@@ -291,6 +234,77 @@ var init_egressNet = __esm({
       return out;
     };
     DEFAULT_MAX_REDIRECTS = 5;
+  }
+});
+
+// src/security/guardrail.ts
+function checkEgressUrl(raw) {
+  let u;
+  try {
+    u = new URL(raw);
+  } catch {
+    return { ok: false, reason: "not a parseable URL" };
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    return { ok: false, reason: `scheme "${u.protocol}" refused \u2014 only http(s) egress is allowed` };
+  }
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const literal = normalizeHost(host);
+  if (literal.kind !== "unknown") {
+    const cls = classifyIp(literal, true);
+    if (!cls.ok) return { ok: false, reason: `${literal.ip} \u2014 ${cls.reason}` };
+    return { ok: true, reason: "" };
+  }
+  if (isObfuscatedIpv4Literal(host)) {
+    return { ok: false, reason: `obfuscated IP literal "${host}" refused \u2014 write the address in dotted-quad form (SSRF guard)` };
+  }
+  if (host === "169.254.169.254" || host === "metadata.google.internal") {
+    return { ok: false, reason: "cloud metadata endpoint refused (SSRF guard)" };
+  }
+  if (/^169\.254\./.test(host)) {
+    return { ok: false, reason: "link-local address refused (SSRF guard)" };
+  }
+  if (host === "0.0.0.0" || host === "::") {
+    return { ok: false, reason: "unspecified address refused" };
+  }
+  if (/^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) {
+    return { ok: false, reason: "private network address refused (SSRF guard)" };
+  }
+  if (/^(fc|fd)[0-9a-f]{0,2}:/i.test(host) || /^fe80:/i.test(host)) {
+    return { ok: false, reason: "IPv6 unique-local / link-local refused (SSRF guard)" };
+  }
+  for (const sfx of BLOCKED_HOST_SUFFIXES) {
+    if (host.endsWith(sfx)) return { ok: false, reason: `host suffix "${sfx}" refused` };
+  }
+  return { ok: true, reason: "" };
+}
+var RateGate, BLOCKED_HOST_SUFFIXES, callRateGate;
+var init_guardrail = __esm({
+  "src/security/guardrail.ts"() {
+    "use strict";
+    init_egressNet();
+    RateGate = class {
+      constructor(limit, windowMs, now = () => Date.now()) {
+        this.limit = limit;
+        this.windowMs = windowMs;
+        this.now = now;
+      }
+      hits = /* @__PURE__ */ new Map();
+      /** Returns true when the action is within budget (and records it). */
+      check(key2) {
+        const t = this.now();
+        const arr = (this.hits.get(key2) ?? []).filter((x) => t - x < this.windowMs);
+        if (arr.length >= this.limit) {
+          this.hits.set(key2, arr);
+          return false;
+        }
+        arr.push(t);
+        this.hits.set(key2, arr);
+        return true;
+      }
+    };
+    BLOCKED_HOST_SUFFIXES = [".internal", ".local", ".localhost"];
+    callRateGate = new RateGate(120, 6e4);
   }
 });
 

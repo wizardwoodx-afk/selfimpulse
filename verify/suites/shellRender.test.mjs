@@ -16432,6 +16432,219 @@ var init_id = __esm({
   }
 });
 
+// src/security/egressNet.ts
+function expandIpv6(input2) {
+  let s2 = input2;
+  const zone = s2.indexOf("%");
+  if (zone !== -1) s2 = s2.slice(0, zone);
+  if (!s2.includes(":")) return null;
+  const lastColon = s2.lastIndexOf(":");
+  const tail = s2.slice(lastColon + 1);
+  if (tail.includes(".")) {
+    const v4 = parseIpv4(tail);
+    if (!v4) return null;
+    s2 = `${s2.slice(0, lastColon + 1)}${(v4[0] << 8 | v4[1]).toString(16)}:${(v4[2] << 8 | v4[3]).toString(16)}`;
+  }
+  const halves = s2.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const rest2 = halves.length === 2 ? halves[1] ? halves[1].split(":") : [] : [];
+  const missing = 8 - head.length - rest2.length;
+  if (halves.length === 1) {
+    if (head.length !== 8) return null;
+  } else if (missing < 0) {
+    return null;
+  }
+  const groups = [];
+  for (const g3 of head) groups.push(parseInt(g3, 16));
+  for (let i2 = 0; i2 < missing; i2 += 1) groups.push(0);
+  for (const g3 of rest2) groups.push(parseInt(g3, 16));
+  if (groups.length !== 8 || groups.some((g3) => !Number.isInteger(g3) || g3 < 0 || g3 > 65535)) return null;
+  return groups;
+}
+function parseIpv4(input2) {
+  const parts = input2.split(".");
+  if (parts.length !== 4) return null;
+  const octets = [];
+  for (const p2 of parts) {
+    if (!/^\d{1,3}$/.test(p2)) return null;
+    const n3 = Number(p2);
+    if (n3 > 255) return null;
+    octets.push(n3);
+  }
+  return octets;
+}
+function isObfuscatedIpv4Literal(host) {
+  if (/^\d{1,3}(\.\d{1,3}){0,2}$/.test(host)) return true;
+  if (/^0[xX][0-9a-fA-F]{1,8}$/.test(host)) return true;
+  return false;
+}
+function normalizeHost(rawHost) {
+  const host = rawHost.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  if (!host) return { kind: "unknown", ip: "" };
+  const v4 = parseIpv4(host);
+  if (v4) return { kind: "ipv4", ip: v4.join("."), octets: v4 };
+  if (host.includes(":")) {
+    const groups = expandIpv6(host);
+    if (groups) {
+      const isMapped = groups.slice(0, 5).every((g3) => g3 === 0) && (groups[5] === 65535 || groups[5] === 0);
+      if (isMapped) {
+        const octets = [groups[6] >> 8, groups[6] & 255, groups[7] >> 8, groups[7] & 255];
+        return { kind: "ipv4", ip: octets.join("."), octets };
+      }
+      return { kind: "ipv6", ip: groups.map((g3) => g3.toString(16).padStart(4, "0")).join(":"), groups };
+    }
+  }
+  if (isObfuscatedIpv4Literal(host)) return { kind: "unknown", ip: "" };
+  return { kind: "unknown", ip: "" };
+}
+function classifyV4(o2, allowLoopback) {
+  const [a3, b3] = o2;
+  const inCidr = (base, bits) => {
+    let acc = 0;
+    for (let i2 = 0; i2 < 4; i2 += 1) {
+      const rem = bits - i2 * 8;
+      const mask2 = rem <= 0 ? 0 : rem >= 8 ? 255 : 255 << 8 - rem & 255;
+      if ((o2[i2] & mask2) !== (base[i2] & mask2)) return false;
+      acc += 1;
+      if (acc > 4) break;
+    }
+    return true;
+  };
+  const C2 = (scope, reason) => ({ ok: false, reason, scope });
+  if (a3 === 127) return allowLoopback ? { ok: true, reason: "", scope: "loopback" } : C2("loopback", "loopback address refused (SSRF guard)");
+  if (a3 === 169 && b3 === 254) {
+    if (a3 === 169 && b3 === 254 && o2[2] === 169 && o2[3] === 254) return C2("metadata", "cloud metadata endpoint refused (SSRF guard)");
+    return C2("link-local", "link-local address refused (SSRF guard)");
+  }
+  if (inCidr([0, 0, 0, 0], 8)) return C2("reserved", "this-network address refused (SSRF guard)");
+  if (inCidr([10, 0, 0, 0], 8)) return C2("private", "private network address refused (SSRF guard)");
+  if (inCidr([100, 64, 0, 0], 10)) return C2("special", "carrier-grade NAT address refused (SSRF guard)");
+  if (inCidr([172, 16, 0, 0], 12)) return C2("private", "private network address refused (SSRF guard)");
+  if (inCidr([192, 0, 0, 0], 24)) return C2("special", "IETF protocol assignment refused (SSRF guard)");
+  if (inCidr([192, 0, 2, 0], 24)) return C2("special", "documentation range refused (SSRF guard)");
+  if (inCidr([192, 88, 99, 0], 24)) return C2("special", "6to4 relay anycast refused (SSRF guard)");
+  if (inCidr([192, 168, 0, 0], 16)) return C2("private", "private network address refused (SSRF guard)");
+  if (inCidr([198, 18, 0, 0], 15)) return C2("special", "benchmarking range refused (SSRF guard)");
+  if (inCidr([198, 51, 100, 0], 24)) return C2("special", "documentation range refused (SSRF guard)");
+  if (inCidr([203, 0, 113, 0], 24)) return C2("special", "documentation range refused (SSRF guard)");
+  if (a3 >= 224 && a3 <= 239) return C2("multicast", "multicast address refused (SSRF guard)");
+  if (a3 >= 240) return C2("reserved", "reserved address refused (SSRF guard)");
+  return { ok: true, reason: "", scope: "public" };
+}
+function classifyV6(g3, allowLoopback) {
+  const hex3 = g3.map((x3) => x3.toString(16).padStart(4, "0")).join(":");
+  const C2 = (scope, reason) => ({ ok: false, reason, scope });
+  if (g3.slice(0, 7).every((x3) => x3 === 0) && g3[7] === 1) {
+    return allowLoopback ? { ok: true, reason: "", scope: "loopback" } : C2("loopback", "IPv6 loopback refused (SSRF guard)");
+  }
+  if (g3.slice(0, 7).every((x3) => x3 === 0) && g3[7] === 0) return C2("reserved", "unspecified address refused (SSRF guard)");
+  if ((g3[0] & 65024) === 64512) return C2("private", "IPv6 unique-local refused (SSRF guard)");
+  if ((g3[0] & 65472) === 65152) return C2("link-local", "IPv6 link-local refused (SSRF guard)");
+  if ((g3[0] & 65280) === 65280) return C2("multicast", "IPv6 multicast refused (SSRF guard)");
+  if (g3[0] === 8193 && g3[1] === 3512) return C2("special", "IPv6 documentation range refused (SSRF guard)");
+  if (g3[0] === 100 && g3[1] === 65435) {
+    const octets = [g3[6] >> 8, g3[6] & 255, g3[7] >> 8, g3[7] & 255];
+    const inner = classifyV4(octets, allowLoopback);
+    return inner.ok ? inner : C2(inner.scope, `NAT64-embedded address refused (SSRF guard): ${inner.reason}`);
+  }
+  if (g3[0] === 8194) return C2("special", `6to4 address refused (SSRF guard): ${hex3}`);
+  if (g3[0] === 8193 && g3[1] === 0) return C2("special", `Teredo address refused (SSRF guard): ${hex3}`);
+  return { ok: true, reason: "", scope: "public" };
+}
+function classifyIp(n3, allowLoopback) {
+  if (n3.kind === "ipv4" && n3.octets) return classifyV4(n3.octets, allowLoopback);
+  if (n3.kind === "ipv6" && n3.groups) return classifyV6(n3.groups, allowLoopback);
+  return { ok: false, reason: "address could not be classified", scope: "unknown" };
+}
+async function resolveEgress(raw, opts = {}) {
+  const allowLoopback = opts.allowLoopback ?? false;
+  const allowPrivate = opts.allowPrivate ?? false;
+  const resolve = opts.resolve ?? systemResolver;
+  const base = checkEgressUrl(raw);
+  if (!base.ok) return { ok: false, reason: base.reason };
+  const host = new URL(raw).hostname.replace(/^\[|\]$/g, "");
+  const literal2 = normalizeHost(host);
+  if (literal2.kind !== "unknown") {
+    const cls = classifyIp(literal2, allowLoopback);
+    return cls.ok ? { ok: true, reason: "", pinnedIp: literal2.ip, scope: cls.scope } : { ok: false, reason: `${literal2.ip} \u2014 ${cls.reason}`, scope: cls.scope };
+  }
+  if (literal2.ip === "" && isObfuscatedIpv4Literal(host.toLowerCase())) {
+    return { ok: false, reason: `obfuscated IP literal "${host}" refused \u2014 write the address in dotted-quad form`, scope: "unknown" };
+  }
+  let answers;
+  try {
+    answers = await resolve(host);
+  } catch (e3) {
+    return { ok: false, reason: `DNS resolution failed for "${host}": ${e3 instanceof Error ? e3.message : String(e3)}` };
+  }
+  if (answers.length === 0) return { ok: false, reason: `"${host}" resolved to no addresses \u2014 refused rather than guessing`, scope: "unknown" };
+  const seen = [];
+  let pinned = null;
+  for (const a3 of answers) {
+    const n3 = normalizeHost(a3);
+    let cls = classifyIp(n3, allowLoopback);
+    if (!cls.ok && allowPrivate && cls.scope === "private") {
+      cls = { ok: true, reason: "private range allowed \u2014 explicitly paired peer", scope: "private" };
+    }
+    if (!cls.ok) {
+      return { ok: false, reason: `"${host}" resolves to ${n3.ip || a3} \u2014 ${cls.reason}`, scope: cls.scope };
+    }
+    seen.push(n3.ip || a3);
+    if (!pinned) pinned = { ip: n3.ip || a3, scope: cls.scope };
+  }
+  return { ok: true, reason: "", pinnedIp: pinned.ip, scope: pinned.scope, hops: [{ url: raw, ip: pinned.ip, status: 0 }] };
+}
+async function safeEgressFetch(raw, init5 = {}) {
+  const { fetchImpl, allowLoopback, resolve, maxRedirects, ...rest2 } = init5;
+  const doFetch = fetchImpl ?? globalThis.fetch?.bind(globalThis);
+  if (!doFetch) throw new Error("no fetch available in this runtime \u2014 nothing was executed");
+  const hops = [];
+  let current = raw;
+  for (let hop = 0; hop <= (maxRedirects ?? DEFAULT_MAX_REDIRECTS); hop += 1) {
+    const decision = await resolveEgress(current, { allowLoopback, resolve });
+    if (!decision.ok) {
+      throw new Error(`egress refused at hop ${hop}: ${decision.reason} \u2014 nothing further was sent.`);
+    }
+    const res = await doFetch(current, { ...rest2, redirect: "manual" });
+    hops.push({ url: current, ip: decision.pinnedIp ?? "", status: res.status });
+    const location = res.headers.get("location");
+    if (!location || res.status < 300 || res.status > 399) {
+      Object.defineProperty(res, "egressHops", { value: hops, enumerable: false });
+      return res;
+    }
+    let next2;
+    try {
+      next2 = new URL(location, current).toString();
+    } catch {
+      throw new Error(`egress refused: hop ${hop} returned an unparseable Location \u2014 nothing further was sent.`);
+    }
+    if (hop === (maxRedirects ?? DEFAULT_MAX_REDIRECTS)) {
+      throw new Error(`egress refused: more than ${maxRedirects ?? DEFAULT_MAX_REDIRECTS} redirects \u2014 possible redirect loop.`);
+    }
+    current = next2;
+  }
+  throw new Error("egress refused: redirect budget exhausted.");
+}
+var systemResolver, DEFAULT_MAX_REDIRECTS;
+var init_egressNet = __esm({
+  "src/security/egressNet.ts"() {
+    "use strict";
+    init_guardrail();
+    systemResolver = async (hostname3) => {
+      const dns = await import("node:dns/promises").catch(() => null);
+      if (!dns) return [];
+      const out = [];
+      try {
+        for (const r3 of await dns.lookup(hostname3, { all: true, verbatim: true })) out.push(r3.address);
+      } catch {
+      }
+      return out;
+    };
+    DEFAULT_MAX_REDIRECTS = 5;
+  }
+});
+
 // src/security/guardrail.ts
 function sanitizeText(text2, maxLen = 2e3) {
   return text2.replace(CONTROL_CHARS, "").replace(INVISIBLE_UNICODE, "").slice(0, maxLen).trim();
@@ -16487,6 +16700,15 @@ function checkEgressUrl(raw) {
     return { ok: false, reason: `scheme "${u2.protocol}" refused \u2014 only http(s) egress is allowed` };
   }
   const host = u2.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const literal2 = normalizeHost(host);
+  if (literal2.kind !== "unknown") {
+    const cls = classifyIp(literal2, true);
+    if (!cls.ok) return { ok: false, reason: `${literal2.ip} \u2014 ${cls.reason}` };
+    return { ok: true, reason: "" };
+  }
+  if (isObfuscatedIpv4Literal(host)) {
+    return { ok: false, reason: `obfuscated IP literal "${host}" refused \u2014 write the address in dotted-quad form (SSRF guard)` };
+  }
   if (host === "169.254.169.254" || host === "metadata.google.internal") {
     return { ok: false, reason: "cloud metadata endpoint refused (SSRF guard)" };
   }
@@ -16542,6 +16764,7 @@ var CONTROL_CHARS, INVISIBLE_UNICODE, INJECTION_DETECTORS, POISON_KEYS, MAX_ARG_
 var init_guardrail = __esm({
   "src/security/guardrail.ts"() {
     "use strict";
+    init_egressNet();
     CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
     INVISIBLE_UNICODE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF\u{E0000}-\u{E007F}]/gu;
     INJECTION_DETECTORS = [
@@ -51015,11 +51238,29 @@ async function execNetFetch(input2, ctx) {
   if (!doFetch) return { outcome: "error", output: "no fetch available in this runtime" };
   const controller = new AbortController();
   const timer2 = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const REDIRECT_BUDGET = 4;
   try {
-    const res = await doFetch(url2, { signal: controller.signal, headers: { accept: "text/html,application/json;q=0.9,*/*;q=0.8", "user-agent": "SelfImpulse/19.7 (+evidence-fetch)" } });
-    if (!res.ok) return { outcome: "error", output: `HTTP ${res.status} from ${url2}` };
-    const text2 = (await res.text()).slice(0, MAX_FETCH_CHARS);
-    return { outcome: "ok", output: text2 };
+    let current = url2;
+    for (let hop = 0; ; hop += 1) {
+      const hopGuard = checkEgressUrl(current);
+      if (!hopGuard.ok) return { outcome: "refused", output: `egress refused at hop ${hop}: ${hopGuard.reason}` };
+      const res = await doFetch(current, { signal: controller.signal, redirect: "manual", headers: { accept: "text/html,application/json;q=0.9,*/*;q=0.8", "user-agent": "SelfImpulse/19.7 (+evidence-fetch)" } });
+      const location = res.headers.get("location");
+      if (res.status >= 300 && res.status <= 399 && location) {
+        if (hop >= REDIRECT_BUDGET) return { outcome: "refused", output: `egress refused: more than ${REDIRECT_BUDGET} redirects \u2014 possible redirect loop` };
+        let next2;
+        try {
+          next2 = new URL(location, current).toString();
+        } catch {
+          return { outcome: "refused", output: "egress refused: a hop returned an unparseable Location \u2014 nothing further was sent" };
+        }
+        current = next2;
+        continue;
+      }
+      if (!res.ok) return { outcome: "error", output: `HTTP ${res.status} from ${current}` };
+      const text2 = (await res.text()).slice(0, MAX_FETCH_CHARS);
+      return { outcome: "ok", output: text2 };
+    }
   } catch (err) {
     const aborted2 = err instanceof Error && err.name === "AbortError";
     return { outcome: "error", output: aborted2 ? `fetch timed out after ${FETCH_TIMEOUT_MS}ms` : `fetch failed: ${err instanceof Error ? err.message : String(err)}` };
@@ -242045,215 +242286,6 @@ async function getWindowApi() {
 var init_desktop = __esm({
   "src/app/desktop.ts"() {
     "use strict";
-  }
-});
-
-// src/security/egressNet.ts
-function expandIpv6(input2) {
-  let s2 = input2;
-  const zone = s2.indexOf("%");
-  if (zone !== -1) s2 = s2.slice(0, zone);
-  if (!s2.includes(":")) return null;
-  const lastColon = s2.lastIndexOf(":");
-  const tail = s2.slice(lastColon + 1);
-  if (tail.includes(".")) {
-    const v4 = parseIpv4(tail);
-    if (!v4) return null;
-    s2 = `${s2.slice(0, lastColon + 1)}${(v4[0] << 8 | v4[1]).toString(16)}:${(v4[2] << 8 | v4[3]).toString(16)}`;
-  }
-  const halves = s2.split("::");
-  if (halves.length > 2) return null;
-  const head = halves[0] ? halves[0].split(":") : [];
-  const rest2 = halves.length === 2 ? halves[1] ? halves[1].split(":") : [] : [];
-  const missing = 8 - head.length - rest2.length;
-  if (halves.length === 1) {
-    if (head.length !== 8) return null;
-  } else if (missing < 0) {
-    return null;
-  }
-  const groups = [];
-  for (const g3 of head) groups.push(parseInt(g3, 16));
-  for (let i2 = 0; i2 < missing; i2 += 1) groups.push(0);
-  for (const g3 of rest2) groups.push(parseInt(g3, 16));
-  if (groups.length !== 8 || groups.some((g3) => !Number.isInteger(g3) || g3 < 0 || g3 > 65535)) return null;
-  return groups;
-}
-function parseIpv4(input2) {
-  const parts = input2.split(".");
-  if (parts.length !== 4) return null;
-  const octets = [];
-  for (const p2 of parts) {
-    if (!/^\d{1,3}$/.test(p2)) return null;
-    const n3 = Number(p2);
-    if (n3 > 255) return null;
-    octets.push(n3);
-  }
-  return octets;
-}
-function isObfuscatedIpv4Literal(host) {
-  if (/^\d{1,3}(\.\d{1,3}){0,2}$/.test(host)) return true;
-  if (/^0[xX][0-9a-fA-F]{1,8}$/.test(host)) return true;
-  return false;
-}
-function normalizeHost(rawHost) {
-  const host = rawHost.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
-  if (!host) return { kind: "unknown", ip: "" };
-  const v4 = parseIpv4(host);
-  if (v4) return { kind: "ipv4", ip: v4.join("."), octets: v4 };
-  if (host.includes(":")) {
-    const groups = expandIpv6(host);
-    if (groups) {
-      const isMapped = groups.slice(0, 5).every((g3) => g3 === 0) && (groups[5] === 65535 || groups[5] === 0);
-      if (isMapped) {
-        const octets = [groups[6] >> 8, groups[6] & 255, groups[7] >> 8, groups[7] & 255];
-        return { kind: "ipv4", ip: octets.join("."), octets };
-      }
-      return { kind: "ipv6", ip: groups.map((g3) => g3.toString(16).padStart(4, "0")).join(":"), groups };
-    }
-  }
-  if (isObfuscatedIpv4Literal(host)) return { kind: "unknown", ip: "" };
-  return { kind: "unknown", ip: "" };
-}
-function classifyV4(o2, allowLoopback) {
-  const [a3, b3] = o2;
-  const inCidr = (base, bits) => {
-    let acc = 0;
-    for (let i2 = 0; i2 < 4; i2 += 1) {
-      const rem = bits - i2 * 8;
-      const mask2 = rem <= 0 ? 0 : rem >= 8 ? 255 : 255 << 8 - rem & 255;
-      if ((o2[i2] & mask2) !== (base[i2] & mask2)) return false;
-      acc += 1;
-      if (acc > 4) break;
-    }
-    return true;
-  };
-  const C2 = (scope, reason) => ({ ok: false, reason, scope });
-  if (a3 === 127) return allowLoopback ? { ok: true, reason: "", scope: "loopback" } : C2("loopback", "loopback address refused (SSRF guard)");
-  if (a3 === 169 && b3 === 254) {
-    if (a3 === 169 && b3 === 254 && o2[2] === 169 && o2[3] === 254) return C2("metadata", "cloud metadata endpoint refused (SSRF guard)");
-    return C2("link-local", "link-local address refused (SSRF guard)");
-  }
-  if (inCidr([0, 0, 0, 0], 8)) return C2("reserved", "this-network address refused (SSRF guard)");
-  if (inCidr([10, 0, 0, 0], 8)) return C2("private", "private network address refused (SSRF guard)");
-  if (inCidr([100, 64, 0, 0], 10)) return C2("special", "carrier-grade NAT address refused (SSRF guard)");
-  if (inCidr([172, 16, 0, 0], 12)) return C2("private", "private network address refused (SSRF guard)");
-  if (inCidr([192, 0, 0, 0], 24)) return C2("special", "IETF protocol assignment refused (SSRF guard)");
-  if (inCidr([192, 0, 2, 0], 24)) return C2("special", "documentation range refused (SSRF guard)");
-  if (inCidr([192, 88, 99, 0], 24)) return C2("special", "6to4 relay anycast refused (SSRF guard)");
-  if (inCidr([192, 168, 0, 0], 16)) return C2("private", "private network address refused (SSRF guard)");
-  if (inCidr([198, 18, 0, 0], 15)) return C2("special", "benchmarking range refused (SSRF guard)");
-  if (inCidr([198, 51, 100, 0], 24)) return C2("special", "documentation range refused (SSRF guard)");
-  if (inCidr([203, 0, 113, 0], 24)) return C2("special", "documentation range refused (SSRF guard)");
-  if (a3 >= 224 && a3 <= 239) return C2("multicast", "multicast address refused (SSRF guard)");
-  if (a3 >= 240) return C2("reserved", "reserved address refused (SSRF guard)");
-  return { ok: true, reason: "", scope: "public" };
-}
-function classifyV6(g3, allowLoopback) {
-  const hex3 = g3.map((x3) => x3.toString(16).padStart(4, "0")).join(":");
-  const C2 = (scope, reason) => ({ ok: false, reason, scope });
-  if (g3.slice(0, 7).every((x3) => x3 === 0) && g3[7] === 1) {
-    return allowLoopback ? { ok: true, reason: "", scope: "loopback" } : C2("loopback", "IPv6 loopback refused (SSRF guard)");
-  }
-  if (g3.slice(0, 7).every((x3) => x3 === 0) && g3[7] === 0) return C2("reserved", "unspecified address refused (SSRF guard)");
-  if ((g3[0] & 65024) === 64512) return C2("private", "IPv6 unique-local refused (SSRF guard)");
-  if ((g3[0] & 65472) === 65152) return C2("link-local", "IPv6 link-local refused (SSRF guard)");
-  if ((g3[0] & 65280) === 65280) return C2("multicast", "IPv6 multicast refused (SSRF guard)");
-  if (g3[0] === 8193 && g3[1] === 3512) return C2("special", "IPv6 documentation range refused (SSRF guard)");
-  if (g3[0] === 100 && g3[1] === 65435) {
-    const octets = [g3[6] >> 8, g3[6] & 255, g3[7] >> 8, g3[7] & 255];
-    const inner = classifyV4(octets, allowLoopback);
-    return inner.ok ? inner : C2(inner.scope, `NAT64-embedded address refused (SSRF guard): ${inner.reason}`);
-  }
-  if (g3[0] === 8194) return C2("special", `6to4 address refused (SSRF guard): ${hex3}`);
-  if (g3[0] === 8193 && g3[1] === 0) return C2("special", `Teredo address refused (SSRF guard): ${hex3}`);
-  return { ok: true, reason: "", scope: "public" };
-}
-function classifyIp(n3, allowLoopback) {
-  if (n3.kind === "ipv4" && n3.octets) return classifyV4(n3.octets, allowLoopback);
-  if (n3.kind === "ipv6" && n3.groups) return classifyV6(n3.groups, allowLoopback);
-  return { ok: false, reason: "address could not be classified", scope: "unknown" };
-}
-async function resolveEgress(raw, opts = {}) {
-  const allowLoopback = opts.allowLoopback ?? false;
-  const resolve = opts.resolve ?? systemResolver;
-  const base = checkEgressUrl(raw);
-  if (!base.ok) return { ok: false, reason: base.reason };
-  const host = new URL(raw).hostname.replace(/^\[|\]$/g, "");
-  const literal2 = normalizeHost(host);
-  if (literal2.kind !== "unknown") {
-    const cls = classifyIp(literal2, allowLoopback);
-    return cls.ok ? { ok: true, reason: "", pinnedIp: literal2.ip, scope: cls.scope } : { ok: false, reason: `${literal2.ip} \u2014 ${cls.reason}`, scope: cls.scope };
-  }
-  if (literal2.ip === "" && isObfuscatedIpv4Literal(host.toLowerCase())) {
-    return { ok: false, reason: `obfuscated IP literal "${host}" refused \u2014 write the address in dotted-quad form`, scope: "unknown" };
-  }
-  let answers;
-  try {
-    answers = await resolve(host);
-  } catch (e3) {
-    return { ok: false, reason: `DNS resolution failed for "${host}": ${e3 instanceof Error ? e3.message : String(e3)}` };
-  }
-  if (answers.length === 0) return { ok: false, reason: `"${host}" resolved to no addresses \u2014 refused rather than guessing`, scope: "unknown" };
-  const seen = [];
-  let pinned = null;
-  for (const a3 of answers) {
-    const n3 = normalizeHost(a3);
-    const cls = classifyIp(n3, allowLoopback);
-    if (!cls.ok) {
-      return { ok: false, reason: `"${host}" resolves to ${n3.ip || a3} \u2014 ${cls.reason}`, scope: cls.scope };
-    }
-    seen.push(n3.ip || a3);
-    if (!pinned) pinned = { ip: n3.ip || a3, scope: cls.scope };
-  }
-  return { ok: true, reason: "", pinnedIp: pinned.ip, scope: pinned.scope, hops: [{ url: raw, ip: pinned.ip, status: 0 }] };
-}
-async function safeEgressFetch(raw, init5 = {}) {
-  const { fetchImpl, allowLoopback, resolve, maxRedirects, ...rest2 } = init5;
-  const doFetch = fetchImpl ?? globalThis.fetch?.bind(globalThis);
-  if (!doFetch) throw new Error("no fetch available in this runtime \u2014 nothing was executed");
-  const hops = [];
-  let current = raw;
-  for (let hop = 0; hop <= (maxRedirects ?? DEFAULT_MAX_REDIRECTS); hop += 1) {
-    const decision = await resolveEgress(current, { allowLoopback, resolve });
-    if (!decision.ok) {
-      throw new Error(`egress refused at hop ${hop}: ${decision.reason} \u2014 nothing further was sent.`);
-    }
-    const res = await doFetch(current, { ...rest2, redirect: "manual" });
-    hops.push({ url: current, ip: decision.pinnedIp ?? "", status: res.status });
-    const location = res.headers.get("location");
-    if (!location || res.status < 300 || res.status > 399) {
-      Object.defineProperty(res, "egressHops", { value: hops, enumerable: false });
-      return res;
-    }
-    let next2;
-    try {
-      next2 = new URL(location, current).toString();
-    } catch {
-      throw new Error(`egress refused: hop ${hop} returned an unparseable Location \u2014 nothing further was sent.`);
-    }
-    if (hop === (maxRedirects ?? DEFAULT_MAX_REDIRECTS)) {
-      throw new Error(`egress refused: more than ${maxRedirects ?? DEFAULT_MAX_REDIRECTS} redirects \u2014 possible redirect loop.`);
-    }
-    current = next2;
-  }
-  throw new Error("egress refused: redirect budget exhausted.");
-}
-var systemResolver, DEFAULT_MAX_REDIRECTS;
-var init_egressNet = __esm({
-  "src/security/egressNet.ts"() {
-    "use strict";
-    init_guardrail();
-    systemResolver = async (hostname3) => {
-      const dns = await import("node:dns/promises").catch(() => null);
-      if (!dns) return [];
-      const out = [];
-      try {
-        for (const r3 of await dns.lookup(hostname3, { all: true, verbatim: true })) out.push(r3.address);
-      } catch {
-      }
-      return out;
-    };
-    DEFAULT_MAX_REDIRECTS = 5;
   }
 });
 

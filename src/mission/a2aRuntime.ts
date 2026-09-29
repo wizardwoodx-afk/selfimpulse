@@ -42,6 +42,7 @@
  *     installed) is reported in `describe()` and in every artifact it produces.
  *     It never claims to be a real model.
  */
+import { safeEgressFetch } from "../security/egressNet";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -213,9 +214,14 @@ export function nodeRunnerDeps(opts?: NodeDepsOptions): TeamRunnerDeps {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), req.timeoutSecs * 1000);
       try {
-        const r = await fetch(`${p.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+        /* Egress-guarded (audit C5): the bearer key rides a fetch that
+           re-classifies every hop; private ranges allowed — a peer is an
+           explicitly paired endpoint the owner chose. */
+        const r = await safeEgressFetch(`${p.baseUrl.replace(/\/$/, "")}/chat/completions`, {
           method: "POST",
           signal: ctrl.signal,
+          allowLoopback: true,
+          allowPrivate: true,
           headers: { "content-type": "application/json", authorization: `Bearer ${p.apiKey}` },
           body: JSON.stringify({
             model: req.model || p.model,
