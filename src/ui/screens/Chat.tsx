@@ -5,7 +5,7 @@ import { GateCard } from "./GateCard";
 
 /** The conversation view — reached from Memory (double-click a node) or "Open the conversation". */
 export function Chat({ title }: { title: string }): React.ReactElement {
-  const { msgs, busy, send, go, openSession, gate } = useVh();
+  const { msgs, busy, send, go, openSession, gate, addFiles } = useVh();
   const [draft, setDraft] = useState("");
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [msgs.length, gate]);
@@ -37,7 +37,7 @@ export function Chat({ title }: { title: string }): React.ReactElement {
         {busy && !gate && <div className="msg"><span className="av" /><div><div className="who"><b>{title}</b></div><p className="faint">Working — watch the graph in Work.</p></div></div>}
         <div ref={end} />
       </div></div>
-      <div className="dock"><Composer small value={draft} onChange={setDraft} onSend={() => { void send(draft); setDraft(""); }} busy={busy} placeholder="Continue this conversation…" /></div>
+      <div className="dock"><Composer small value={draft} onChange={setDraft} onSend={() => { void send(draft); setDraft(""); }} busy={busy} onFiles={(files) => addFiles(files)} placeholder="Continue this conversation…" /></div>
     </>
   );
 }

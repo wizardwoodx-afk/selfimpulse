@@ -77,7 +77,7 @@ console.log("== 4. the MCP surface exists and is reachable");
 var settingsSrc = read("src/ui/screens/Settings.tsx");
 var mcpSrc = read("src/ui/screens/Mcp.tsx");
 ok("the MCP screen exists", mcpSrc.length > 0);
-ok("settings offers an MCP section", /"mcp", "MCP"/.test(settingsSrc));
+ok("settings offers an MCP section", /"mcp", "Tools \(MCP\)"/.test(settingsSrc));
 ok("the section renders the screen", /sect === "mcp" && <Mcp \/>/.test(settingsSrc));
 for (const fn of ["mcpServerList", "mcpConnectTest", "mcpCall", "mcpServerSave", "mcpServerRemove"]) {
   ok(`the surface uses ipc.${fn}`, new RegExp(`ipc\\.${fn}\\(`).test(mcpSrc));

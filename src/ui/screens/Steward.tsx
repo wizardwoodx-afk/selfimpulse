@@ -17,7 +17,7 @@ function proofOf(r: Receipt): { word: string; cls: string } {
 }
 
 export function Steward(): React.ReactElement {
-  const { provider, go, send, busy, receipts, workspace } = useVh();
+  const { provider, go, send, busy, receipts, workspace, addFiles } = useVh();
   const [draft, setDraft] = useState("");
   const rows = receipts().slice(0, 7);
   const runs = rows.filter((r) => r.kind === "run").length;
@@ -84,7 +84,8 @@ export function Steward(): React.ReactElement {
             onChange={setDraft}
             onSend={() => { void send(draft); setDraft(""); }}
             busy={busy}
-            placeholder={provider ? "Describe what you need." : "Describe what you need — the Captain will plan it, not run it."}
+            onFiles={(files) => addFiles(files)}
+            placeholder={provider ? "Describe what you need — or attach a document." : "Describe what you need — or attach a document to teach from."}
           />
 
           {!provider && (

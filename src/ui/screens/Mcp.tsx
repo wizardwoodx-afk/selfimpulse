@@ -45,13 +45,15 @@ function parseJson(text: string): { ok: true; value: unknown } | { ok: false; er
 
 /** One-command presets for the official reference MCP servers. Any runnable
  * command works — a preset is just a filled-in form, never a special path. */
+/* Versions are PINNED to releases verified at build time — a preset must start
+ * the same server tomorrow that it starts today. Edit the command to taste. */
 const PRESETS: Array<{ id: string; label: string; desc: string; command: string; args: string }> = [
-  { id: "filesystem", label: "Files", desc: "read & write files in a folder you choose", command: "npx", args: "-y @modelcontextprotocol/server-filesystem ." },
-  { id: "memory", label: "Memory", desc: "a persistent knowledge graph the crew can query", command: "npx", args: "-y @modelcontextprotocol/server-memory" },
-  { id: "git", label: "Git", desc: "commits, branches and history in your repo", command: "uvx", args: "mcp-server-git --repository ." },
-  { id: "fetch", label: "Fetch", desc: "let the crew read a web page you point at", command: "uvx", args: "mcp-server-fetch" },
-  { id: "time", label: "Time", desc: "clocks and timezones, done right", command: "uvx", args: "mcp-server-time" },
-  { id: "thinking", label: "Deep think", desc: "step-by-step structured reasoning tool", command: "npx", args: "-y @modelcontextprotocol/server-sequential-thinking" },
+  { id: "filesystem", label: "Files", desc: "read & write files in a folder you choose", command: "npx", args: "-y @modelcontextprotocol/server-filesystem@2026.8.31 ." },
+  { id: "memory", label: "Memory", desc: "a persistent knowledge graph the crew can query", command: "npx", args: "-y @modelcontextprotocol/server-memory@2026.8.31" },
+  { id: "git", label: "Git", desc: "commits, branches and history in your repo", command: "uvx", args: "mcp-server-git@2026.8.18 --repository ." },
+  { id: "fetch", label: "Fetch", desc: "let the crew read a web page you point at", command: "uvx", args: "mcp-server-fetch@2026.8.18" },
+  { id: "time", label: "Time", desc: "clocks and timezones, done right", command: "uvx", args: "mcp-server-time@2026.8.18" },
+  { id: "thinking", label: "Deep think", desc: "step-by-step structured reasoning tool", command: "npx", args: "-y @modelcontextprotocol/server-sequential-thinking@2026.8.31" },
 ];
 
 export function Mcp(): React.ReactElement {
@@ -246,7 +248,7 @@ export function Mcp(): React.ReactElement {
 
         {adding && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-            <div className="chips" role="listbox" aria-label="Ready-made servers">
+            <div className="chips" role="listbox" aria-label="Ready-made servers" title="Pinned, verified versions — edit the command to change one">
               {PRESETS.map((p) => (
                 <button key={p.id} type="button" className="chip" title={`${p.command} ${p.args}`}
                         onClick={() => setDraft({ name: p.label, command: p.command, args: p.args.split(/\s+/) })}>

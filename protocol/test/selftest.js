@@ -58,9 +58,9 @@ check("tampered challenge rejects",       !(await VH.verifyChallenge(alice.sign.
 /* ─── L3 ─── */
 section("L3 · selfimpulseing + hash chain");
 const facts = { v: 2, kind: "share", from: { n: "A", fp: alice.fp }, to: { n: "B", fp: bob.fp }, file: "x.pdf", size: 10, hash: "a".repeat(64), ok: true, ts: Date.now() };
-const selfimpulse = await VH.buildSelfImpulse(facts, alice.sign.privateKey);
-check("selfimpulse verifies",           await VH.verifySelfImpulse(selfimpulse, alice.sign.publicJwk));
-check("selfimpulse rejected wrong key", !(await VH.verifySelfImpulse(selfimpulse, bob.sign.publicJwk)));
+const attestation = await VH.buildSelfImpulse(facts, alice.sign.privateKey);
+check("selfimpulse verifies",           await VH.verifySelfImpulse(attestation, alice.sign.publicJwk));
+check("selfimpulse rejected wrong key", !(await VH.verifySelfImpulse(attestation, bob.sign.publicJwk)));
 
 /* ─── L4 ─── */
 section("L4 · link fingerprint");
