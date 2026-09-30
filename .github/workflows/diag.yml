@@ -1,0 +1,63 @@
+name: diag
+
+# TEMPORARY diagnostic workflow (branch-only, deleted once the cause is known).
+#
+# The gate step's log blob is not downloadable from the sandbox that writes this
+# repo, so a red CI run says only "dev probes: exit 1". This job re-runs the gate
+# and republishes the interesting lines as step ANNOTATIONS, which ARE readable
+# through the API, plus a tool inventory — the runner and the sandbox differ in
+# ways that change which probes actually execute (a skipped probe and a passing
+# probe look identical in a summary line).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [arena/01a0f045-selfimpulse]
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14
+          cache: npm
+      - run: npm ci
+      - name: inventory — what the runner has that the sandbox does not
+        run: |
+          {
+            echo "node $(node -v)"
+            echo "npm $(npm -v)"
+            echo "python3 $(python3 -V 2>&1)"
+            echo "pytest: $(python3 -c 'import pytest; print(pytest.__version__)' 2>&1 | head -1)"
+            echo "cargo: $(cargo --version 2>&1 | head -1)"
+            echo "cpus: $(nproc)"
+            echo "tmpdir: ${TMPDIR:-/tmp}"
+            echo "user: $(id -un)"
+            echo "locale: $LANG"
+          }
+      - name: gate — report, never fail this step
+        run: |
+          set +e
+          npm test > /tmp/gate.log 2>&1
+          code=$?
+          echo "gate exit=$code"
+          echo "::notice title=GATE-EXIT::$code"
+          enc() { sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}'; }
+          grep -nE "^FAIL|Failed test suites|ALL PROBES SUMMARY|^  SKIP" /tmp/gate.log | head -25 \
+            | sed 's/%/%25/g; s/\r//g' | while IFS= read -r line; do echo "::error title=gate::$line"; done
+          tail -n 45 /tmp/gate.log | enc > /tmp/tail.enc
+          echo "::error title=gate-tail::$(cat /tmp/tail.enc)"
+          exit 0
+      - name: the two suites that touch cargo, verbosely
+        run: |
+          set +e
+          for s in realExecution docConsistency; do
+            npm test -- "$s" >/dev/null 2>&1
+            node tools/run-one-probe.mjs "$s" > "/tmp/$s.log" 2>&1
+            echo "::notice title=$s-exit::$?"
+            tail -n 30 "/tmp/$s.log" | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}' > "/tmp/$s.enc"
+            echo "::error title=$s-tail::$(cat /tmp/$s.enc)"
+          done
+          exit 0
