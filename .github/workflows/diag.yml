@@ -32,6 +32,12 @@ jobs:
             echo "python3 $(python3 -V 2>&1)"
             echo "pytest: $(python3 -c 'import pytest; print(pytest.__version__)' 2>&1 | head -1)"
             echo "cargo: $(cargo --version 2>&1 | head -1)"
+            echo "--- browsers the runner ships (the probe's own behaviour forks on this) ---"
+            for b in google-chrome google-chrome-stable chromium chromium-browser chrome; do
+              echo "  $b: $(command -v $b || echo none)"
+            done
+            ls -d /opt/google/chrome 2>/dev/null || echo "  /opt/google/chrome: none"
+            echo "  HANDLE_BROWSER_BIN=${HANDLE_BROWSER_BIN:-unset}"
             echo "cpus: $(nproc)"
             echo "tmpdir: ${TMPDIR:-/tmp}"
             echo "user: $(id -un)"
@@ -53,7 +59,7 @@ jobs:
       - name: the two suites that touch cargo, verbosely
         run: |
           set +e
-          for s in realExecution docConsistency; do
+          for s in browserService offlinePack; do
             npm test -- "$s" >/dev/null 2>&1
             node tools/run-one-probe.mjs "$s" > "/tmp/$s.log" 2>&1
             echo "::notice title=$s-exit::$?"
