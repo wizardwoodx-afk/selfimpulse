@@ -1608,6 +1608,13 @@ async function hmacHex(s, secret) {
   const sig = await crypto.subtle.sign("HMAC", key, enc.encode(s));
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+var SEAL_ALGO = "si-seal/2";
+async function headerHashOf(header) {
+  return sha256hex(canon(header));
+}
+async function sealedMaterial(chainHead, headerHash) {
+  return sha256hex(`${SEAL_ALGO}|${chainHead}|${headerHash}`);
+}
 async function buildProofReceipt(args) {
   const { report } = args;
   const seatEvents = [];
@@ -1669,14 +1676,18 @@ async function buildProofReceipt(args) {
     edition: args.edition,
     autonomyArms: report.autonomyArms ?? []
   };
-  const seal = await hmacHex(prev, VERIFY_SECRET);
-  const sig = await signChainHash(prev);
+  const headerHash = await headerHashOf(header);
+  const material = await sealedMaterial(prev, headerHash);
+  const seal = await hmacHex(material, VERIFY_SECRET);
+  const sig = await signChainHash(material);
   if (sig) {
     return {
       format: "si-proof-receipt/2",
       header,
       events,
       seal,
+      sealAlgo: SEAL_ALGO,
+      headerHash,
       issuer: { keyId: sig.keyId, publicKeyHex: sig.publicKeyHex },
       signature: sig.sigHex
     };
@@ -1686,13 +1697,17 @@ async function buildProofReceipt(args) {
     header,
     events,
     seal,
+    sealAlgo: SEAL_ALGO,
+    headerHash,
     issuer: null,
     signature: null,
-    signatureNote: "This runtime has no Ed25519 (WebCrypto refused or is absent). The receipt is tamper-evident via its HMAC seal but NOT issuer-signed."
+    signatureNote: "This runtime has no Ed25519 (WebCrypto refused or is absent). The receipt is tamper-evident via its HMAC seal but NOT issuer-signed, so it verifies as seal-only evidence and is refused wherever issuer proof is required."
   };
 }
 function receiptToJsonl(rc) {
   const head = { receipt: rc.header, format: rc.format, seal: rc.seal };
+  if (rc.sealAlgo !== void 0) head.sealAlgo = rc.sealAlgo;
+  if (rc.headerHash !== void 0) head.headerHash = rc.headerHash;
   if (rc.issuer !== void 0) head.issuer = rc.issuer;
   if (rc.signature !== void 0) head.signature = rc.signature;
   if (rc.signatureNote !== void 0) head.signatureNote = rc.signatureNote;

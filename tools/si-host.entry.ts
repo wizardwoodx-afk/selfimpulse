@@ -95,7 +95,20 @@ export async function main(argv: string[]): Promise<void> {
 
   const selfimpulseUser = typeof args.selfimpulse === "string" ? args.selfimpulse : "SelfImpulse IMPULSE";
   const port = args.port === true ? 0 : Number(args.port ?? 0);
-  const host = typeof args.host === "string" ? args.host : "127.0.0.1";
+  /* C8 (audit 2026-09-30) — "there is no wildcard option" was a UI claim, not a
+   * policy: `--host 0.0.0.0` passed straight through to the listener. The Rust A2A
+   * host already refuses this (resolve_bind); the Node host never got the rule.
+   * Bind scope is now decided here, and a wildcard is refused by name so a
+   * deliberate 0.0.0.0 command line cannot be mistaken for a supported mode. */
+  const requestedHost = typeof args.host === "string" ? args.host.trim() : "127.0.0.1";
+  const WILDCARD = new Set(["0.0.0.0", "::", "::0", "*", "0:0:0:0:0:0:0:0"]);
+  if (WILDCARD.has(requestedHost)) {
+    throw new Error(
+      `refusing to bind ${requestedHost}: a wildcard listener would expose this machine on every interface. ` +
+        `Pass the concrete address you mean — 127.0.0.1 for this machine only, or one of this machine's own LAN addresses for your network.`,
+    );
+  }
+  const host = requestedHost;
   // --pair mints ONE one-time code and puts it in the READY line. The host's own
   // token is deliberately absent from that line and from everything the desktop
   // supervisor reports: the code is what an operator reads to a peer, and it is

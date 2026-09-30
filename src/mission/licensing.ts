@@ -33,7 +33,21 @@ export interface LicensePayload {
   maxSeats: number;
 }
 
-export type VerifyResult = { ok: true; payload: LicensePayload } | { ok: false; reason: string };
+/**
+ * C4 (audit 2026-09-30) — what a verified key actually PROVES.
+ *
+ * `"self-attested"`: the key matches an HMAC computed with VERIFY_SECRET, which
+ * is compiled into this bundle. Anyone who reads the bundle can mint a perpetual
+ * "pro" key, so this is a commercial acknowledgement, not proof of purchase, and
+ * callers that need proof must demand `"issuer-signed"`.
+ *
+ * `"issuer-signed"`: an Ed25519 signature over the payload, checked against
+ * EMBEDDED_LICENSE_PUBLIC_KEY_HEX. Forging one requires the founder's private
+ * key, which never ships. This is the only assurance that means anything.
+ */
+export type LicenseAssurance = "self-attested" | "issuer-signed";
+
+export type VerifyResult = { ok: true; payload: LicensePayload; assurance: LicenseAssurance } | { ok: false; reason: string };
 
 /** Embedded offline-verification secret (see honesty rule 1). */
 export const VERIFY_SECRET = "si-commercial-v1-offline";
@@ -71,14 +85,66 @@ async function hmacB64u(data: string, secret: string): Promise<string> {
   return b64u(new Uint8Array(sig));
 }
 
+/**
+ * C4 FIX — the public half of the license signing key. Empty in this build, so an
+ * issuer-signed key is reported as "cannot be verified here" rather than trusted;
+ * provisioning it is a one-line change once the founder's Ed25519 key exists
+ * (see tools/issue-license.mjs --keygen). This is deliberately NOT a secret: the
+ * whole point of the asymmetric path is that only the PUBLIC key ships.
+ */
+export const EMBEDDED_LICENSE_PUBLIC_KEY_HEX: string = "";
+
+async function verifyLicenseSignature(payloadBody: string, sigHex: string): Promise<boolean> {
+  try {
+    const subtle = globalThis.crypto?.subtle;
+    if (!subtle || !EMBEDDED_LICENSE_PUBLIC_KEY_HEX) return false;
+    const raw = new Uint8Array(EMBEDDED_LICENSE_PUBLIC_KEY_HEX.match(/.{1,2}/g)?.map((b) => parseInt(b, 16)) ?? []);
+    const key = await subtle.importKey("raw", raw, { name: "Ed25519" }, false, ["verify"]);
+    const sig = new Uint8Array(sigHex.match(/.{1,2}/g)?.map((b) => parseInt(b, 16)) ?? []);
+    return await subtle.verify({ name: "Ed25519" }, key, sig, new TextEncoder().encode(payloadBody));
+  } catch {
+    return false;
+  }
+}
+
 /** Founder-side issuance (also used by the licensing probe). */
 export async function issueLicenseKey(payload: LicensePayload, secret: string = VERIFY_SECRET): Promise<string> {
   const body = b64uStr(JSON.stringify(payload));
   return `${body}.${await hmacB64u(body, secret)}`;
 }
 
+/**
+ * C4 FIX — verification now says WHICH guarantee it checked.
+ *
+ * The HMAC path stays (existing founder-issued keys keep working), but it is
+ * reported as `self-attested` instead of being indistinguishable from real proof,
+ * and an Ed25519-signed key — `si-k1.<payload>.<sig>` — is verified against the
+ * embedded public key and reported as `issuer-signed`. Wire-up rule for callers:
+ * if you are gating something that matters, require `assurance === "issuer-signed"`.
+ */
 export async function verifyLicenseKey(key: string, nowMs: number = Date.now(), secret: string = VERIFY_SECRET): Promise<VerifyResult> {
-  const [body, sig] = key.split(".");
+  const parts = key.split(".");
+  /* Ed25519 form: si-k1.<payload>.<sigHex> */
+  if (parts[0] === "si-k1") {
+    const [, body, sig] = parts;
+    if (!body || !sig) return { ok: false, reason: "malformed key" };
+    if (!EMBEDDED_LICENSE_PUBLIC_KEY_HEX) {
+      return { ok: false, reason: "this build carries no license public key, so an issuer-signed key cannot be verified here" };
+    }
+    let payload: LicensePayload;
+    try {
+      payload = JSON.parse(unb64u(body)) as LicensePayload;
+    } catch {
+      return { ok: false, reason: "payload not readable" };
+    }
+    const good = await verifyLicenseSignature(body, sig);
+    if (!good) return { ok: false, reason: "issuer signature verification FAILED" };
+    if (payload.edition !== "pro") return { ok: false, reason: "not a pro payload" };
+    if (payload.expires && Date.parse(payload.expires) < nowMs) return { ok: false, reason: `expired ${payload.expires}` };
+    return { ok: true, payload, assurance: "issuer-signed" };
+  }
+
+  const [body, sig] = parts;
   if (!body || !sig) return { ok: false, reason: "malformed key" };
   let payload: LicensePayload;
   try {
@@ -90,7 +156,7 @@ export async function verifyLicenseKey(key: string, nowMs: number = Date.now(), 
   if (expect !== sig) return { ok: false, reason: "signature mismatch" };
   if (payload.edition !== "pro") return { ok: false, reason: "not a pro payload" };
   if (payload.expires && Date.parse(payload.expires) < nowMs) return { ok: false, reason: `expired ${payload.expires}` };
-  return { ok: true, payload };
+  return { ok: true, payload, assurance: "self-attested" };
 }
 
 /* ── storage-guarded state ─────────────────────────────────────────────── */

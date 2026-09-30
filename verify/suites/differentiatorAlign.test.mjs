@@ -1676,6 +1676,10 @@ async function attenuate(parent, agentId, subScope, opts) {
   if (!isHumanPrincipal(parent.principal)) {
     return { envelope: null, reason: `custody: parent envelope principal "${parent.principal}" is not human-format \u2014 attenuation is refused rather than delegated from an illegitimate root` };
   }
+  const genuine = await verifyEnvelope(parent);
+  if (!genuine.ok) {
+    return { envelope: null, reason: `attenuation refused: the parent envelope is not a genuine issuance \u2014 ${genuine.reason ?? "verification failed"}` };
+  }
   const now = opts?.now ?? Date.now();
   const notInParent = subScope.filter((s) => !parent.scope.includes(s));
   if (notInParent.length > 0) {
@@ -1716,12 +1720,16 @@ function budgetCheck(e, spentUsd) {
   }
   return { ok: true, reason: "within budget", remainingUsd: remaining };
 }
-function checkEnvelope(e, action, now) {
+async function checkEnvelope(e, action, now) {
   if (!e) return { ok: false, reason: "no authority envelope \u2014 nothing executes without traced authority" };
   if (e.revoked) return { ok: false, reason: `envelope ${e.id} revoked: ${e.revoked}` };
   if (e.expiresAt !== null && now > e.expiresAt) return { ok: false, reason: `envelope ${e.id} expired \u2014 authority is void` };
+  const genuine = await verifyEnvelope(e);
+  if (!genuine.ok) {
+    return { ok: false, reason: `envelope ${e.id} is not a genuine issuance \u2014 ${genuine.reason ?? "verification failed"}` };
+  }
   if (!e.scope.includes(action)) return { ok: false, reason: `action "${action}" outside envelope scope [${e.scope.join(", ")}]` };
-  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal})` };
+  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal}, digest verified)` };
 }
 async function verifyEnvelope(e) {
   if (!isHumanPrincipal(e.principal)) {

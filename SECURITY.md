@@ -39,5 +39,7 @@ The WebView is untrusted content. Every privileged action (filesystem,
 shell, network outbound, MCP, browser control) is gated from TypeScript
 policy **and** enforced again in the Rust IPC handler: program allowlists,
 `ensure_allowed` workspace-root containment, `contain::wrap_command`
-environment scrubbing, and fail-closed defaults. Receipts are ECDSA-signed,
-hash-chained, and verifiable with zero product state.
+environment scrubbing, and fail-closed defaults. Receipts are Ed25519-signed (the cross-selfimpulse identity curve is
+ECDSA P-256; the receipt issuer key is Ed25519), hash-chained, header-bound —
+the mission, edition, arms and finish time are inside the signed material — and
+verifiable with zero product state.

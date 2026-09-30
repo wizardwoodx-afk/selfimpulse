@@ -107,6 +107,13 @@ export async function attenuate(parent: AuthorityEnvelope, agentId: string, subS
   if (!isHumanPrincipal(parent.principal)) {
     return { envelope: null, reason: `custody: parent envelope principal "${parent.principal}" is not human-format — attenuation is refused rather than delegated from an illegitimate root` };
   }
+  /* CRITICAL FIX (audit 2026-09-30, finding C1): a parent that cannot prove it
+   * was issued must not fork into live seat envelopes. Attenuating from a forgery
+   * was how a hand-built literal reached execution and egress. */
+  const genuine = await verifyEnvelope(parent);
+  if (!genuine.ok) {
+    return { envelope: null, reason: `attenuation refused: the parent envelope is not a genuine issuance — ${genuine.reason ?? "verification failed"}` };
+  }
   const now = opts?.now ?? Date.now();
   const notInParent = subScope.filter((s) => !parent.scope.includes(s));
   if (notInParent.length > 0) {
@@ -207,12 +214,36 @@ export class BudgetGate {
   }
 }
 
-export function checkEnvelope(e: AuthorityEnvelope | null, action: string, now: number): { ok: boolean; reason: string } {
+/**
+ * VH 11.13.2 — the mechanical scope/expiry/revocation check, evaluated on every action.
+ *
+ * CRITICAL FIX (audit 2026-09-30, finding C1). This function used to read the
+ * envelope's own fields — `scope`, `revoked`, `expiresAt` — and trust them. Any
+ * caller could hand it an object literal with `digest: "deadbeef"` and no
+ * signature and get `ok: true` for any action; `attenuate()` then forked that
+ * forgery into per-seat envelopes, so it reached execution and egress. The
+ * verifier that catches exactly that (`verifyEnvelope`, below) existed and had
+ * no production call site.
+ *
+ * The digest is now checked BEFORE the fields are believed. Order still matters
+ * for honest reasons: a revoked envelope is legitimately mutated without being
+ * re-signed, so revocation/expiry are named first (accurate reason), and the
+ * cryptographic check runs before scope — authority is proven, then scoped.
+ * Async because SHA-256 is; every caller awaits it.
+ */
+export async function checkEnvelope(e: AuthorityEnvelope | null, action: string, now: number): Promise<{ ok: boolean; reason: string }> {
   if (!e) return { ok: false, reason: "no authority envelope — nothing executes without traced authority" };
   if (e.revoked) return { ok: false, reason: `envelope ${e.id} revoked: ${e.revoked}` };
   if (e.expiresAt !== null && now > e.expiresAt) return { ok: false, reason: `envelope ${e.id} expired — authority is void` };
+
+  /* The envelope must PROVE it was issued, not merely assert it. */
+  const genuine = await verifyEnvelope(e);
+  if (!genuine.ok) {
+    return { ok: false, reason: `envelope ${e.id} is not a genuine issuance — ${genuine.reason ?? "verification failed"}` };
+  }
+
   if (!e.scope.includes(action)) return { ok: false, reason: `action "${action}" outside envelope scope [${e.scope.join(", ")}]` };
-  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal})` };
+  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal}, digest verified)` };
 }
 
 export async function verifyEnvelope(e: AuthorityEnvelope): Promise<{ ok: boolean; reason?: string }> {

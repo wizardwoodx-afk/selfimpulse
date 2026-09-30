@@ -1640,6 +1640,10 @@ async function attenuate(parent, agentId, subScope, opts) {
   if (!isHumanPrincipal(parent.principal)) {
     return { envelope: null, reason: `custody: parent envelope principal "${parent.principal}" is not human-format \u2014 attenuation is refused rather than delegated from an illegitimate root` };
   }
+  const genuine = await verifyEnvelope(parent);
+  if (!genuine.ok) {
+    return { envelope: null, reason: `attenuation refused: the parent envelope is not a genuine issuance \u2014 ${genuine.reason ?? "verification failed"}` };
+  }
   const now = opts?.now ?? Date.now();
   const notInParent = subScope.filter((s) => !parent.scope.includes(s));
   if (notInParent.length > 0) {
@@ -1716,12 +1720,16 @@ var BudgetGate = class {
     }
   }
 };
-function checkEnvelope(e, action, now) {
+async function checkEnvelope(e, action, now) {
   if (!e) return { ok: false, reason: "no authority envelope \u2014 nothing executes without traced authority" };
   if (e.revoked) return { ok: false, reason: `envelope ${e.id} revoked: ${e.revoked}` };
   if (e.expiresAt !== null && now > e.expiresAt) return { ok: false, reason: `envelope ${e.id} expired \u2014 authority is void` };
+  const genuine = await verifyEnvelope(e);
+  if (!genuine.ok) {
+    return { ok: false, reason: `envelope ${e.id} is not a genuine issuance \u2014 ${genuine.reason ?? "verification failed"}` };
+  }
   if (!e.scope.includes(action)) return { ok: false, reason: `action "${action}" outside envelope scope [${e.scope.join(", ")}]` };
-  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal})` };
+  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal}, digest verified)` };
 }
 async function verifyEnvelope(e) {
   if (!isHumanPrincipal(e.principal)) {
@@ -1804,7 +1812,7 @@ async function executeCapability(args) {
   const { request, envelope, now } = args;
   if (!envelope) return { result: null, reason: "refused \u2014 no authority envelope; a capability request needs the data owner's signed authority" };
   if (!isHumanPrincipal(envelope.principal)) return { result: null, reason: `refused \u2014 principal "${envelope.principal}" is not human; only the data owner may authorize operations on their data` };
-  const scope = checkEnvelope(envelope, "capability:run", now);
+  const scope = await checkEnvelope(envelope, "capability:run", now);
   if (!scope.ok) return { result: null, reason: `refused \u2014 ${scope.reason}` };
   if (!envelope.scope.includes("capability:run")) return { result: null, reason: "refused \u2014 the envelope's scope does not permit capability:run" };
   if (!CAPABILITY_OPS.includes(request.op)) return { result: null, reason: `refused \u2014 operation "${request.op}" is not on the approved whitelist` };
@@ -1886,7 +1894,7 @@ async function requestEgress(args) {
   const { envelope, item, recipient, now } = args;
   if (!envelope) return { record: null, reason: "refused \u2014 no authority envelope; nothing leaves this machine without a human's signed authority" };
   if (!isHumanPrincipal(envelope.principal)) return { record: null, reason: `refused \u2014 principal "${envelope.principal}" is not human; only a human may authorize data to leave` };
-  const scopeCheck = checkEnvelope(envelope, "egress:share", now);
+  const scopeCheck = await checkEnvelope(envelope, "egress:share", now);
   if (!scopeCheck.ok) return { record: null, reason: `refused \u2014 ${scopeCheck.reason}` };
   if (!envelope.scope.includes("egress:share")) return { record: null, reason: "refused \u2014 the envelope's scope does not permit egress:share" };
   const id = `egress-${now.toString(36)}-${loadEgressLedger().length + 1}`;
@@ -2064,7 +2072,7 @@ async function runGovernanceArena(args = {}) {
   results.push(
     await scenario("arena.expiry", "A mission runs on an envelope whose authority has lapsed", async () => {
       const root = await issueRootEnvelope({ principal: "human:alice", scope: ["capability:run"], expiresAt: now + 1, now });
-      const later = checkEnvelope(root, "capability:run", now + 6e4);
+      const later = await checkEnvelope(root, "capability:run", now + 6e4);
       return { held: !later.ok, note: later.ok ? "expired envelope accepted" : later.reason };
     })
   );
@@ -2072,7 +2080,7 @@ async function runGovernanceArena(args = {}) {
     await scenario("arena.revocation", "A compromised envelope tries to act after revocation", async () => {
       const root = await humanRoot(now, ["capability:run"]);
       const dead = revoke(root, "seat compromised \u2014 kill switch");
-      const verdict = checkEnvelope(dead, "capability:run", now);
+      const verdict = await checkEnvelope(dead, "capability:run", now);
       return { held: !verdict.ok, note: verdict.ok ? "revoked envelope accepted" : verdict.reason };
     })
   );

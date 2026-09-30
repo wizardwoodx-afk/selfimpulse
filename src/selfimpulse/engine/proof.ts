@@ -72,9 +72,13 @@ export interface ProofReceipt {
   };
   events: ReceiptEvent[];
   seal: string;
+  /** C2 (audit 2026-09-30): "si-seal/2" = the seal/signature ALSO cover sha256(canon(header)),
+   *  so the header is inside the signed material instead of merely beside it. */
+  sealAlgo?: "si-seal/2";
+  headerHash?: string;
   /** Issuer identity; null when the runtime could not sign (see signatureNote). */
   issuer?: { keyId: string; publicKeyHex: string } | null;
-  /** Hex Ed25519 signature over the final chain hash; null when unsigned. */
+  /** Hex Ed25519 signature over the SEALED MATERIAL; null when unsigned. */
   signature?: string | null;
   /** Present exactly when signature is null: what happened, honestly. */
   signatureNote?: string;
@@ -98,6 +102,16 @@ const canon = (o: unknown): string => JSON.stringify(sortDeep(o));
 async function sha256hex(s: string): Promise<string> {
   const d = await crypto.subtle.digest("SHA-256", enc.encode(s));
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+const SEAL_ALGO = "si-seal/2" as const;
+
+async function headerHashOf(header: ProofReceipt["header"]): Promise<string> {
+  return sha256hex(canon(header));
+}
+
+async function sealedMaterial(chainHead: string, headerHash: string): Promise<string> {
+  return sha256hex(`${SEAL_ALGO}|${chainHead}|${headerHash}`);
 }
 
 async function hmacHex(s: string, secret: string): Promise<string> {
@@ -140,16 +154,23 @@ export async function buildChainedReceipt(args: {
     edition: args.edition,
     autonomyArms: [] as string[],
   };
-  const seal = await hmacHex(prev, VERIFY_SECRET);
+  /* C2 (audit 2026-09-30) — the header rides INSIDE the sealed material. The two
+   * implementations of this wire must agree byte for byte, or receipts minted by
+   * one fail in the other's verifier. */
+  const headerHash = await headerHashOf(header);
+  const material = await sealedMaterial(prev, headerHash);
+  const seal = await hmacHex(material, VERIFY_SECRET);
   // A null signature says so, plainly — tamper-evidence never claims signing
   // it cannot prove.
-  const sig = await signChainHash(prev);
+  const sig = await signChainHash(material);
   if (sig) {
     return {
       format: "si-proof-receipt/2",
       header,
       events,
       seal,
+      sealAlgo: SEAL_ALGO,
+      headerHash,
       issuer: { keyId: sig.keyId, publicKeyHex: sig.publicKeyHex },
       signature: sig.sigHex,
     };
@@ -159,9 +180,11 @@ export async function buildChainedReceipt(args: {
     header,
     events,
     seal,
+    sealAlgo: SEAL_ALGO,
+    headerHash,
     issuer: null,
     signature: null,
-    signatureNote: "This runtime has no Ed25519 (WebCrypto refused or is absent). The receipt is tamper-evident via its HMAC seal but NOT issuer-signed.",
+    signatureNote: "This runtime has no Ed25519 (WebCrypto refused or is absent). The receipt is tamper-evident via its HMAC seal but NOT issuer-signed, so it verifies as seal-only evidence and is refused wherever issuer proof is required.",
   };
 }
 
@@ -171,7 +194,7 @@ export async function buildChainedReceipt(args: {
  * receipts verify exactly as before (chain + seal), and any receipt that
  * claims an issuer signature has it verified, regardless of format name.
  */
-export async function verifyProofReceipt(rc: ProofReceipt): Promise<{ ok: true; events: number } | { ok: false; reason: string }> {
+export async function verifyProofReceipt(rc: ProofReceipt): Promise<{ ok: true; events: number; assurance: "issuer-signed" | "seal-only" } | { ok: false; reason: string }> {
   const sealSecret = SEAL_SECRET_BY_FORMAT[rc.format as keyof typeof SEAL_SECRET_BY_FORMAT];
   if (!sealSecret) return { ok: false, reason: `unknown format ${rc.format}` };
   let prev = "0".repeat(64);
@@ -182,13 +205,41 @@ export async function verifyProofReceipt(rc: ProofReceipt): Promise<{ ok: true; 
     if (expect !== hash) return { ok: false, reason: `hash mismatch at seq ${e.seq}` };
     prev = hash;
   }
-  const seal = await hmacHex(prev, sealSecret);
+
+  /* C2 (audit 2026-09-30) — the chain above covers events[] only; the header is
+   * bound separately and must be present and matching for the current format. */
+  const isModern = rc.format === "si-proof-receipt/2";
+  let material = prev;
+  if (rc.sealAlgo !== undefined || isModern) {
+    if (rc.sealAlgo !== SEAL_ALGO) {
+      return { ok: false, reason: `receipt carries no "${SEAL_ALGO}" header binding — its header is outside the signed material` };
+    }
+    if (!rc.headerHash) return { ok: false, reason: "receipt declares a header binding but carries no header hash" };
+    if ((await headerHashOf(rc.header)) !== rc.headerHash) {
+      return { ok: false, reason: "header hash mismatch — the header was altered after the receipt was sealed" };
+    }
+    material = await sealedMaterial(prev, rc.headerHash);
+  }
+
+  const seal = await hmacHex(material, sealSecret);
   if (seal !== rc.seal) return { ok: false, reason: "seal mismatch" };
+
   /* A claimed signature is always verified. This previously gated on
      "mj-proof-receipt/2" — a legacy format this module stopped minting in
      16.1.0 — so every current "si-proof-receipt/2" receipt silently skipped
      issuer verification. The check could no longer fail, which is worse than
-     not having it. */
+     not having it. C3 (audit 2026-09-30) adds the other half: for the current
+     format the signature is REQUIRED, because the seal secret is published. */
+  if (isModern) {
+    if (!rc.signature) {
+      return { ok: false, reason: "unsigned si-proof-receipt/2 — the seal uses a published secret, so without an issuer signature this receipt is tamper-EVIDENT only, not proof" };
+    }
+    if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
+    const ok = await verifyIssuerSignature(material, rc.signature, rc.issuer.publicKeyHex);
+    if (!ok) return { ok: false, reason: `issuer signature verification FAILED for sealed material ${material}` };
+    return { ok: true, events: rc.events.length, assurance: "issuer-signed" };
+  }
+
   if (rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok = await verifyIssuerSignature(prev, rc.signature, rc.issuer.publicKeyHex);
@@ -196,12 +247,16 @@ export async function verifyProofReceipt(rc: ProofReceipt): Promise<{ ok: true; 
   } else if (rc.format !== "mj-proof-receipt/1" && !rc.signatureNote) {
     return { ok: false, reason: "receipt is neither signed nor carries a signatureNote explaining why not" };
   }
-  return { ok: true, events: rc.events.length };
+  return { ok: true, events: rc.events.length, assurance: rc.signature ? "issuer-signed" : "seal-only" };
 }
 
 /** JSONL export — human-readable, SIEM-ingestible, chain-preserving (IETF AAT guidance). */
 export function receiptToJsonl(rc: ProofReceipt): string {
   const head: Record<string, unknown> = { receipt: rc.header, format: rc.format, seal: rc.seal };
+  /* C2 — the binding fields are part of the proof; dropping them on export
+   * demotes a receipt to unverifiable (and the CLI refuses it, correctly). */
+  if (rc.sealAlgo !== undefined) head.sealAlgo = rc.sealAlgo;
+  if (rc.headerHash !== undefined) head.headerHash = rc.headerHash;
   if (rc.issuer !== undefined) head.issuer = rc.issuer;
   if (rc.signature !== undefined) head.signature = rc.signature;
   if (rc.signatureNote !== undefined) head.signatureNote = rc.signatureNote;
@@ -217,6 +272,8 @@ export function receiptFromJsonl(text: string): ProofReceipt | null {
       receipt?: ProofReceipt["header"];
       format?: string;
       seal?: string;
+      sealAlgo?: ProofReceipt["sealAlgo"];
+      headerHash?: ProofReceipt["headerHash"];
       issuer?: ProofReceipt["issuer"];
       signature?: ProofReceipt["signature"];
       signatureNote?: ProofReceipt["signatureNote"];
@@ -228,6 +285,8 @@ export function receiptFromJsonl(text: string): ProofReceipt | null {
       events: lines.slice(1) as ReceiptEvent[],
       seal: head.seal,
     };
+    if (head.sealAlgo !== undefined) out.sealAlgo = head.sealAlgo;
+    if (head.headerHash !== undefined) out.headerHash = head.headerHash;
     if (head.issuer !== undefined) out.issuer = head.issuer;
     if (head.signature !== undefined) out.signature = head.signature;
     if (head.signatureNote !== undefined) out.signatureNote = head.signatureNote;

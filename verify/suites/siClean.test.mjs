@@ -187,6 +187,12 @@ async function sha256hex(s) {
   const d = await crypto.subtle.digest("SHA-256", enc.encode(s));
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+async function headerHashOf(header) {
+  return sha256hex(canon(header));
+}
+async function sealedMaterial(chainHead, headerHash) {
+  return sha256hex(`${SEAL_ALGO}|${chainHead}|${headerHash}`);
+}
 async function hmacHex(s, secret) {
   const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = await crypto.subtle.sign("HMAC", key, enc.encode(s));
@@ -213,14 +219,18 @@ async function buildChainedReceipt(args) {
     edition: args.edition,
     autonomyArms: []
   };
-  const seal = await hmacHex(prev, VERIFY_SECRET);
-  const sig = await signChainHash(prev);
+  const headerHash = await headerHashOf(header);
+  const material = await sealedMaterial(prev, headerHash);
+  const seal = await hmacHex(material, VERIFY_SECRET);
+  const sig = await signChainHash(material);
   if (sig) {
     return {
       format: "si-proof-receipt/2",
       header,
       events,
       seal,
+      sealAlgo: SEAL_ALGO,
+      headerHash,
       issuer: { keyId: sig.keyId, publicKeyHex: sig.publicKeyHex },
       signature: sig.sigHex
     };
@@ -230,9 +240,11 @@ async function buildChainedReceipt(args) {
     header,
     events,
     seal,
+    sealAlgo: SEAL_ALGO,
+    headerHash,
     issuer: null,
     signature: null,
-    signatureNote: "This runtime has no Ed25519 (WebCrypto refused or is absent). The receipt is tamper-evident via its HMAC seal but NOT issuer-signed."
+    signatureNote: "This runtime has no Ed25519 (WebCrypto refused or is absent). The receipt is tamper-evident via its HMAC seal but NOT issuer-signed, so it verifies as seal-only evidence and is refused wherever issuer proof is required."
   };
 }
 async function verifyProofReceipt(rc) {
@@ -246,8 +258,29 @@ async function verifyProofReceipt(rc) {
     if (expect !== hash) return { ok: false, reason: `hash mismatch at seq ${e.seq}` };
     prev = hash;
   }
-  const seal = await hmacHex(prev, sealSecret);
+  const isModern = rc.format === "si-proof-receipt/2";
+  let material = prev;
+  if (rc.sealAlgo !== void 0 || isModern) {
+    if (rc.sealAlgo !== SEAL_ALGO) {
+      return { ok: false, reason: `receipt carries no "${SEAL_ALGO}" header binding \u2014 its header is outside the signed material` };
+    }
+    if (!rc.headerHash) return { ok: false, reason: "receipt declares a header binding but carries no header hash" };
+    if (await headerHashOf(rc.header) !== rc.headerHash) {
+      return { ok: false, reason: "header hash mismatch \u2014 the header was altered after the receipt was sealed" };
+    }
+    material = await sealedMaterial(prev, rc.headerHash);
+  }
+  const seal = await hmacHex(material, sealSecret);
   if (seal !== rc.seal) return { ok: false, reason: "seal mismatch" };
+  if (isModern) {
+    if (!rc.signature) {
+      return { ok: false, reason: "unsigned si-proof-receipt/2 \u2014 the seal uses a published secret, so without an issuer signature this receipt is tamper-EVIDENT only, not proof" };
+    }
+    if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
+    const ok = await verifyIssuerSignature(material, rc.signature, rc.issuer.publicKeyHex);
+    if (!ok) return { ok: false, reason: `issuer signature verification FAILED for sealed material ${material}` };
+    return { ok: true, events: rc.events.length, assurance: "issuer-signed" };
+  }
   if (rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok = await verifyIssuerSignature(prev, rc.signature, rc.issuer.publicKeyHex);
@@ -255,10 +288,12 @@ async function verifyProofReceipt(rc) {
   } else if (rc.format !== "mj-proof-receipt/1" && !rc.signatureNote) {
     return { ok: false, reason: "receipt is neither signed nor carries a signatureNote explaining why not" };
   }
-  return { ok: true, events: rc.events.length };
+  return { ok: true, events: rc.events.length, assurance: rc.signature ? "issuer-signed" : "seal-only" };
 }
 function receiptToJsonl(rc) {
   const head = { receipt: rc.header, format: rc.format, seal: rc.seal };
+  if (rc.sealAlgo !== void 0) head.sealAlgo = rc.sealAlgo;
+  if (rc.headerHash !== void 0) head.headerHash = rc.headerHash;
   if (rc.issuer !== void 0) head.issuer = rc.issuer;
   if (rc.signature !== void 0) head.signature = rc.signature;
   if (rc.signatureNote !== void 0) head.signatureNote = rc.signatureNote;
@@ -278,6 +313,8 @@ function receiptFromJsonl(text) {
       events: lines.slice(1),
       seal: head.seal
     };
+    if (head.sealAlgo !== void 0) out.sealAlgo = head.sealAlgo;
+    if (head.headerHash !== void 0) out.headerHash = head.headerHash;
     if (head.issuer !== void 0) out.issuer = head.issuer;
     if (head.signature !== void 0) out.signature = head.signature;
     if (head.signatureNote !== void 0) out.signatureNote = head.signatureNote;
@@ -286,7 +323,7 @@ function receiptFromJsonl(text) {
     return null;
   }
 }
-var VERIFY_SECRET, LEGACY_SEAL_SECRET, SEAL_SECRET_BY_FORMAT, enc, canon;
+var VERIFY_SECRET, LEGACY_SEAL_SECRET, SEAL_SECRET_BY_FORMAT, enc, canon, SEAL_ALGO;
 var init_proof = __esm({
   "src/selfimpulse/engine/proof.ts"() {
     "use strict";
@@ -300,6 +337,7 @@ var init_proof = __esm({
     };
     enc = new TextEncoder();
     canon = (o) => JSON.stringify(sortDeep(o));
+    SEAL_ALGO = "si-seal/2";
   }
 });
 

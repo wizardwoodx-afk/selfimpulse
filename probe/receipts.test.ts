@@ -88,7 +88,10 @@ describe("receipts — issuer signature (11.10.1)", () => {
     // include the format, so a pre-16.1 receipt = same events, legacy seal, v1 label.
     const lastHash = rc.events[rc.events.length - 1].hash;
     const legacySeal = createHmac("sha256", LEGACY_SEAL_SECRET).update(lastHash, "utf8").digest("hex");
-    const legacy = { ...rc, format: "mj-proof-receipt/1" as const, seal: legacySeal, issuer: undefined, signature: undefined, signatureNote: undefined };
+    /* A genuine pre-16.1 receipt has no sealAlgo/headerHash: those fields did not
+     * exist, and a receipt that DECLARES si-seal/2 while sealing only the chain
+     * head is inconsistent by definition (the verifier refuses it, correctly). */
+    const legacy = { ...rc, format: "mj-proof-receipt/1" as const, seal: legacySeal, issuer: undefined, signature: undefined, signatureNote: undefined, sealAlgo: undefined, headerHash: undefined };
     const v = await verifyProofReceipt(legacy);
     assert.equal(v.ok, true, "11.9.x-era receipts must keep verifying after the 16.1.0 upgrade");
   });

@@ -467,7 +467,7 @@ export async function executeTeam(req: TeamRunRequest, deps: TeamRunnerDeps, ses
 
   // 11.12.2 — custody: a root envelope must permit the mission and be unexpired.
   if (req.rootEnvelope) {
-    const envCheck = checkEnvelope(req.rootEnvelope, "run:team-mission", now());
+    const envCheck = await checkEnvelope(req.rootEnvelope, "run:team-mission", now());
     if (!envCheck.ok) {
       return finish("aborted", `Custody refused the mission before any invocation — ${envCheck.reason}`, 0, emptySnapshot, []);
     }

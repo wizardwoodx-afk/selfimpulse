@@ -52,11 +52,11 @@ section("1. authority envelopes — principal, attenuation, expiry, scope");
   const outlive = await attenuate(root, "seat:late", ["role:any"], { expiresAt: NOW + 1000 * 60 * 90, now: NOW + 1 });
   ok("a child expiry beyond the parent is refused", outlive.envelope === null);
 
-  ok("in-scope action inside the window executes", checkEnvelope(root, "run:team-mission", NOW + 10).ok === true);
-  ok("out-of-scope action is architecturally unable", checkEnvelope(root, "write:production-db", NOW + 10).ok === false);
-  ok("an expired envelope refuses everything", checkEnvelope(root, "run:team-mission", NOW + 1000 * 60 * 31).ok === false);
-  ok("a revoked envelope refuses everything", checkEnvelope(revoke(root, "principal cancelled the mission"), "run:team-mission", NOW + 10).ok === false);
-  ok("no envelope → no execution without traced authority", checkEnvelope(null, "run:team-mission", NOW).ok === false);
+  ok("in-scope action inside the window executes", (await checkEnvelope(root, "run:team-mission", NOW + 10)).ok === true);
+  ok("out-of-scope action is architecturally unable", (await checkEnvelope(root, "write:production-db", NOW + 10)).ok === false);
+  ok("an expired envelope refuses everything", (await checkEnvelope(root, "run:team-mission", NOW + 1000 * 60 * 31)).ok === false);
+  ok("a revoked envelope refuses everything", (await checkEnvelope(revoke(root, "principal cancelled the mission"), "run:team-mission", NOW + 10)).ok === false);
+  ok("no envelope → no execution without traced authority", (await checkEnvelope(null, "run:team-mission", NOW)).ok === false);
 
   const tampered = { ...root, scope: [...root.scope, "write:production-db"] };
   ok("tampering with a signed envelope fails verification", (await verifyEnvelope(tampered)).ok === false);

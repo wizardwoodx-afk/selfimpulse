@@ -203,7 +203,7 @@ export async function executeCapability(args: {
   const { request, envelope, now } = args;
   if (!envelope) return { result: null, reason: "refused — no authority envelope; a capability request needs the data owner's signed authority" };
   if (!isHumanPrincipal(envelope.principal)) return { result: null, reason: `refused — principal "${envelope.principal}" is not human; only the data owner may authorize operations on their data` };
-  const scope = checkEnvelope(envelope, "capability:run", now);
+  const scope = await checkEnvelope(envelope, "capability:run", now);
   if (!scope.ok) return { result: null, reason: `refused — ${scope.reason}` };
   if (!envelope.scope.includes("capability:run")) return { result: null, reason: "refused — the envelope's scope does not permit capability:run" };
   if (!CAPABILITY_OPS.includes(request.op)) return { result: null, reason: `refused — operation "${request.op}" is not on the approved whitelist` };

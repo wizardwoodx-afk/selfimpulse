@@ -56,8 +56,13 @@ function receiptFromJsonlFile(file) {
   // remaining lines = the chain events
   if (!head.receipt || !head.seal || !head.format)
     fail(`receipt head at ${file} is not a si-proof-receipt JSONL head (needs receipt + format + seal)`);
+  // C2 (audit 2026-09-30) — sealAlgo/headerHash are part of the proof, so they must
+  // survive this hop: dropping them here made every modern receipt look like it
+  // predated the header binding, and the bridge refused it.
   return {
     format: head.format, header: head.receipt, seal: head.seal,
+    ...(head.sealAlgo !== undefined ? { sealAlgo: head.sealAlgo } : {}),
+    ...(head.headerHash !== undefined ? { headerHash: head.headerHash } : {}),
     issuer: head.issuer ?? null, signature: head.signature ?? null,
     events: lines.slice(1).map((l) => JSON.parse(l)),
   };

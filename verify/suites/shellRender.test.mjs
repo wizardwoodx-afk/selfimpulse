@@ -30410,6 +30410,7 @@ var init_computerUse = __esm({
   "src/engine/computerUse.ts"() {
     "use strict";
     init_guardrail();
+    init_egressNet();
     sha256 = (t2) => {
       let h12 = 2166136261, h2 = 16777619;
       for (let i2 = 0; i2 < t2.length; i2++) {
@@ -30435,13 +30436,13 @@ var init_computerUse = __esm({
     ];
     fetchTransport = {
       async open(url2, profile) {
-        const res = await fetch(url2, { headers: { "user-agent": profile.userAgent }, redirect: "follow" });
+        const res = await safeEgressFetch(url2, { headers: { "user-agent": profile.userAgent } });
         const html = await res.text();
         return parseSnapshot(url2, res.status, html);
       },
       async act(_snapshot, action) {
         if (action.type === "navigate") {
-          const res = await fetch(action.url, { redirect: "follow" });
+          const res = await safeEgressFetch(action.url, {});
           return parseSnapshot(action.url, res.status, await res.text());
         }
         throw new Error("click/type require a live browser session \u2014 use the browser binary plane for interactive acts");
@@ -239605,6 +239606,12 @@ async function hmacHex(s2, secret) {
   const sig = await crypto.subtle.sign("HMAC", key, enc4.encode(s2));
   return [...new Uint8Array(sig)].map((b3) => b3.toString(16).padStart(2, "0")).join("");
 }
+async function headerHashOf(header) {
+  return sha256hex(canon(header));
+}
+async function sealedMaterial(chainHead, headerHash) {
+  return sha256hex(`${SEAL_ALGO}|${chainHead}|${headerHash}`);
+}
 async function verifyProofReceipt(rc) {
   if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") return { ok: false, reason: "unknown format" };
   let prev = "0".repeat(64);
@@ -239615,17 +239622,37 @@ async function verifyProofReceipt(rc) {
     if (expect !== hash3) return { ok: false, reason: `hash mismatch at seq ${e3.seq}` };
     prev = hash3;
   }
+  const isModern = rc.format === "si-proof-receipt/2";
+  let material = prev;
+  if (rc.sealAlgo !== void 0 || isModern) {
+    if (rc.sealAlgo !== SEAL_ALGO) {
+      return { ok: false, reason: `receipt carries no "${SEAL_ALGO}" header binding \u2014 its header (mission, edition, autonomyArms, finishedAt) is outside the signed material and cannot be shown unaltered` };
+    }
+    if (!rc.headerHash) return { ok: false, reason: "receipt declares a header binding but carries no header hash" };
+    const expectHeader = await headerHashOf(rc.header);
+    if (expectHeader !== rc.headerHash) return { ok: false, reason: "header hash mismatch \u2014 the header was altered after the receipt was sealed" };
+    material = await sealedMaterial(prev, rc.headerHash);
+  }
   const sealSecret = SEAL_SECRET_BY_FORMAT[rc.format] ?? VERIFY_SECRET;
-  const seal = await hmacHex(prev, sealSecret);
+  const seal = await hmacHex(material, sealSecret);
   if (seal !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if (isModern) {
+    if (!rc.signature) {
+      return { ok: false, reason: "unsigned si-proof-receipt/2 \u2014 the seal uses a published secret, so without an issuer signature this receipt is tamper-EVIDENT only, not proof" };
+    }
+    if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
+    const ok2 = await verifyIssuerSignature(material, rc.signature, rc.issuer.publicKeyHex);
+    if (!ok2) return { ok: false, reason: `issuer signature verification FAILED for sealed material ${material}` };
+    return { ok: true, events: rc.events.length, assurance: "issuer-signed" };
+  }
+  if (rc.format === "mj-proof-receipt/2" && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok2 = await verifyIssuerSignature(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok2) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
   }
-  return { ok: true, events: rc.events.length };
+  return { ok: true, events: rc.events.length, assurance: rc.signature ? "issuer-signed" : "seal-only" };
 }
-var enc4, canon;
+var enc4, canon, SEAL_ALGO;
 var init_receipts = __esm({
   "src/mission/receipts.ts"() {
     "use strict";
@@ -239633,6 +239660,7 @@ var init_receipts = __esm({
     init_signing();
     enc4 = new TextEncoder();
     canon = (o2) => JSON.stringify(sortDeep(o2));
+    SEAL_ALGO = "si-seal/2";
   }
 });
 
@@ -239836,7 +239864,7 @@ function Receipts() {
     /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("header", { className: "top", children: [
       /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h2", { children: "Receipts" }),
       /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "sub", children: [
-        "a tamper-proof log of everything the agents did \xB7 ",
+        "a tamper-evident log of everything the agents did \u2014 every chain is digest-stamped and issuer-signed \xB7 ",
         all2.length,
         " this session"
       ] }),

@@ -25,7 +25,7 @@ export function Receipts(): React.ReactElement {
 
   return (
     <>
-      <header className="top"><h2>Receipts</h2><span className="sub">a tamper-proof log of everything the agents did · {all.length} this session</span>
+      <header className="top"><h2>Receipts</h2><span className="sub">a tamper-evident log of everything the agents did — every chain is digest-stamped and issuer-signed · {all.length} this session</span>
         <div className="right"><input className="input sm" placeholder="Search receipts" value={q} onChange={(e) => setQ(e.target.value)} /><button className="btn sm" onClick={() => download(all)} disabled={!all.length}>Export JSON</button></div></header>
       <div className="scroll"><div className="page narrow">
         <div className="kpis">

@@ -79,7 +79,7 @@ export async function requestEgress(args: {
   const { envelope, item, recipient, now } = args;
   if (!envelope) return { record: null, reason: "refused — no authority envelope; nothing leaves this machine without a human's signed authority" };
   if (!isHumanPrincipal(envelope.principal)) return { record: null, reason: `refused — principal "${envelope.principal}" is not human; only a human may authorize data to leave` };
-  const scopeCheck = checkEnvelope(envelope, "egress:share", now);
+  const scopeCheck = await checkEnvelope(envelope, "egress:share", now);
   if (!scopeCheck.ok) return { record: null, reason: `refused — ${scopeCheck.reason}` };
   if (!envelope.scope.includes("egress:share")) return { record: null, reason: "refused — the envelope's scope does not permit egress:share" };
 

@@ -213,12 +213,44 @@ async function hmacB64u(data, secret) {
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(data));
   return b64u(new Uint8Array(sig));
 }
+var EMBEDDED_LICENSE_PUBLIC_KEY_HEX = "";
+async function verifyLicenseSignature(payloadBody, sigHex) {
+  try {
+    const subtle = globalThis.crypto?.subtle;
+    if (!subtle || !EMBEDDED_LICENSE_PUBLIC_KEY_HEX) return false;
+    const raw = new Uint8Array(EMBEDDED_LICENSE_PUBLIC_KEY_HEX.match(/.{1,2}/g)?.map((b2) => parseInt(b2, 16)) ?? []);
+    const key = await subtle.importKey("raw", raw, { name: "Ed25519" }, false, ["verify"]);
+    const sig = new Uint8Array(sigHex.match(/.{1,2}/g)?.map((b2) => parseInt(b2, 16)) ?? []);
+    return await subtle.verify({ name: "Ed25519" }, key, sig, new TextEncoder().encode(payloadBody));
+  } catch {
+    return false;
+  }
+}
 async function issueLicenseKey(payload, secret = VERIFY_SECRET) {
   const body = b64uStr(JSON.stringify(payload));
   return `${body}.${await hmacB64u(body, secret)}`;
 }
 async function verifyLicenseKey(key, nowMs = Date.now(), secret = VERIFY_SECRET) {
-  const [body, sig] = key.split(".");
+  const parts = key.split(".");
+  if (parts[0] === "si-k1") {
+    const [, body2, sig2] = parts;
+    if (!body2 || !sig2) return { ok: false, reason: "malformed key" };
+    if (!EMBEDDED_LICENSE_PUBLIC_KEY_HEX) {
+      return { ok: false, reason: "this build carries no license public key, so an issuer-signed key cannot be verified here" };
+    }
+    let payload2;
+    try {
+      payload2 = JSON.parse(unb64u(body2));
+    } catch {
+      return { ok: false, reason: "payload not readable" };
+    }
+    const good = await verifyLicenseSignature(body2, sig2);
+    if (!good) return { ok: false, reason: "issuer signature verification FAILED" };
+    if (payload2.edition !== "pro") return { ok: false, reason: "not a pro payload" };
+    if (payload2.expires && Date.parse(payload2.expires) < nowMs) return { ok: false, reason: `expired ${payload2.expires}` };
+    return { ok: true, payload: payload2, assurance: "issuer-signed" };
+  }
+  const [body, sig] = parts;
   if (!body || !sig) return { ok: false, reason: "malformed key" };
   let payload;
   try {
@@ -230,7 +262,7 @@ async function verifyLicenseKey(key, nowMs = Date.now(), secret = VERIFY_SECRET)
   if (expect !== sig) return { ok: false, reason: "signature mismatch" };
   if (payload.edition !== "pro") return { ok: false, reason: "not a pro payload" };
   if (payload.expires && Date.parse(payload.expires) < nowMs) return { ok: false, reason: `expired ${payload.expires}` };
-  return { ok: true, payload };
+  return { ok: true, payload, assurance: "self-attested" };
 }
 var mem = { license: null, trialStart: null };
 var hasLS = typeof localStorage !== "undefined";

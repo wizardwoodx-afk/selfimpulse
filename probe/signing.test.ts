@@ -100,7 +100,11 @@ describe("issuer signing — receipts become v2 and issuer-authentic", () => {
     // Event hashes never include the format, so re-seal the same chain the legacy way.
     const lastHash = rc.events[rc.events.length - 1].hash;
     const legacySeal = createHmac("sha256", LEGACY_SEAL_SECRET).update(lastHash, "utf8").digest("hex");
-    const v1 = { ...rc, format: "mj-proof-receipt/1" as const, seal: legacySeal, issuer: undefined, signature: undefined, signatureNote: undefined };
+    /* Same correction as probe/receipts: a genuine pre-16.1 receipt predates the
+     * si-seal/2 binding, so it carries neither sealAlgo nor headerHash. Keeping
+     * them here would be a receipt that CLAIMS a binding it does not have — the
+     * verifier refuses that on purpose. */
+    const v1 = { ...rc, format: "mj-proof-receipt/1" as const, seal: legacySeal, issuer: undefined, signature: undefined, signatureNote: undefined, sealAlgo: undefined, headerHash: undefined };
     const v = await verifyProofReceipt(v1);
     assert.equal(v.ok, true, "the chain+seal check must still pass for v1 receipts");
   });

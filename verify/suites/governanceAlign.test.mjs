@@ -1640,6 +1640,10 @@ async function attenuate(parent, agentId, subScope, opts) {
   if (!isHumanPrincipal(parent.principal)) {
     return { envelope: null, reason: `custody: parent envelope principal "${parent.principal}" is not human-format \u2014 attenuation is refused rather than delegated from an illegitimate root` };
   }
+  const genuine = await verifyEnvelope(parent);
+  if (!genuine.ok) {
+    return { envelope: null, reason: `attenuation refused: the parent envelope is not a genuine issuance \u2014 ${genuine.reason ?? "verification failed"}` };
+  }
   const now = opts?.now ?? Date.now();
   const notInParent = subScope.filter((s) => !parent.scope.includes(s));
   if (notInParent.length > 0) {
@@ -1672,12 +1676,16 @@ async function attenuate(parent, agentId, subScope, opts) {
 function revoke(e, reason) {
   return { ...e, revoked: reason };
 }
-function checkEnvelope(e, action, now) {
+async function checkEnvelope(e, action, now) {
   if (!e) return { ok: false, reason: "no authority envelope \u2014 nothing executes without traced authority" };
   if (e.revoked) return { ok: false, reason: `envelope ${e.id} revoked: ${e.revoked}` };
   if (e.expiresAt !== null && now > e.expiresAt) return { ok: false, reason: `envelope ${e.id} expired \u2014 authority is void` };
+  const genuine = await verifyEnvelope(e);
+  if (!genuine.ok) {
+    return { ok: false, reason: `envelope ${e.id} is not a genuine issuance \u2014 ${genuine.reason ?? "verification failed"}` };
+  }
   if (!e.scope.includes(action)) return { ok: false, reason: `action "${action}" outside envelope scope [${e.scope.join(", ")}]` };
-  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal})` };
+  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal}, digest verified)` };
 }
 async function verifyEnvelope(e) {
   if (!isHumanPrincipal(e.principal)) {
@@ -1786,11 +1794,11 @@ section("1. authority envelopes \u2014 principal, attenuation, expiry, scope");
   ok("attenuation that would GROW scope is refused, with the offending scope named", grow.envelope === null && grow.reason.includes("delete:production"), grow.reason);
   const outlive = await attenuate(root, "seat:late", ["role:any"], { expiresAt: NOW + 1e3 * 60 * 90, now: NOW + 1 });
   ok("a child expiry beyond the parent is refused", outlive.envelope === null);
-  ok("in-scope action inside the window executes", checkEnvelope(root, "run:team-mission", NOW + 10).ok === true);
-  ok("out-of-scope action is architecturally unable", checkEnvelope(root, "write:production-db", NOW + 10).ok === false);
-  ok("an expired envelope refuses everything", checkEnvelope(root, "run:team-mission", NOW + 1e3 * 60 * 31).ok === false);
-  ok("a revoked envelope refuses everything", checkEnvelope(revoke(root, "principal cancelled the mission"), "run:team-mission", NOW + 10).ok === false);
-  ok("no envelope \u2192 no execution without traced authority", checkEnvelope(null, "run:team-mission", NOW).ok === false);
+  ok("in-scope action inside the window executes", (await checkEnvelope(root, "run:team-mission", NOW + 10)).ok === true);
+  ok("out-of-scope action is architecturally unable", (await checkEnvelope(root, "write:production-db", NOW + 10)).ok === false);
+  ok("an expired envelope refuses everything", (await checkEnvelope(root, "run:team-mission", NOW + 1e3 * 60 * 31)).ok === false);
+  ok("a revoked envelope refuses everything", (await checkEnvelope(revoke(root, "principal cancelled the mission"), "run:team-mission", NOW + 10)).ok === false);
+  ok("no envelope \u2192 no execution without traced authority", (await checkEnvelope(null, "run:team-mission", NOW)).ok === false);
   const tampered = { ...root, scope: [...root.scope, "write:production-db"] };
   ok("tampering with a signed envelope fails verification", (await verifyEnvelope(tampered)).ok === false);
 }

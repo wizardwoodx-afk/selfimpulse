@@ -1652,6 +1652,13 @@ async function hmacHex(s, secret) {
   const sig = await crypto.subtle.sign("HMAC", key, enc.encode(s));
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+var SEAL_ALGO = "si-seal/2";
+async function headerHashOf(header) {
+  return sha256hex(canon(header));
+}
+async function sealedMaterial(chainHead, headerHash) {
+  return sha256hex(`${SEAL_ALGO}|${chainHead}|${headerHash}`);
+}
 async function buildProofReceipt(args) {
   const { report: report2 } = args;
   const seatEvents = [];
@@ -1713,14 +1720,18 @@ async function buildProofReceipt(args) {
     edition: args.edition,
     autonomyArms: report2.autonomyArms ?? []
   };
-  const seal = await hmacHex(prev, VERIFY_SECRET);
-  const sig = await signChainHash(prev);
+  const headerHash = await headerHashOf(header);
+  const material = await sealedMaterial(prev, headerHash);
+  const seal = await hmacHex(material, VERIFY_SECRET);
+  const sig = await signChainHash(material);
   if (sig) {
     return {
       format: "si-proof-receipt/2",
       header,
       events,
       seal,
+      sealAlgo: SEAL_ALGO,
+      headerHash,
       issuer: { keyId: sig.keyId, publicKeyHex: sig.publicKeyHex },
       signature: sig.sigHex
     };
@@ -1730,9 +1741,11 @@ async function buildProofReceipt(args) {
     header,
     events,
     seal,
+    sealAlgo: SEAL_ALGO,
+    headerHash,
     issuer: null,
     signature: null,
-    signatureNote: "This runtime has no Ed25519 (WebCrypto refused or is absent). The receipt is tamper-evident via its HMAC seal but NOT issuer-signed."
+    signatureNote: "This runtime has no Ed25519 (WebCrypto refused or is absent). The receipt is tamper-evident via its HMAC seal but NOT issuer-signed, so it verifies as seal-only evidence and is refused wherever issuer proof is required."
   };
 }
 async function verifyProofReceipt(rc) {
@@ -1745,18 +1758,40 @@ async function verifyProofReceipt(rc) {
     if (expect !== hash) return { ok: false, reason: `hash mismatch at seq ${e.seq}` };
     prev = hash;
   }
+  const isModern = rc.format === "si-proof-receipt/2";
+  let material = prev;
+  if (rc.sealAlgo !== void 0 || isModern) {
+    if (rc.sealAlgo !== SEAL_ALGO) {
+      return { ok: false, reason: `receipt carries no "${SEAL_ALGO}" header binding \u2014 its header (mission, edition, autonomyArms, finishedAt) is outside the signed material and cannot be shown unaltered` };
+    }
+    if (!rc.headerHash) return { ok: false, reason: "receipt declares a header binding but carries no header hash" };
+    const expectHeader = await headerHashOf(rc.header);
+    if (expectHeader !== rc.headerHash) return { ok: false, reason: "header hash mismatch \u2014 the header was altered after the receipt was sealed" };
+    material = await sealedMaterial(prev, rc.headerHash);
+  }
   const sealSecret = SEAL_SECRET_BY_FORMAT[rc.format] ?? VERIFY_SECRET;
-  const seal = await hmacHex(prev, sealSecret);
+  const seal = await hmacHex(material, sealSecret);
   if (seal !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if (isModern) {
+    if (!rc.signature) {
+      return { ok: false, reason: "unsigned si-proof-receipt/2 \u2014 the seal uses a published secret, so without an issuer signature this receipt is tamper-EVIDENT only, not proof" };
+    }
+    if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
+    const ok = await verifyIssuerSignature(material, rc.signature, rc.issuer.publicKeyHex);
+    if (!ok) return { ok: false, reason: `issuer signature verification FAILED for sealed material ${material}` };
+    return { ok: true, events: rc.events.length, assurance: "issuer-signed" };
+  }
+  if (rc.format === "mj-proof-receipt/2" && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok = await verifyIssuerSignature(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
   }
-  return { ok: true, events: rc.events.length };
+  return { ok: true, events: rc.events.length, assurance: rc.signature ? "issuer-signed" : "seal-only" };
 }
 function receiptToJsonl(rc) {
   const head = { receipt: rc.header, format: rc.format, seal: rc.seal };
+  if (rc.sealAlgo !== void 0) head.sealAlgo = rc.sealAlgo;
+  if (rc.headerHash !== void 0) head.headerHash = rc.headerHash;
   if (rc.issuer !== void 0) head.issuer = rc.issuer;
   if (rc.signature !== void 0) head.signature = rc.signature;
   if (rc.signatureNote !== void 0) head.signatureNote = rc.signatureNote;

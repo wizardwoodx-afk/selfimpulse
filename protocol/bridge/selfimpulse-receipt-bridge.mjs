@@ -114,9 +114,38 @@ export function verifyReceiptChain(rc) {
     if (sha256hex(canon(body)) !== hash) return { ok: false, reason: `hash mismatch at seq ${e.seq}` };
     prev = hash;
   }
-  if (hmacHex(prev, rc.format) !== rc.seal) return { ok: false, reason: "seal mismatch" };
+  /* C2/C3 (audit 2026-09-30) — this bridge is a THIRD implementation of the same
+   * wire, so it must apply the same rules: the header is inside the sealed material
+   * under "si-seal/2", and the current format must carry an issuer signature (the
+   * seal secret is published, so an unsigned receipt proves nothing). */
+  const isModern = rc.format === "si-proof-receipt/2";
+  let material = prev;
+  if (rc.sealAlgo !== undefined || isModern) {
+    if (rc.sealAlgo !== "si-seal/2") {
+      return { ok: false, reason: `receipt carries no "si-seal/2" header binding — its header is outside the signed material` };
+    }
+    if (!rc.headerHash) return { ok: false, reason: "receipt declares a header binding but carries no header hash" };
+    if (sha256hex(canon(rc.header)) !== rc.headerHash) {
+      return { ok: false, reason: "header hash mismatch — the header was altered after the receipt was sealed" };
+    }
+    material = sha256hex(`si-seal/2|${prev}|${rc.headerHash}`);
+  }
 
-  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if (hmacHex(material, rc.format) !== rc.seal) return { ok: false, reason: "seal mismatch" };
+
+  if (isModern) {
+    if (!rc.signature) return { ok: false, reason: "unsigned si-proof-receipt/2 — tamper-evident only, not proof" };
+    if (!rc.issuer?.publicKeyHex || !/^[0-9a-fA-F]{64}$/.test(rc.issuer.publicKeyHex))
+      return { ok: false, reason: "receipt is signed but carries no issuer public key" };
+    const spki = Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(rc.issuer.publicKeyHex, "hex")]);
+    const okSig = crypto.verify(null, Buffer.from(material, "hex"),
+      crypto.createPublicKey({ key: spki, format: "der", type: "spki" }),
+      Buffer.from(rc.signature, "hex"));
+    if (!okSig) return { ok: false, reason: `issuer signature verification FAILED for sealed material ${material}` };
+    return { ok: true, head: prev, events: rc.events.length, signed: true };
+  }
+
+  if (rc.format === "mj-proof-receipt/2" && rc.signature) {
     if (!rc.issuer?.publicKeyHex || !/^[0-9a-fA-F]{64}$/.test(rc.issuer.publicKeyHex))
       return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const spki = Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(rc.issuer.publicKeyHex, "hex")]);

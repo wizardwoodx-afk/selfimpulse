@@ -1573,6 +1573,15 @@ async function signHexDigest(hexDigest) {
     return null;
   }
 }
+async function verifyIssuerSignature(chainHashHex, sigHex, publicKeyHex) {
+  if (!ed25519Available()) return false;
+  try {
+    const publicKey = await crypto.subtle.importKey("raw", fromHex(publicKeyHex), { name: "Ed25519" }, false, ["verify"]);
+    return await crypto.subtle.verify({ name: "Ed25519" }, publicKey, fromHex(sigHex), fromHex(chainHashHex));
+  } catch {
+    return false;
+  }
+}
 function signingSupported() {
   return ed25519Available();
 }
@@ -1630,12 +1639,30 @@ async function issueRootEnvelope(args) {
 function revoke(e, reason) {
   return { ...e, revoked: reason };
 }
-function checkEnvelope(e, action, now) {
+async function checkEnvelope(e, action, now) {
   if (!e) return { ok: false, reason: "no authority envelope \u2014 nothing executes without traced authority" };
   if (e.revoked) return { ok: false, reason: `envelope ${e.id} revoked: ${e.revoked}` };
   if (e.expiresAt !== null && now > e.expiresAt) return { ok: false, reason: `envelope ${e.id} expired \u2014 authority is void` };
+  const genuine = await verifyEnvelope(e);
+  if (!genuine.ok) {
+    return { ok: false, reason: `envelope ${e.id} is not a genuine issuance \u2014 ${genuine.reason ?? "verification failed"}` };
+  }
   if (!e.scope.includes(action)) return { ok: false, reason: `action "${action}" outside envelope scope [${e.scope.join(", ")}]` };
-  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal})` };
+  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal}, digest verified)` };
+}
+async function verifyEnvelope(e) {
+  if (!isHumanPrincipal(e.principal)) {
+    return { ok: false, reason: `principal "${e.principal}" is not human-format \u2014 every chain must root in a human` };
+  }
+  const { digest, signature, signatureNote, ...rest } = e;
+  void signatureNote;
+  const recomputed = await sha256Hex(canonicalEnvelopeInput(rest));
+  if (recomputed !== digest) return { ok: false, reason: "digest mismatch \u2014 envelope was altered" };
+  if (e.signature) {
+    const good = await verifyIssuerSignature(digest, e.signature.sigHex, e.signature.publicKeyHex);
+    if (!good) return { ok: false, reason: "signature does not verify" };
+  }
+  return { ok: true };
 }
 
 // src/mission/capability.ts
@@ -1718,7 +1745,7 @@ async function executeCapability(args) {
   const { request, envelope, now } = args;
   if (!envelope) return { result: null, reason: "refused \u2014 no authority envelope; a capability request needs the data owner's signed authority" };
   if (!isHumanPrincipal(envelope.principal)) return { result: null, reason: `refused \u2014 principal "${envelope.principal}" is not human; only the data owner may authorize operations on their data` };
-  const scope = checkEnvelope(envelope, "capability:run", now);
+  const scope = await checkEnvelope(envelope, "capability:run", now);
   if (!scope.ok) return { result: null, reason: `refused \u2014 ${scope.reason}` };
   if (!envelope.scope.includes("capability:run")) return { result: null, reason: "refused \u2014 the envelope's scope does not permit capability:run" };
   if (!CAPABILITY_OPS.includes(request.op)) return { result: null, reason: `refused \u2014 operation "${request.op}" is not on the approved whitelist` };
@@ -1800,7 +1827,7 @@ async function requestEgress(args) {
   const { envelope, item, recipient, now } = args;
   if (!envelope) return { record: null, reason: "refused \u2014 no authority envelope; nothing leaves this machine without a human's signed authority" };
   if (!isHumanPrincipal(envelope.principal)) return { record: null, reason: `refused \u2014 principal "${envelope.principal}" is not human; only a human may authorize data to leave` };
-  const scopeCheck = checkEnvelope(envelope, "egress:share", now);
+  const scopeCheck = await checkEnvelope(envelope, "egress:share", now);
   if (!scopeCheck.ok) return { record: null, reason: `refused \u2014 ${scopeCheck.reason}` };
   if (!envelope.scope.includes("egress:share")) return { record: null, reason: "refused \u2014 the envelope's scope does not permit egress:share" };
   const id = `egress-${now.toString(36)}-${loadEgressLedger().length + 1}`;

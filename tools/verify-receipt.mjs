@@ -73,11 +73,26 @@ function parseReceipt(text) {
     header: head.receipt,
     events: lines.slice(1),
     seal: head.seal,
+    ...(head.sealAlgo !== undefined ? { sealAlgo: head.sealAlgo } : {}),
+    ...(head.headerHash !== undefined ? { headerHash: head.headerHash } : {}),
     ...(head.issuer !== undefined ? { issuer: head.issuer } : {}),
     ...(head.signature !== undefined ? { signature: head.signature } : {}),
     ...(head.signatureNote !== undefined ? { signatureNote: head.signatureNote } : {}),
   };
 }
+
+/**
+ * C2/C3 (audit 2026-09-30) — the auditor's copy of the rules must be the SAME rules.
+ *
+ * `"si-seal/2"` means the seal and the issuer signature cover
+ *   sha256("si-seal/2" ‖ chainHead ‖ sha256(canon(header)))
+ * so the header (mission, edition, autonomyArms, finishedAt) is inside the signed
+ * material, not merely printed next to it. And for `si-proof-receipt/2` a
+ * signature is REQUIRED: the seal key is published, so an unsigned receipt proves
+ * nothing a forger could not also produce. Legacy mj-proof-receipt/1|2 keep their
+ * historical semantics so receipts already issued under them stay verifiable.
+ */
+const SEAL_ALGO = "si-seal/2";
 
 function verify(rc) {
   if (rc.format !== "si-proof-receipt/2" && rc.format !== "mj-proof-receipt/2" && rc.format !== "mj-proof-receipt/1") {
@@ -90,8 +105,39 @@ function verify(rc) {
     if (sha256hex(canon(body)) !== hash) return { ok: false, reason: `hash mismatch at seq ${e.seq}` };
     prev = hash;
   }
-  if (hmacHex(prev, rc.format) !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+
+  const isModern = rc.format === "si-proof-receipt/2";
+  let material = prev;
+  if (rc.sealAlgo !== undefined || isModern) {
+    if (rc.sealAlgo !== SEAL_ALGO) {
+      return { ok: false, reason: `receipt carries no "${SEAL_ALGO}" header binding — its header is outside the signed material and cannot be shown unaltered` };
+    }
+    if (!rc.headerHash) return { ok: false, reason: "receipt declares a header binding but carries no header hash" };
+    if (sha256hex(canon(rc.header)) !== rc.headerHash) {
+      return { ok: false, reason: "header hash mismatch — the header was altered after the receipt was sealed" };
+    }
+    material = sha256hex(`${SEAL_ALGO}|${prev}|${rc.headerHash}`);
+  }
+
+  if (hmacHex(material, rc.format) !== rc.seal) return { ok: false, reason: "seal mismatch" };
+
+  if (isModern) {
+    if (!rc.signature) {
+      return { ok: false, reason: "unsigned si-proof-receipt/2 — the seal uses a published secret, so without an issuer signature this receipt is tamper-EVIDENT only, not proof" };
+    }
+    if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
+    const spki = Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(rc.issuer.publicKeyHex, "hex")]);
+    const ok = crypto.verify(
+      null,
+      Buffer.from(material, "hex"),
+      crypto.createPublicKey({ key: spki, format: "der", type: "spki" }),
+      Buffer.from(rc.signature, "hex"),
+    );
+    if (!ok) return { ok: false, reason: `issuer signature verification FAILED for sealed material ${material}` };
+    return { ok: true, events: rc.events.length, signed: true, bound: true };
+  }
+
+  if (rc.format === "mj-proof-receipt/2" && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const spki = Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(rc.issuer.publicKeyHex, "hex")]);
     const ok = crypto.verify(
@@ -102,7 +148,7 @@ function verify(rc) {
     );
     if (!ok) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
   }
-  return { ok: true, events: rc.events.length, signed: Boolean(rc.signature) };
+  return { ok: true, events: rc.events.length, signed: Boolean(rc.signature), bound: false };
 }
 
 function main() {

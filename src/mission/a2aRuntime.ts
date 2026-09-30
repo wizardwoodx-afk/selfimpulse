@@ -525,8 +525,16 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
   const handler = makeDelegationHandler(team, gate, opts.bridge ?? {}, { mode: opts.receiverRiskMode ?? "high-and-critical" });
 
   /* 6 · transport ────────────────────────────────────────────────────────── */
-  const tokenMinted = opts.token === undefined;
-  const token = opts.token ?? `si-${secureId("link")}`;
+  /* C5 (audit 2026-09-30) — `--token ""` used to disable authentication entirely.
+   *
+   * `opts.token ?? minted` accepts the EMPTY STRING as a configured token, and the
+   * authorizer below defaults a missing header to "" — so `"" === ""` matched and a
+   * request with NO Authorization header was authorized. An empty (or
+   * whitespace-only) token is now treated exactly like an omitted one: a token is
+   * minted. Fail closed, mint loudly. */
+  const supplied = typeof opts.token === "string" ? opts.token.trim() : undefined;
+  const tokenMinted = !supplied;
+  const token = supplied || `si-${secureId("link")}`;
 
   /* PEER PAIRING STATE — live only while this process lives, which is the point.
    * The invitation is one record; a redeemed credential is added here and
@@ -597,6 +605,9 @@ export async function startA2ARuntime(opts: A2ARuntimeOptions): Promise<A2ARunti
       : undefined,
     authorize: (req) => {
       const presented = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "").trim();
+      /* Belt and braces with the mint above: an empty presented credential can
+       * never be a valid one, whatever the configured token says. */
+      if (!presented) return false;
       if (presented === token) return true;
       const cred = peers.get(presented);
       if (!cred) return false;

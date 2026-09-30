@@ -22,6 +22,7 @@
  * deterministically; the default transport uses the real fetch API.
  */
 import { checkEgressUrl } from "../security/guardrail";
+import { safeEgressFetch } from "../security/egressNet";
 
 /* Runtime-agnostic by design: node-side defaults (process spawning, binary
    detection, screenshots) are injected from computerUseNode.ts; browser
@@ -188,16 +189,26 @@ export interface BrowserStepReceipt {
   digest: string;
 }
 
-/** Default transport: real fetch for open; navigation for act. */
+/**
+ * Default transport: real fetch for open; navigation for act.
+ *
+ * C9 FIX (audit 2026-09-30) — this used plain `fetch(..., { redirect: "follow" })`.
+ * That is the exact shape the README promises does not exist: a vetted public URL
+ * could 302 into 169.254.169.254 (cloud metadata) or 127.0.0.1, and the browser
+ * followed it with no policy in the loop. Every navigation now goes through
+ * `safeEgressFetch`, which resolves and classifies the address, follows redirects
+ * MANUALLY with every hop re-checked, and refuses to send at all when a hop is
+ * internal. A refusal is a named error, never a silent fetch.
+ */
 export const fetchTransport: BrowserTransport = {
   async open(url, profile) {
-    const res = await fetch(url, { headers: { "user-agent": profile.userAgent }, redirect: "follow" });
+    const res = await safeEgressFetch(url, { headers: { "user-agent": profile.userAgent } });
     const html = await res.text();
     return parseSnapshot(url, res.status, html);
   },
   async act(_snapshot, action) {
     if (action.type === "navigate") {
-      const res = await fetch(action.url, { redirect: "follow" });
+      const res = await safeEgressFetch(action.url, {});
       return parseSnapshot(action.url, res.status, await res.text());
     }
     throw new Error("click/type require a live browser session — use the browser binary plane for interactive acts");

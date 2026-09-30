@@ -1962,6 +1962,10 @@ async function attenuate(parent, agentId, subScope, opts) {
   if (!isHumanPrincipal(parent.principal)) {
     return { envelope: null, reason: `custody: parent envelope principal "${parent.principal}" is not human-format \u2014 attenuation is refused rather than delegated from an illegitimate root` };
   }
+  const genuine = await verifyEnvelope(parent);
+  if (!genuine.ok) {
+    return { envelope: null, reason: `attenuation refused: the parent envelope is not a genuine issuance \u2014 ${genuine.reason ?? "verification failed"}` };
+  }
   const now = opts?.now ?? Date.now();
   const notInParent = subScope.filter((s) => !parent.scope.includes(s));
   if (notInParent.length > 0) {
@@ -2038,12 +2042,16 @@ var BudgetGate = class {
     }
   }
 };
-function checkEnvelope(e, action, now) {
+async function checkEnvelope(e, action, now) {
   if (!e) return { ok: false, reason: "no authority envelope \u2014 nothing executes without traced authority" };
   if (e.revoked) return { ok: false, reason: `envelope ${e.id} revoked: ${e.revoked}` };
   if (e.expiresAt !== null && now > e.expiresAt) return { ok: false, reason: `envelope ${e.id} expired \u2014 authority is void` };
+  const genuine = await verifyEnvelope(e);
+  if (!genuine.ok) {
+    return { ok: false, reason: `envelope ${e.id} is not a genuine issuance \u2014 ${genuine.reason ?? "verification failed"}` };
+  }
   if (!e.scope.includes(action)) return { ok: false, reason: `action "${action}" outside envelope scope [${e.scope.join(", ")}]` };
-  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal})` };
+  return { ok: true, reason: `envelope ${e.id} permits "${action}" (principal ${e.principal}, digest verified)` };
 }
 async function verifyEnvelope(e) {
   if (!isHumanPrincipal(e.principal)) {
@@ -2126,7 +2134,7 @@ async function executeCapability(args) {
   const { request, envelope, now } = args;
   if (!envelope) return { result: null, reason: "refused \u2014 no authority envelope; a capability request needs the data owner's signed authority" };
   if (!isHumanPrincipal(envelope.principal)) return { result: null, reason: `refused \u2014 principal "${envelope.principal}" is not human; only the data owner may authorize operations on their data` };
-  const scope = checkEnvelope(envelope, "capability:run", now);
+  const scope = await checkEnvelope(envelope, "capability:run", now);
   if (!scope.ok) return { result: null, reason: `refused \u2014 ${scope.reason}` };
   if (!envelope.scope.includes("capability:run")) return { result: null, reason: "refused \u2014 the envelope's scope does not permit capability:run" };
   if (!CAPABILITY_OPS.includes(request.op)) return { result: null, reason: `refused \u2014 operation "${request.op}" is not on the approved whitelist` };
@@ -2208,7 +2216,7 @@ async function requestEgress(args) {
   const { envelope, item, recipient, now } = args;
   if (!envelope) return { record: null, reason: "refused \u2014 no authority envelope; nothing leaves this machine without a human's signed authority" };
   if (!isHumanPrincipal(envelope.principal)) return { record: null, reason: `refused \u2014 principal "${envelope.principal}" is not human; only a human may authorize data to leave` };
-  const scopeCheck = checkEnvelope(envelope, "egress:share", now);
+  const scopeCheck = await checkEnvelope(envelope, "egress:share", now);
   if (!scopeCheck.ok) return { record: null, reason: `refused \u2014 ${scopeCheck.reason}` };
   if (!envelope.scope.includes("egress:share")) return { record: null, reason: "refused \u2014 the envelope's scope does not permit egress:share" };
   const id = `egress-${now.toString(36)}-${loadEgressLedger().length + 1}`;
@@ -2575,7 +2583,7 @@ async function runGovernanceArena(args = {}) {
   results.push(
     await scenario("arena.expiry", "A mission runs on an envelope whose authority has lapsed", async () => {
       const root = await issueRootEnvelope({ principal: "human:alice", scope: ["capability:run"], expiresAt: now + 1, now });
-      const later = checkEnvelope(root, "capability:run", now + 6e4);
+      const later = await checkEnvelope(root, "capability:run", now + 6e4);
       return { held: !later.ok, note: later.ok ? "expired envelope accepted" : later.reason };
     })
   );
@@ -2583,7 +2591,7 @@ async function runGovernanceArena(args = {}) {
     await scenario("arena.revocation", "A compromised envelope tries to act after revocation", async () => {
       const root = await humanRoot(now, ["capability:run"]);
       const dead = revoke(root, "seat compromised \u2014 kill switch");
-      const verdict = checkEnvelope(dead, "capability:run", now);
+      const verdict = await checkEnvelope(dead, "capability:run", now);
       return { held: !verdict.ok, note: verdict.ok ? "revoked envelope accepted" : verdict.reason };
     })
   );
@@ -4154,7 +4162,7 @@ Spent: $${(spentUsd2 || 0).toFixed(4)}`, "orchestrator", "finding");
     };
   };
   if (req.rootEnvelope) {
-    const envCheck = checkEnvelope(req.rootEnvelope, "run:team-mission", now());
+    const envCheck = await checkEnvelope(req.rootEnvelope, "run:team-mission", now());
     if (!envCheck.ok) {
       return finish("aborted", `Custody refused the mission before any invocation \u2014 ${envCheck.reason}`, 0, emptySnapshot, []);
     }
@@ -4978,6 +4986,13 @@ async function hmacHex(s, secret) {
   const sig = await crypto.subtle.sign("HMAC", key, enc2.encode(s));
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+var SEAL_ALGO = "si-seal/2";
+async function headerHashOf(header) {
+  return sha256hex2(canon(header));
+}
+async function sealedMaterial(chainHead, headerHash) {
+  return sha256hex2(`${SEAL_ALGO}|${chainHead}|${headerHash}`);
+}
 async function buildProofReceipt(args) {
   const { report } = args;
   const seatEvents = [];
@@ -5039,14 +5054,18 @@ async function buildProofReceipt(args) {
     edition: args.edition,
     autonomyArms: report.autonomyArms ?? []
   };
-  const seal2 = await hmacHex(prev, VERIFY_SECRET);
-  const sig = await signChainHash(prev);
+  const headerHash = await headerHashOf(header);
+  const material = await sealedMaterial(prev, headerHash);
+  const seal2 = await hmacHex(material, VERIFY_SECRET);
+  const sig = await signChainHash(material);
   if (sig) {
     return {
       format: "si-proof-receipt/2",
       header,
       events,
       seal: seal2,
+      sealAlgo: SEAL_ALGO,
+      headerHash,
       issuer: { keyId: sig.keyId, publicKeyHex: sig.publicKeyHex },
       signature: sig.sigHex
     };
@@ -5056,9 +5075,11 @@ async function buildProofReceipt(args) {
     header,
     events,
     seal: seal2,
+    sealAlgo: SEAL_ALGO,
+    headerHash,
     issuer: null,
     signature: null,
-    signatureNote: "This runtime has no Ed25519 (WebCrypto refused or is absent). The receipt is tamper-evident via its HMAC seal but NOT issuer-signed."
+    signatureNote: "This runtime has no Ed25519 (WebCrypto refused or is absent). The receipt is tamper-evident via its HMAC seal but NOT issuer-signed, so it verifies as seal-only evidence and is refused wherever issuer proof is required."
   };
 }
 async function verifyProofReceipt(rc) {
@@ -5071,15 +5092,35 @@ async function verifyProofReceipt(rc) {
     if (expect !== hash) return { ok: false, reason: `hash mismatch at seq ${e.seq}` };
     prev = hash;
   }
+  const isModern = rc.format === "si-proof-receipt/2";
+  let material = prev;
+  if (rc.sealAlgo !== void 0 || isModern) {
+    if (rc.sealAlgo !== SEAL_ALGO) {
+      return { ok: false, reason: `receipt carries no "${SEAL_ALGO}" header binding \u2014 its header (mission, edition, autonomyArms, finishedAt) is outside the signed material and cannot be shown unaltered` };
+    }
+    if (!rc.headerHash) return { ok: false, reason: "receipt declares a header binding but carries no header hash" };
+    const expectHeader = await headerHashOf(rc.header);
+    if (expectHeader !== rc.headerHash) return { ok: false, reason: "header hash mismatch \u2014 the header was altered after the receipt was sealed" };
+    material = await sealedMaterial(prev, rc.headerHash);
+  }
   const sealSecret = SEAL_SECRET_BY_FORMAT[rc.format] ?? VERIFY_SECRET;
-  const seal2 = await hmacHex(prev, sealSecret);
+  const seal2 = await hmacHex(material, sealSecret);
   if (seal2 !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  if (isModern) {
+    if (!rc.signature) {
+      return { ok: false, reason: "unsigned si-proof-receipt/2 \u2014 the seal uses a published secret, so without an issuer signature this receipt is tamper-EVIDENT only, not proof" };
+    }
+    if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
+    const ok = await verifyIssuerSignature(material, rc.signature, rc.issuer.publicKeyHex);
+    if (!ok) return { ok: false, reason: `issuer signature verification FAILED for sealed material ${material}` };
+    return { ok: true, events: rc.events.length, assurance: "issuer-signed" };
+  }
+  if (rc.format === "mj-proof-receipt/2" && rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const ok = await verifyIssuerSignature(prev, rc.signature, rc.issuer.publicKeyHex);
     if (!ok) return { ok: false, reason: `issuer signature verification FAILED for chain head ${prev}` };
   }
-  return { ok: true, events: rc.events.length };
+  return { ok: true, events: rc.events.length, assurance: rc.signature ? "issuer-signed" : "seal-only" };
 }
 
 // src/mission/a2aBridge.ts
@@ -7014,8 +7055,9 @@ async function startA2ARuntime(opts) {
     return riskyGate === "approve";
   };
   const handler = makeDelegationHandler(team, gate, opts.bridge ?? {}, { mode: opts.receiverRiskMode ?? "high-and-critical" });
-  const tokenMinted = opts.token === void 0;
-  const token = opts.token ?? `si-${secureId("link")}`;
+  const supplied = typeof opts.token === "string" ? opts.token.trim() : void 0;
+  const tokenMinted = !supplied;
+  const token = supplied || `si-${secureId("link")}`;
   let invitation = null;
   let pairingCode = null;
   const peers = /* @__PURE__ */ new Map();
@@ -7056,6 +7098,7 @@ async function startA2ARuntime(opts) {
     } : void 0,
     authorize: (req) => {
       const presented = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "").trim();
+      if (!presented) return false;
       if (presented === token) return true;
       const cred = peers.get(presented);
       if (!cred) return false;
@@ -7276,7 +7319,14 @@ async function main(argv) {
   };
   const selfimpulseUser = typeof args.selfimpulse === "string" ? args.selfimpulse : "SelfImpulse IMPULSE";
   const port = args.port === true ? 0 : Number(args.port ?? 0);
-  const host = typeof args.host === "string" ? args.host : "127.0.0.1";
+  const requestedHost = typeof args.host === "string" ? args.host.trim() : "127.0.0.1";
+  const WILDCARD = /* @__PURE__ */ new Set(["0.0.0.0", "::", "::0", "*", "0:0:0:0:0:0:0:0"]);
+  if (WILDCARD.has(requestedHost)) {
+    throw new Error(
+      `refusing to bind ${requestedHost}: a wildcard listener would expose this machine on every interface. Pass the concrete address you mean \u2014 127.0.0.1 for this machine only, or one of this machine's own LAN addresses for your network.`
+    );
+  }
+  const host = requestedHost;
   const pairing = args.pair === true || args.pair === "true";
   const files = args.files === true || args.files === "true";
   const filesAutoAccept = args["files-auto"] === true || args["files-auto"] === "true";

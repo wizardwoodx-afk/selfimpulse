@@ -134,10 +134,91 @@ function classifyIp(n, allowLoopback) {
   if (n.kind === "ipv6" && n.groups) return classifyV6(n.groups, allowLoopback);
   return { ok: false, reason: "address could not be classified", scope: "unknown" };
 }
+async function resolveEgress(raw, opts = {}) {
+  const allowLoopback = opts.allowLoopback ?? false;
+  const allowPrivate = opts.allowPrivate ?? false;
+  const resolve = opts.resolve ?? systemResolver;
+  const base = checkEgressUrl(raw);
+  if (!base.ok) return { ok: false, reason: base.reason };
+  const host = new URL(raw).hostname.replace(/^\[|\]$/g, "");
+  const literal2 = normalizeHost(host);
+  if (literal2.kind !== "unknown") {
+    const cls = classifyIp(literal2, allowLoopback);
+    return cls.ok ? { ok: true, reason: "", pinnedIp: literal2.ip, scope: cls.scope } : { ok: false, reason: `${literal2.ip} \u2014 ${cls.reason}`, scope: cls.scope };
+  }
+  if (literal2.ip === "" && isObfuscatedIpv4Literal(host.toLowerCase())) {
+    return { ok: false, reason: `obfuscated IP literal "${host}" refused \u2014 write the address in dotted-quad form`, scope: "unknown" };
+  }
+  let answers;
+  try {
+    answers = await resolve(host);
+  } catch (e) {
+    return { ok: false, reason: `DNS resolution failed for "${host}": ${e instanceof Error ? e.message : String(e)}` };
+  }
+  if (answers.length === 0) return { ok: false, reason: `"${host}" resolved to no addresses \u2014 refused rather than guessing`, scope: "unknown" };
+  const seen = [];
+  let pinned = null;
+  for (const a of answers) {
+    const n = normalizeHost(a);
+    let cls = classifyIp(n, allowLoopback);
+    if (!cls.ok && allowPrivate && cls.scope === "private") {
+      cls = { ok: true, reason: "private range allowed \u2014 explicitly paired peer", scope: "private" };
+    }
+    if (!cls.ok) {
+      return { ok: false, reason: `"${host}" resolves to ${n.ip || a} \u2014 ${cls.reason}`, scope: cls.scope };
+    }
+    seen.push(n.ip || a);
+    if (!pinned) pinned = { ip: n.ip || a, scope: cls.scope };
+  }
+  return { ok: true, reason: "", pinnedIp: pinned.ip, scope: pinned.scope, hops: [{ url: raw, ip: pinned.ip, status: 0 }] };
+}
+async function safeEgressFetch(raw, init = {}) {
+  const { fetchImpl, allowLoopback, resolve, maxRedirects, ...rest } = init;
+  const doFetch = fetchImpl ?? globalThis.fetch?.bind(globalThis);
+  if (!doFetch) throw new Error("no fetch available in this runtime \u2014 nothing was executed");
+  const hops = [];
+  let current = raw;
+  for (let hop = 0; hop <= (maxRedirects ?? DEFAULT_MAX_REDIRECTS); hop += 1) {
+    const decision = await resolveEgress(current, { allowLoopback, resolve });
+    if (!decision.ok) {
+      throw new Error(`egress refused at hop ${hop}: ${decision.reason} \u2014 nothing further was sent.`);
+    }
+    const res = await doFetch(current, { ...rest, redirect: "manual" });
+    hops.push({ url: current, ip: decision.pinnedIp ?? "", status: res.status });
+    const location = res.headers.get("location");
+    if (!location || res.status < 300 || res.status > 399) {
+      Object.defineProperty(res, "egressHops", { value: hops, enumerable: false });
+      return res;
+    }
+    let next;
+    try {
+      next = new URL(location, current).toString();
+    } catch {
+      throw new Error(`egress refused: hop ${hop} returned an unparseable Location \u2014 nothing further was sent.`);
+    }
+    if (hop === (maxRedirects ?? DEFAULT_MAX_REDIRECTS)) {
+      throw new Error(`egress refused: more than ${maxRedirects ?? DEFAULT_MAX_REDIRECTS} redirects \u2014 possible redirect loop.`);
+    }
+    current = next;
+  }
+  throw new Error("egress refused: redirect budget exhausted.");
+}
+var systemResolver, DEFAULT_MAX_REDIRECTS;
 var init_egressNet = __esm({
   "src/security/egressNet.ts"() {
     "use strict";
     init_guardrail();
+    systemResolver = async (hostname3) => {
+      const dns = await import("node:dns/promises").catch(() => null);
+      if (!dns) return [];
+      const out = [];
+      try {
+        for (const r2 of await dns.lookup(hostname3, { all: true, verbatim: true })) out.push(r2.address);
+      } catch {
+      }
+      return out;
+    };
+    DEFAULT_MAX_REDIRECTS = 5;
   }
 });
 
@@ -34434,6 +34515,7 @@ init_guardrail();
 
 // src/engine/computerUse.ts
 init_guardrail();
+init_egressNet();
 var sha256 = (t) => {
   let h1 = 2166136261, h2 = 16777619;
   for (let i = 0; i < t.length; i++) {
@@ -34544,13 +34626,13 @@ var DEFAULT_BROWSER_PATHS = [
 ];
 var fetchTransport = {
   async open(url2, profile) {
-    const res = await fetch(url2, { headers: { "user-agent": profile.userAgent }, redirect: "follow" });
+    const res = await safeEgressFetch(url2, { headers: { "user-agent": profile.userAgent } });
     const html = await res.text();
     return parseSnapshot(url2, res.status, html);
   },
   async act(_snapshot, action) {
     if (action.type === "navigate") {
-      const res = await fetch(action.url, { redirect: "follow" });
+      const res = await safeEgressFetch(action.url, {});
       return parseSnapshot(action.url, res.status, await res.text());
     }
     throw new Error("click/type require a live browser session \u2014 use the browser binary plane for interactive acts");

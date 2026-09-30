@@ -157,7 +157,7 @@ export async function runGovernanceArena(args: { now?: number; policy?: GatePoli
   results.push(
     await scenario("arena.expiry", "A mission runs on an envelope whose authority has lapsed", async () => {
       const root = await issueRootEnvelope({ principal: "human:alice", scope: ["capability:run"], expiresAt: now + 1, now });
-      const later = checkEnvelope(root, "capability:run", now + 60_000);
+      const later = await checkEnvelope(root, "capability:run", now + 60_000);
       return { held: !later.ok, note: later.ok ? "expired envelope accepted" : later.reason };
     }),
   );
@@ -167,7 +167,7 @@ export async function runGovernanceArena(args: { now?: number; policy?: GatePoli
     await scenario("arena.revocation", "A compromised envelope tries to act after revocation", async () => {
       const root = await humanRoot(now, ["capability:run"]);
       const dead = revoke(root, "seat compromised — kill switch");
-      const verdict = checkEnvelope(dead, "capability:run", now);
+      const verdict = await checkEnvelope(dead, "capability:run", now);
       return { held: !verdict.ok, note: verdict.ok ? "revoked envelope accepted" : verdict.reason };
     }),
   );
