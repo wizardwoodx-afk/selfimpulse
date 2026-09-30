@@ -55,6 +55,20 @@ async function filesFromDrop(dt: DataTransfer): Promise<File[]> {
   return Array.from(dt.files ?? []);
 }
 
+/** The share row: the five formats people actually hand over, each with its own
+ *  minimal glyph so the door says what it accepts without a paragraph. The
+ *  titles carry the full disposition (read / listed) from the product's own
+ *  wording — an icon that promises "opens everything" would be a lie the
+ *  refusals later contradict. Rendering is gated on `onFiles` like the attach
+ *  control itself: no host, no claim. */
+const SHARE_TYPES: Array<{ cls: string; tag: string; title: string }> = [
+  { cls: "ic-f-pdf", tag: "PDF", title: "PDF — read for you, structure only" },
+  { cls: "ic-f-doc", tag: "DOCX", title: "Word documents — read for you" },
+  { cls: "ic-f-sheet", tag: "XLSX", title: "Spreadsheets — tables are read" },
+  { cls: "ic-f-slides", tag: "PPTX", title: "Slides — every slide is read" },
+  { cls: "ic-f-zip", tag: "ZIP", title: "Archives — listed and read, never unpacked loose" },
+];
+
 export function Composer({ value, onChange, onSend, busy, placeholder, small, onFiles }: {
   value: string; onChange: (v: string) => void; onSend: () => void; busy: boolean;
   placeholder: string; small?: boolean;
@@ -74,10 +88,24 @@ export function Composer({ value, onChange, onSend, busy, placeholder, small, on
     setPicked(`${list.length} file${list.length === 1 ? "" : "s"} reading…`);
     try {
       const payload = await Promise.all(list.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })));
-      const r = (await onFiles(payload)) as { refused: unknown[]; structuralRefused: unknown[] } | void;
-      const refused = r ? r.refused.length + r.structuralRefused.length : 0;
-      setPicked(refused ? `${list.length} read, ${refused} refused` : `${list.length} read`);
-      setTimeout(() => setPicked(null), 4000);
+      const r = (await onFiles(payload)) as
+        | { proposed: unknown[]; refused: unknown[]; structuralRefused: unknown[] }
+        | void;
+      /* Every file is accounted for in the sentence: what was proposed (and
+         WHERE to review it), what was declined, and nothing implied as a clean
+         read when part of the drop was refused. */
+      const parts: string[] = [];
+      if (r) {
+        const proposed = r.proposed.length;
+        const refused = r.refused.length + r.structuralRefused.length;
+        if (proposed > 0) parts.push(`${proposed} proposed — review in Docs`);
+        if (refused > 0) parts.push(`${refused} refused`);
+        if (parts.length === 0) parts.push(`${list.length} read`);
+      } else {
+        parts.push(`${list.length} read`);
+      }
+      setPicked(parts.join(" · "));
+      setTimeout(() => setPicked(null), 6000);
     } catch (e) {
       setPicked(`could not read: ${String(e).slice(0, 80)}`);
       setTimeout(() => setPicked(null), 5000);
@@ -108,6 +136,16 @@ export function Composer({ value, onChange, onSend, busy, placeholder, small, on
       <div className="bar">
         {onFiles && (
           <>
+            {/* The share row — the formats this door accepts, in glyphs. Quiet
+                by construction: a hint of what lands here, not a toolbar. */}
+            <span className="ftypes" aria-label="Accepts PDF, DOCX, XLSX, PPTX and ZIP files">
+              {SHARE_TYPES.map((t) => (
+                <span key={t.cls} className="ftype" title={t.title}>
+                  <i className={`ic ${t.cls}`} aria-hidden />
+                  <span aria-hidden>{t.tag}</span>
+                </span>
+              ))}
+            </span>
             <button
               className="attach"
               type="button"

@@ -22,7 +22,7 @@ export function Work(): React.ReactElement {
 
   return (
     <>
-      <header className="top"><h2>Work</h2><span className="sub">{busy ? "your crew is working now" : lastResp ? `last run · ${lastResp.outcome}` : "watch your crew work, live"}</span>
+      <header className="top"><h2>Work</h2><span className="sub">{busy ? "the crew is at work — every step lands in the ledger" : lastResp ? `last run · ${lastResp.outcome}` : "watch your crew work, live"}</span>
         <div className="right">{busy && <span className="pill accent">live</span>}<button className="btn sm" onClick={() => go("steward")}>New mission</button></div></header>
 
       {!lastResp && !busy && !gate ? (

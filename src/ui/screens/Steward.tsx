@@ -17,7 +17,7 @@ function proofOf(r: Receipt): { word: string; cls: string } {
 }
 
 export function Steward(): React.ReactElement {
-  const { provider, go, send, busy, receipts, workspace } = useVh();
+  const { provider, go, send, busy, receipts, workspace, addFiles } = useVh();
   const [draft, setDraft] = useState("");
   const rows = receipts().slice(0, 7);
   const runs = rows.filter((r) => r.kind === "run").length;
@@ -79,12 +79,16 @@ export function Steward(): React.ReactElement {
             </section>
           )}
 
+          {/* §13 — the composer's attach door reaches the SAME ingest seam
+              the Docs screen uses: one run, one set of caps, one receipt
+              chain. The attach control only renders because this is passed. */}
           <Composer
             value={draft}
             onChange={setDraft}
             onSend={() => { void send(draft); setDraft(""); }}
             busy={busy}
             placeholder={provider ? "Describe what you need." : "Describe what you need — the Captain will plan it, not run it."}
+            onFiles={(files) => addFiles(files)}
           />
 
           {!provider && (

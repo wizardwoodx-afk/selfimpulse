@@ -130910,9 +130910,18 @@ function Composer({ value, onChange: onChange13, onSend, busy, placeholder, smal
     try {
       const payload = await Promise.all(list.map(async (f3) => ({ name: f3.name, bytes: new Uint8Array(await f3.arrayBuffer()) })));
       const r3 = await onFiles(payload);
-      const refused = r3 ? r3.refused.length + r3.structuralRefused.length : 0;
-      setPicked(refused ? `${list.length} read, ${refused} refused` : `${list.length} read`);
-      setTimeout(() => setPicked(null), 4e3);
+      const parts = [];
+      if (r3) {
+        const proposed = r3.proposed.length;
+        const refused = r3.refused.length + r3.structuralRefused.length;
+        if (proposed > 0) parts.push(`${proposed} proposed \u2014 review in Docs`);
+        if (refused > 0) parts.push(`${refused} refused`);
+        if (parts.length === 0) parts.push(`${list.length} read`);
+      } else {
+        parts.push(`${list.length} read`);
+      }
+      setPicked(parts.join(" \xB7 "));
+      setTimeout(() => setPicked(null), 6e3);
     } catch (e3) {
       setPicked(`could not read: ${String(e3).slice(0, 80)}`);
       setTimeout(() => setPicked(null), 5e3);
@@ -130959,6 +130968,10 @@ function Composer({ value, onChange: onChange13, onSend, busy, placeholder, smal
         ),
         /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "bar", children: [
           onFiles && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(import_jsx_runtime2.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "ftypes", "aria-label": "Accepts PDF, DOCX, XLSX, PPTX and ZIP files", children: SHARE_TYPES.map((t2) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "ftype", title: t2.title, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("i", { className: `ic ${t2.cls}`, "aria-hidden": true }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { "aria-hidden": true, children: t2.tag })
+            ] }, t2.cls)) }),
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               "button",
               {
@@ -131012,7 +131025,7 @@ function Composer({ value, onChange: onChange13, onSend, busy, placeholder, smal
     }
   );
 }
-var import_react4, import_jsx_runtime2, MAX_DEPTH, MAX_FILES;
+var import_react4, import_jsx_runtime2, MAX_DEPTH, MAX_FILES, SHARE_TYPES;
 var init_Composer = __esm({
   "src/ui/screens/Composer.tsx"() {
     "use strict";
@@ -131020,6 +131033,13 @@ var init_Composer = __esm({
     import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
     MAX_DEPTH = 8;
     MAX_FILES = 500;
+    SHARE_TYPES = [
+      { cls: "ic-f-pdf", tag: "PDF", title: "PDF \u2014 read for you, structure only" },
+      { cls: "ic-f-doc", tag: "DOCX", title: "Word documents \u2014 read for you" },
+      { cls: "ic-f-sheet", tag: "XLSX", title: "Spreadsheets \u2014 tables are read" },
+      { cls: "ic-f-slides", tag: "PPTX", title: "Slides \u2014 every slide is read" },
+      { cls: "ic-f-zip", tag: "ZIP", title: "Archives \u2014 listed and read, never unpacked loose" }
+    ];
   }
 });
 
@@ -131038,7 +131058,7 @@ function proofOf(r3) {
   return { word: "hashed", cls: "hash" };
 }
 function Steward() {
-  const { provider, go, send, busy, receipts, workspace } = useVh();
+  const { provider, go, send, busy, receipts, workspace, addFiles } = useVh();
   const [draft, setDraft] = (0, import_react5.useState)("");
   const rows2 = receipts().slice(0, 7);
   const runs = rows2.filter((r3) => r3.kind === "run").length;
@@ -131112,7 +131132,8 @@ function Steward() {
             setDraft("");
           },
           busy,
-          placeholder: provider ? "Describe what you need." : "Describe what you need \u2014 the Captain will plan it, not run it."
+          placeholder: provider ? "Describe what you need." : "Describe what you need \u2014 the Captain will plan it, not run it.",
+          onFiles: (files) => addFiles(files)
         }
       ),
       !provider && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "nudge", children: [
@@ -231934,7 +231955,7 @@ function ForceGraph2({ mode, nodes, links, onNodeDoubleClick, onNodeClick, autoR
       inst = new Ctor(host).width(host.clientWidth).height(host.clientHeight).backgroundColor("rgba(0,0,0,0)").showNavInfo(false).nodeThreeObject((n3) => makeNode(THREE, n3, c3, work)).nodeThreeObjectExtend(false).nodeLabel((n3) => {
         const x3 = n3;
         return `<div style="font:12px Geist,system-ui;background:${c3.bg};color:${c3.fg};padding:7px 10px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.4);max-width:280px;border-left:3px solid ${c3[x3.kind] ?? c3.keyword}">${esc2(x3.name)}${x3.sub ? `<br><span style="opacity:.7">${esc2(x3.sub)}</span>` : ""}<br><span style="opacity:.55;font-family:Geist Mono,monospace;font-size:10px;letter-spacing:.08em">${x3.kind.toUpperCase()}${x3.live ? " \xB7 LIVE" : ""}</span></div>`;
-      }).linkColor((l3) => l3.live ? c3.live : work ? c3.wlink : c3.link).linkWidth((l3) => l3.live ? 1.8 : work ? 1.05 : 0.55).linkOpacity(0.95).linkDirectionalArrowLength(work ? 3.5 : 0).linkDirectionalArrowRelPos(1).linkDirectionalArrowColor(() => c3.live).linkDirectionalParticles((l3) => work ? l3.live ? 5 : 2 : 0).linkDirectionalParticleWidth(work ? 1.8 : 0).linkDirectionalParticleColor(() => c3.live).linkDirectionalParticleSpeed((l3) => l3.live ? 0.014 : 5e-3).dagMode(work ? "td" : null).dagLevelDistance(work ? 48 : 0).warmupTicks(work ? 48 : 80).cooldownTicks(work ? 160 : 220).cooldownTime(9e3).onNodeClick((n3) => {
+      }).linkColor((l3) => l3.live ? c3.live : work ? c3.wlink : c3.link).linkWidth((l3) => l3.live ? 1.8 : work ? 1.05 : 0.8).linkOpacity(0.95).linkDirectionalArrowLength(work ? 3.5 : 0).linkDirectionalArrowRelPos(1).linkDirectionalArrowColor(() => c3.live).linkDirectionalParticles((l3) => work ? l3.live ? 5 : 2 : 0).linkDirectionalParticleWidth(work ? 1.8 : 0).linkDirectionalParticleColor(() => c3.live).linkDirectionalParticleSpeed((l3) => l3.live ? 0.014 : 5e-3).dagMode(work ? "td" : null).dagLevelDistance(work ? 48 : 0).warmupTicks(work ? 48 : 80).cooldownTicks(work ? 160 : 220).cooldownTime(9e3).onNodeClick((n3) => {
         const x3 = n3;
         const now4 = Date.now();
         if (now4 - last2.current.at < 350 && last2.current.id === x3.id) {
@@ -231949,7 +231970,7 @@ function ForceGraph2({ mode, nodes, links, onNodeDoubleClick, onNodeClick, autoR
       });
       const live = inst;
       live.d3Force("charge")?.strength(work ? -72 : -88);
-      live.cameraPosition({ x: 0, y: work ? 40 : 20, z: work ? 280 : 360 });
+      live.cameraPosition({ x: 0, y: work ? 40 : 20, z: work ? 280 : 330 });
       lightScene(THREE, live, work, c3);
       const ctrl = live.controls();
       const reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -232022,13 +232043,13 @@ function makeNode(THREE, n3, c3, work) {
     clearcoat: 0.9,
     clearcoatRoughness: 0.16,
     emissive: color2,
-    emissiveIntensity: n3.kind === "session" ? 0.28 : 0.06
+    emissiveIntensity: n3.kind === "session" ? 0.42 : 0.16
   });
   const mesh = new THREE.Mesh(geom, mat);
   if (!work && n3.kind === "session") {
     const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(r3 * 1.55, 16, 12),
-      new THREE.MeshBasicMaterial({ color: color2, transparent: true, opacity: 0.14, depthWrite: false })
+      new THREE.SphereGeometry(r3 * 1.7, 16, 12),
+      new THREE.MeshBasicMaterial({ color: color2, transparent: true, opacity: 0.22, depthWrite: false })
     );
     mesh.add(glow);
   }
@@ -232036,8 +232057,8 @@ function makeNode(THREE, n3, c3, work) {
 }
 function lightScene(THREE, live, work, c3) {
   const scene3 = live.scene();
-  const ambient = new THREE.AmbientLight(16777215, work ? 0.62 : 0.7);
-  const key = new THREE.DirectionalLight(16777215, work ? 1.05 : 0.85);
+  const ambient = new THREE.AmbientLight(16777215, work ? 0.62 : 0.82);
+  const key = new THREE.DirectionalLight(16777215, work ? 1.05 : 1);
   key.position.set(work ? 40 : -30, work ? 120 : 40, 80);
   const fill2 = new THREE.DirectionalLight(14672872, 0.4);
   fill2.position.set(-80, 20, -40);
@@ -232045,7 +232066,7 @@ function lightScene(THREE, live, work, c3) {
   rim.position.set(30, -60, -90);
   scene3.add(ambient, key, fill2, rim);
   if (!work) {
-    scene3.fog = new THREE.FogExp2(hexToInt(c3.bg.replace("#", "") ? c3.bg : "#0D1010"), 45e-4);
+    scene3.fog = new THREE.FogExp2(hexToInt(c3.bg.replace("#", "") ? c3.bg : "#0D1010"), 15e-4);
   }
 }
 function esc2(s2) {
@@ -232122,7 +232143,7 @@ function Work() {
   return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
     /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("header", { className: "top", children: [
       /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "Work" }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "sub", children: busy ? "your crew is working now" : lastResp ? `last run \xB7 ${lastResp.outcome}` : "watch your crew work, live" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "sub", children: busy ? "the crew is at work \u2014 every step lands in the ledger" : lastResp ? `last run \xB7 ${lastResp.outcome}` : "watch your crew work, live" }),
       /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "right", children: [
         busy && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "pill accent", children: "live" }),
         /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("button", { className: "btn sm", onClick: () => go("steward"), children: "New mission" })
@@ -244259,7 +244280,10 @@ function Settings() {
   return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(import_jsx_runtime14.Fragment, { children: [
     /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("header", { className: "top", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("h2", { children: "Settings" }) }),
     /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "scroll", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "settings", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("nav", { className: "snav", children: SECTS.map(([k2, l3]) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("button", { "aria-current": sect === k2 ? "page" : void 0, onClick: () => setSect(k2), children: l3 }, k2)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("nav", { className: "snav", "aria-label": "Settings sections", children: SECTS.map(([k2, l3, d3]) => /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("button", { "aria-current": sect === k2 ? "page" : void 0, onClick: () => setSect(k2), children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { children: l3 }),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("small", { children: d3 })
+      ] }, k2)) }),
       /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "sbody", children: [
         sect === "provider" && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Provider, {}),
         sect === "vault" && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Vault, {}),
@@ -244714,7 +244738,16 @@ var init_Settings = __esm({
     init_crashLedger();
     init_Toast();
     import_jsx_runtime14 = __toESM(require_jsx_runtime(), 1);
-    SECTS = [["provider", "AI connection"], ["vault", "Key vault"], ["autonomy", "Independence"], ["mcp", "Tools (MCP)"], ["federation", "Federation"], ["appearance", "Appearance"], ["identity", "Identity"], ["about", "About"]];
+    SECTS = [
+      ["provider", "AI connection", "model, endpoint & key"],
+      ["vault", "Key vault", "seal keys at rest"],
+      ["autonomy", "Independence", "how far the Captain may act"],
+      ["mcp", "Tools (MCP)", "governed external tools"],
+      ["federation", "Federation", "work across owners"],
+      ["appearance", "Appearance", "finish & handle"],
+      ["identity", "Identity", "subject, data class, crashes"],
+      ["about", "About", "limits, receipts & runtime"]
+    ];
     KINDS = [["openai-compatible", "OpenAI-compatible"], ["anthropic", "Anthropic"], ["gemini", "Gemini"]];
     MODEL_HINT = { "openai-compatible": "gpt-4o-mini", anthropic: "claude-3-5-haiku-latest", gemini: "gemini-2.0-flash" };
     KEY_HINT = {
@@ -246086,12 +246119,26 @@ __export(Chat_exports, {
   Chat: () => Chat
 });
 function Chat({ title }) {
-  const { msgs, busy, send, go, openSession, gate } = useVh();
+  const { msgs, busy, send, go, openSession, gate, addFiles } = useVh();
   const [draft, setDraft] = (0, import_react18.useState)("");
   const end = (0, import_react18.useRef)(null);
   (0, import_react18.useEffect)(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [msgs.length, gate]);
+  const THOUGHTS = [
+    "Thinking it through",
+    "Weighing the next step",
+    "Tracing the plan end to end",
+    "Checking the move against the guardrails",
+    "Shaping an answer worth reading"
+  ];
+  const [thought, setThought] = (0, import_react18.useState)(0);
+  (0, import_react18.useEffect)(() => {
+    if (!busy || gate) return;
+    setThought(0);
+    const t2 = setInterval(() => setThought((n3) => (n3 + 1) % THOUGHTS.length), 2600);
+    return () => clearInterval(t2);
+  }, [busy, gate]);
   const fmt = (iso2) => {
     try {
       return new Date(iso2).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -246157,7 +246204,10 @@ function Chat({ title }) {
         /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "av" }),
         /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "who", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("b", { children: title }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("p", { className: "faint", children: "Working \u2014 watch the graph in Work." })
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("p", { className: "faint", children: [
+            THOUGHTS[thought],
+            " \u2014 the live graph is on the Work board."
+          ] })
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { ref: end })
@@ -246165,7 +246215,7 @@ function Chat({ title }) {
     /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "dock", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(Composer, { small: true, value: draft, onChange: setDraft, onSend: () => {
       void send(draft);
       setDraft("");
-    }, busy, placeholder: "Continue this conversation\u2026" }) })
+    }, busy, placeholder: "Continue this conversation\u2026", onFiles: (files) => addFiles(files) }) })
   ] });
 }
 var import_react18, import_jsx_runtime16;
@@ -246381,7 +246431,7 @@ function Shell() {
           ] }),
           busy || gate ? /* @__PURE__ */ (0, import_jsx_runtime19.jsxs)("span", { className: "si-chip", children: [
             /* @__PURE__ */ (0, import_jsx_runtime19.jsx)("span", { className: `si-led ${busy ? "ok" : "warn"}`, "aria-hidden": true }),
-            gate ? "Waiting on you" : "Working"
+            gate ? "Waiting on you" : "Considering"
           ] }) : null
         ] })
       ] }),

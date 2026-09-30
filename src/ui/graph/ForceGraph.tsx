@@ -167,7 +167,7 @@ export function ForceGraph({ mode, nodes, links, onNodeDoubleClick, onNodeClick,
           return `<div style="font:12px Geist,system-ui;background:${c.bg};color:${c.fg};padding:7px 10px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.4);max-width:280px;border-left:3px solid ${c[x.kind] ?? c.keyword}">${esc(x.name)}${x.sub ? `<br><span style="opacity:.7">${esc(x.sub)}</span>` : ""}<br><span style="opacity:.55;font-family:Geist Mono,monospace;font-size:10px;letter-spacing:.08em">${x.kind.toUpperCase()}${x.live ? " · LIVE" : ""}</span></div>`;
         })
         .linkColor((l: FgLink) => (l.live ? c.live : (work ? c.wlink : c.link)))
-        .linkWidth((l: FgLink) => (l.live ? 1.8 : work ? 1.05 : 0.55))
+        .linkWidth((l: FgLink) => (l.live ? 1.8 : work ? 1.05 : 0.8))
         .linkOpacity(0.95)
         .linkDirectionalArrowLength(work ? 3.5 : 0).linkDirectionalArrowRelPos(1).linkDirectionalArrowColor(() => c.live)
         .linkDirectionalParticles((l: FgLink) => (work ? (l.live ? 5 : 2) : 0))
@@ -188,7 +188,7 @@ export function ForceGraph({ mode, nodes, links, onNodeDoubleClick, onNodeClick,
         });
       const live = inst as FgInst;
       live.d3Force("charge")?.strength(work ? -72 : -88);
-      live.cameraPosition({ x: 0, y: work ? 40 : 20, z: work ? 280 : 360 });
+      live.cameraPosition({ x: 0, y: work ? 40 : 20, z: work ? 280 : 330 });
       lightScene(THREE, live, work, c);
       const ctrl = live.controls();
       const reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -266,13 +266,13 @@ function makeNode(THREE: ThreeLib, n: FgNode, c: Record<string, string>, work: b
       clearcoat: 0.9,
       clearcoatRoughness: 0.16,
       emissive: color,
-      emissiveIntensity: n.kind === "session" ? 0.28 : 0.06,
+      emissiveIntensity: n.kind === "session" ? 0.42 : 0.16,
     });
   const mesh = new THREE.Mesh(geom, mat);
   if (!work && n.kind === "session") {
     const glow = new THREE.Mesh(
-      new THREE.SphereGeometry(r * 1.55, 16, 12),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.14, depthWrite: false }),
+      new THREE.SphereGeometry(r * 1.7, 16, 12),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false }),
     );
     mesh.add(glow);
   }
@@ -281,8 +281,8 @@ function makeNode(THREE: ThreeLib, n: FgNode, c: Record<string, string>, work: b
 
 function lightScene(THREE: ThreeLib, live: FgInst, work: boolean, c: Record<string, string>): void {
   const scene = live.scene();
-  const ambient = new THREE.AmbientLight(0xffffff, work ? 0.62 : 0.7);
-  const key = new THREE.DirectionalLight(0xffffff, work ? 1.05 : 0.85);
+  const ambient = new THREE.AmbientLight(0xffffff, work ? 0.62 : 0.82);
+  const key = new THREE.DirectionalLight(0xffffff, work ? 1.05 : 1.0);
   key.position.set(work ? 40 : -30, work ? 120 : 40, 80);
   const fill = new THREE.DirectionalLight(0xdfe3e8, 0.4);
   fill.position.set(-80, 20, -40);
@@ -290,7 +290,12 @@ function lightScene(THREE: ThreeLib, live: FgInst, work: boolean, c: Record<stri
   rim.position.set(30, -60, -90);
   scene.add(ambient, key, fill, rim);
   if (!work) {
-    scene.fog = new THREE.FogExp2(hexToInt(c.bg.replace("#", "") ? c.bg : "#0D1010"), 0.0045);
+    /* Fog sells depth without drowning the cluster: at the default camera
+       (z≈330) density 0.0045 fogged the scene ~93% toward black — the graph
+       rendered correctly but read as faint dust. 0.0015 keeps a real aerial
+       falloff (~25% at focus, ~55% at the far edge) so frosted spheres keep
+       their surface shading where the user is actually looking. */
+    scene.fog = new THREE.FogExp2(hexToInt(c.bg.replace("#", "") ? c.bg : "#0D1010"), 0.0015);
   }
 }
 

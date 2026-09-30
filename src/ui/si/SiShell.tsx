@@ -168,7 +168,7 @@ export function Shell(): React.ReactElement {
             {busy || gate ? (
               <span className="si-chip">
                 <span className={`si-led ${busy ? "ok" : "warn"}`} aria-hidden />
-                {gate ? "Waiting on you" : "Working"}
+                {gate ? "Waiting on you" : "Considering"}
               </span>
             ) : null}
           </div>

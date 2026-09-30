@@ -23,7 +23,20 @@ import { readCrashes, verifyCrashChain, lastCrash, exportCrashReport, clearCrash
 import { toast } from "../../panels/Toast";
 
 type Sect = "provider" | "vault" | "autonomy" | "mcp" | "federation" | "appearance" | "identity" | "about";
-const SECTS: Array<[Sect, string]> = [["provider", "AI connection"], ["vault", "Key vault"], ["autonomy", "Independence"], ["mcp", "Tools (MCP)"], ["federation", "Federation"], ["appearance", "Appearance"], ["identity", "Identity"], ["about", "About"]];
+/* Each sub-page carries a one-line PLAIN description under its label — the
+ * whole point of the sub-page nav is that a first-time reader can see where
+ * they are going before they click. Labels are the product's own words; the
+ * hint line is a promise about what's inside, never a feature boast. */
+const SECTS: Array<[Sect, string, string]> = [
+  ["provider", "AI connection", "model, endpoint & key"],
+  ["vault", "Key vault", "seal keys at rest"],
+  ["autonomy", "Independence", "how far the Captain may act"],
+  ["mcp", "Tools (MCP)", "governed external tools"],
+  ["federation", "Federation", "work across owners"],
+  ["appearance", "Appearance", "finish & handle"],
+  ["identity", "Identity", "subject, data class, crashes"],
+  ["about", "About", "limits, receipts & runtime"],
+];
 const KINDS: Array<[ProviderKind, string]> = [["openai-compatible", "OpenAI-compatible"], ["anthropic", "Anthropic"], ["gemini", "Gemini"]];
 const MODEL_HINT: Record<ProviderKind, string> = { "openai-compatible": "gpt-4o-mini", anthropic: "claude-3-5-haiku-latest", gemini: "gemini-2.0-flash" };
 /** Plain-language help per provider: what the key looks like, where to get it. */
@@ -39,7 +52,11 @@ export function Settings(): React.ReactElement {
     <>
       <header className="top"><h2>Settings</h2></header>
       <div className="scroll"><div className="settings">
-        <nav className="snav">{SECTS.map(([k, l]) => <button key={k} aria-current={sect === k ? "page" : undefined} onClick={() => setSect(k)}>{l}</button>)}</nav>
+        <nav className="snav" aria-label="Settings sections">{SECTS.map(([k, l, d]) => (
+          <button key={k} aria-current={sect === k ? "page" : undefined} onClick={() => setSect(k)}>
+            <span>{l}</span><small>{d}</small>
+          </button>
+        ))}</nav>
         <div className="sbody">
           {sect === "provider" && <Provider />}
           {sect === "vault" && <Vault />}

@@ -62,22 +62,27 @@
      rather than a drawn box. */
   --line:rgba(255,255,255,.10);--line-2:rgba(255,255,255,.17);
   --fg:#F4F5F7;--fg-2:#AEB3BA;--fg-3:#868C93;
-  /* 20.1 — THE ACCENT IS NOW DEEP NAVY, not aqua-teal.
-     The old value was #5BD4CE ("THE ONE ACCENT. Aqua-teal at 177deg"). Two
-     stylesheets were loading: the new si.css shell (navy) and this legacy sheet,
-     which the screen interiors still use. So the shell read navy while the
-     content inside it read teal — which is why the app never looked like one
-     design. Rather than re-skin every screen, the single token that everything
-     legacy derives from is repointed to the same navy the shell uses, so
-     `--accent`, `--accent-soft` and every `.pill.accent` / `.btn.primary` /
-     `.switch` that consumes them now agree.
+  /* THE ACCENT IS AQUA-TEAL AT 177deg — the house identity, and the one both
+     gate suites pin (probe/theme.test.ts asserts hue + AA on the ground;
+     probe/face.test.ts asserts 162–192deg — the cyan-leaning house hue).
 
-     --accent-fg flipped light because navy is a DARK colour: navy-on-navy text
-     would have been unreadable, and the button label is what carries meaning. */
-  --accent:#1B4480;--accent-fg:#DCE6F5;--accent-soft:rgba(27,68,128,.16);
+     20.1 briefly repointed this token at a deep navy (#1B4480) to match an
+     interim shell sheet. It failed on every count the product machine-checks:
+     as TEXT on this ground it measured 2.16:1 (WCAG AA needs 4.5), it dragged
+     the dark/light hue pair apart, and tools/contrast-check.mjs went RED on
+     three pairings. A dark fill can be navy; a TOKEN THAT IS ALSO TEXT cannot
+     be nearly the same value as the black behind it. The teal values below are
+     the documented ones from the sheet header — 11.8:1 on black, 5.7:1 on
+     paper — and the shell sheet (si.css) now derives from the same hue, so
+     both sheets are one accent again.
+
+     --accent-fg is the DARK ink because the fill is BRIGHT: a pale label on a
+     pale teal fill is unreadable, and the button label is what carries
+     meaning. */
+  --accent:#5BD4CE;--accent-fg:#041210;--accent-soft:rgba(91,212,206,.16);
   /* Status hues exist for text and dots only — never as a control fill.
      20.1 — the warn hue is far less saturated than before. It was a bright
-     amber (#D4AC72) that read as gold-on-black next to a navy button and made
+     amber (#D4AC72) that read as gold-on-black next to the accent fill and made
      status pills look like the primary action. */
   --ok:#7FA06B;--warn:#B99660;--bad:#C77A66;
   --ok-soft:rgba(127,160,107,.14);--warn-soft:rgba(185,150,96,.13);--bad-soft:rgba(199,122,102,.14);
@@ -98,11 +103,11 @@
   --s1:#FFFFFF;--s2:#F0F0ED;--s3:#E3E3DE;
   --line:rgba(18,20,24,.11);--line-2:rgba(18,20,24,.19);
   --fg:#141719;--fg-2:#4B5158;--fg-3:#646A71;
-  /* 20.1 — same navy identity as the dark theme, darkened for paper so it
-     holds contrast as TEXT. The old value was a teal (#0A6E6A) tuned to the
-     177deg hue; the accent is navy in both themes now, so a control filled with
-     --accent looks the same on either ground. */
-  --accent:#12305C;--accent-fg:#FFFFFF;--accent-soft:rgba(18,48,92,.09);
+  /* Same 177deg teal identity as the dark theme, pulled deep for paper so it
+     holds contrast as TEXT (5.7:1 on this ground — the sheet header's own
+     measurement). Both themes sit on the same hue; only the depth changes.
+     --accent-fg is white because the fill is deep. */
+  --accent:#0A6E6A;--accent-fg:#FFFFFF;--accent-soft:rgba(10,110,106,.09);
   --ok:#55682F;--warn:#8A5C1F;--bad:#9C3B2D;
   --ok-soft:rgba(85,104,47,.10);--warn-soft:rgba(138,92,31,.10);--bad-soft:rgba(156,59,45,.10);
   /* On paper, depth comes from the contact shadow under a crisp ring rather
@@ -437,10 +442,15 @@ select.input{appearance:none}
 .ledger .day{padding:10px 16px 4px;font-family:var(--display);font-size:15px;color:var(--fg-2);border-top:1px solid var(--line)}
 
 /* ---------- settings ---------- */
-.settings{display:grid;grid-template-columns:200px 1fr;gap:28px;align-items:start}
+.settings{display:grid;grid-template-columns:218px 1fr;gap:28px;align-items:start}
 .snav{position:sticky;top:0;display:flex;flex-direction:column;gap:2px}
-.snav button{padding:7px 10px;border-radius:var(--r2);font-size:13px;color:var(--fg-2)}
+.snav button{display:flex;flex-direction:column;gap:1px;padding:8px 10px;border-radius:var(--r2);font-size:13px;color:var(--fg-2)}
+.snav button span{font-weight:450}
+.snav button small{font-size:11px;line-height:1.3;color:var(--fg-3)}
+.snav button:hover small{color:var(--fg-2)}
 .snav button[aria-current]{background:var(--s2);color:var(--fg);box-shadow:var(--shadow-1)}
+.snav button[aria-current] span{font-weight:500}
+.snav button[aria-current] small{color:var(--fg-2)}
 .sgroup{margin-bottom:26px;scroll-margin-top:16px}
 .sgroup>h3{font-family:var(--display);font-size:20px;font-weight:400;margin-bottom:8px;padding-left:2px}
 .sgroup>p{color:var(--fg-3);font-size:12.5px;margin:-4px 0 10px 2px}
@@ -487,6 +497,10 @@ label.switch input:checked+i{background:var(--accent)}label.switch input:checked
    (`label.switch i`) only. This rule is more specific than the generic one on
    purpose: it is a correction to it, not a parallel style. */
 label.switch:has(input:checked){background:none;box-shadow:none}
+/* KEYBOARD — the real checkbox is visually hidden (opacity 0, 0×0) so the
+   ring has to be painted on the track it drives. Without this the switch is
+   reachable by Tab but gives no sighted keyboard user any sign it has focus. */
+label.switch input:focus-visible+i{box-shadow:0 0 0 2px var(--accent),inset 0 0 0 1px var(--line-2)}
 /* ledger rows (19.8 markup: when · what · signer · digest · state) */
 .ledger .lh,.ledger .lr{grid-template-columns:120px 1fr 130px 130px 16px;width:100%;text-align:left}
 .ledger .lr .mono{color:var(--fg-3)}
@@ -521,6 +535,12 @@ label.switch:has(input:checked){background:none;box-shadow:none}
 *::-webkit-scrollbar-thumb{background:var(--s3);border-radius:8px;border:2px solid var(--bg)}
 *::-webkit-scrollbar-thumb:hover{background:var(--fg-3)}
 *::-webkit-scrollbar-track{background:transparent}
+/* LIGHT FINISH — the surface step (#E3E3DE) is a CARD colour; as a thumb on
+   paper it measured ~1.1:1 against the ground and read as a white smear.
+   A dedicated thumb ink keeps the same quietness with a grabbable edge. */
+[data-theme=light] *{scrollbar-color:#C6C5BD transparent}
+[data-theme=light] *::-webkit-scrollbar-thumb{background:#C6C5BD}
+[data-theme=light] *::-webkit-scrollbar-thumb:hover{background:var(--fg-3)}
 /* buttons: visible keyboard focus + gentler motion */
 .btn{will-change:transform}
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -611,7 +631,29 @@ label.switch:has(input:checked){background:none;box-shadow:none}
 
 /* Screen-reader-only, and the composer's attachment glyph. */
 .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-.ic-clip,.ic-folder{width:15px;height:15px;flex:none;stroke:var(--fg-3);stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ic-clip,.ic-folder{width:15px;height:15px;flex:none;opacity:.9}
+/* These two were written as STROKE rules (stroke/fill on an inline <svg>), but
+   the composer renders them as <i> mask glyphs — with no --m defined the mask
+   was invalid and the box painted solid currentColor, i.e. two grey squares.
+   Masks now carry the drawing; the stroke declarations are gone. */
+.ic-clip{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.4 11.6l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9'/%3E%3C/svg%3E")}
+.ic-folder{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 6.5A1.5 1.5 0 0 1 5 5h5l2 2.5h7A1.5 1.5 0 0 1 20.5 9v8.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z'/%3E%3C/svg%3E")}
+/* File-kind glyphs — one minimal line per shareable format, drawn in the same
+   hand as the nav icons (1.8 stroke, round joins, currentColor mask) so the
+   share row reads as part of the system and not a sticker sheet. */
+.ic-f-pdf,.ic-f-doc,.ic-f-sheet,.ic-f-slides,.ic-f-zip{width:13px;height:13px;flex:none;opacity:.8}
+.ic-f-pdf{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 3h9l5 5v13H5z'/%3E%3Cpath d='M14 3v5h5'/%3E%3Cpath d='M8 15c1.4 1.4 2.4-1.4 3.8 0s2.4 1.4 3.8 0'/%3E%3C/svg%3E")}
+.ic-f-doc{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 3h9l5 5v13H5z'/%3E%3Cpath d='M14 3v5h5'/%3E%3Cpath d='M8.5 13h7M8.5 16.5h7M8.5 20h4'/%3E%3C/svg%3E")}
+.ic-f-sheet{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='4' width='16' height='16' rx='1.5'/%3E%3Cpath d='M4 9.5h16M4 15h16M9.5 4v16M15 4v16'/%3E%3C/svg%3E")}
+.ic-f-slides{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='4' width='17' height='12' rx='1.5'/%3E%3Cpath d='M7.5 8h6M7.5 11.5h9'/%3E%3Cpath d='M12 16v3M8.5 21l3.5-2 3.5 2'/%3E%3C/svg%3E")}
+.ic-f-zip{--m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='3.5' width='14' height='17' rx='1.5'/%3E%3Cpath d='M12 3.5v2.5M12 8.5v2M12 13v2M12 17.5v3'/%3E%3C/svg%3E")}
+/* The share row itself: monochrome, tight, hidden rather than wrapped when the
+   composer narrows — the clip button is the real door, this is its caption. */
+.composer .ftypes{display:inline-flex;align-items:center;gap:9px;min-width:0;overflow:hidden}
+.composer .ftype{display:inline-flex;align-items:center;gap:4px;font:10px var(--pixel);letter-spacing:.07em;color:var(--fg-3);cursor:default;transition:color var(--t)}
+.composer .ftype:hover{color:var(--fg-2)}
+.composer .ftype .ic{stroke:currentColor;fill:none}
+@media (max-width:900px){.composer .ftypes{display:none}}
 .folder{display:inline-flex;align-items:center;gap:6px;color:var(--fg-2);font-size:12.5px}
 
 @media (max-width:720px){
