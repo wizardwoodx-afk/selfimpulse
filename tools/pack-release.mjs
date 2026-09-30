@@ -73,6 +73,11 @@ function overlayList() {
   const files = new Set();
   for (const rel of [...modified, ...untracked]) {
     if (SCRATCH_FILES.has(rel)) continue;
+    // The full zip is written BEFORE this list is computed; on an in-tree
+    // --out it shows up here as fresh M/?? and would nest the archive
+    // inside the overlay (a 22 MB zip-in-zip). Release outputs never ship
+    // inside a release artifact.
+    if (inOutDir(rel)) continue;
     const abs = path.join(root, rel);
     if (!fs.existsSync(abs)) continue;
     if (fs.statSync(abs).isDirectory()) walk(abs, rel).forEach((f) => files.add(f));
