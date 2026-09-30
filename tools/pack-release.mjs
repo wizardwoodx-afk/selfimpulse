@@ -99,7 +99,16 @@ function makeZip(name, rels) {
 }
 
 /* ── the full tree ────────────────────────────────────────────────────────── */
-const full = walk(root).filter((rel) => !SCRATCH_FILES.has(rel.split("/").pop()));
+/* `--out` may point INSIDE the tree (releases/). The previous archive lives
+   there between runs; walk() would list it, makeZip() unlinks the target
+   before writing, and writeZip then reads it as a SOURCE file → ENOENT.
+   So: anything that resolves under the output dir never enters the archive. */
+const outAbs = path.resolve(outDir);
+const outRel = path.relative(root, outAbs);
+const inOutDir = outRel && !outRel.startsWith("..") && !path.isAbsolute(outRel)
+  ? (rel) => rel === outRel || rel.startsWith(outRel + "/")
+  : () => false;
+const full = walk(root).filter((rel) => !SCRATCH_FILES.has(rel.split("/").pop()) && !inOutDir(rel));
 const artifacts = [makeZip("full", full)];
 
 /* ── the overlay over 19.5.6 ─────────────────────────────────────────────── */
