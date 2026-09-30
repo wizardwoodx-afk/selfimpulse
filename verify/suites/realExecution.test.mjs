@@ -10962,7 +10962,15 @@ function have(cmd) {
     return false;
   }
 }
-var HAS_PYTEST = have("python3");
+function pythonHasPytest() {
+  try {
+    execSync('python3 -c "import pytest"', { stdio: "ignore", timeout: 2e4 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+var HAS_PYTEST = have("python3") && pythonHasPytest();
 var HAS_CARGO = have("cargo");
 function mkrepo(name, files) {
   const dir = join4(tmpdir2(), `mj7-${name}-${Date.now()}`);
@@ -10978,7 +10986,7 @@ var PYPROJECT = "[project]\nname = 'target'\nversion = '0.1.0'\n";
 console.log("\n== real commands, real exit codes ==\n");
 if (!HAS_PYTEST) {
   skipped += 1;
-  console.log("  SKIP python3 unavailable \u2014 real verification not exercisable here");
+  console.log("  SKIP python3/pytest unavailable \u2014 real verification not exercisable here");
 } else {
   const green = mkrepo("green", {
     "pyproject.toml": PYPROJECT,

@@ -44,7 +44,24 @@ function have(cmd: string): boolean {
   }
 }
 
-const HAS_PYTEST = have("python3");
+/**
+ * `python3` being on PATH does not mean pytest is importable — a stock Ubuntu
+ * runner has the interpreter and no pytest, and this suite then ran anyway,
+ * reported "pytest must actually run" as a failure, and reddened CI on a tree
+ * with nothing wrong with it. The check is the same one the runner itself makes:
+ * can this interpreter import pytest? The module header promises a clean skip
+ * when pytest is unavailable; this is what makes that true.
+ */
+function pythonHasPytest(): boolean {
+  try {
+    execSync("python3 -c \"import pytest\"", { stdio: "ignore", timeout: 20000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const HAS_PYTEST = have("python3") && pythonHasPytest();
 const HAS_CARGO = have("cargo");
 
 function mkrepo(name: string, files: Record<string, string>): string {
@@ -64,7 +81,7 @@ console.log("\n== real commands, real exit codes ==\n");
 
 if (!HAS_PYTEST) {
   skipped += 1;
-  console.log("  SKIP python3 unavailable — real verification not exercisable here");
+  console.log("  SKIP python3/pytest unavailable — real verification not exercisable here");
 } else {
   const green = mkrepo("green", {
     "pyproject.toml": PYPROJECT,
