@@ -1,5 +1,5 @@
 /**
- * MJ — the Captain front door (askSelfImpulse19 keeps its symbol so the store and
+ * MJ — the Captain (CEO) front door (askSelfImpulse19 keeps its symbol so the store and
  * probes stay wired; the user-facing role is Captain).
  *
  * The ONLY agent the user talks to. One request goes in; behind it: GuardRail
@@ -258,8 +258,8 @@ export async function askSelfImpulse19(args: AskArgs, deps: GeneralistDeps = {})
   } else {
     routed = routeDeterministic(text);
   }
-  /* 11WORKSPACE — Captain (regional manager) opens desks autonomously,
-     Team Leads staff workers, MoE caps the floor at 25. v1 stays imported
+  /* 11WORKSPACE — Captain (CEO) opens desks autonomously, Consuls own the
+     domains, Adepts staff the sub-agent crew, MoE caps the floor at 25. v1 stays imported
      so its probe suite still exercises the module; it is not the live path. */
   let moeReport: MoEReport | null = null;
   let moeV2: CrewSelection | null = null;
@@ -505,7 +505,7 @@ export async function askSelfImpulse19(args: AskArgs, deps: GeneralistDeps = {})
 
     const header = `${captain?.captainName ?? "The domain captain"} coordinated ${memberResults.length} specialists — each section below is that member's OWN provider run${synthesis ? ", and the synthesis above them is the captain's OWN reasoned result" : ""}:`;
     const body = synthesis
-      ? `── CAPTAIN SYNTHESIS (${synthesis.captainName} · ${synthesis.model} · synthesis receipt ${synthesis.digest?.slice(0, 12)}…) ──\n${synthesis.text}\n\n── MEMBER EVIDENCE (each its own execution) ──\n\n${sections.join("\n\n")}`
+      ? `── CONSUL SYNTHESIS (${synthesis.captainName} · ${synthesis.model} · synthesis receipt ${synthesis.digest?.slice(0, 12)}…) ──\n${synthesis.text}\n\n── MEMBER EVIDENCE (each its own execution) ──\n\n${sections.join("\n\n")}`
       : sections.join("\n\n");
     return finish({
       reply: `${header}\n\n${synthesisFailure ? `${synthesisFailure}\n\n` : ""}${body}`,
@@ -517,7 +517,7 @@ export async function askSelfImpulse19(args: AskArgs, deps: GeneralistDeps = {})
       synthesis,
       memberRuns: memberRunViews,
       note: `${executedCount} of ${memberResults.length} routed members executed — each with its own agent loop and member receipt` +
-        (synthesis ? ` · captain synthesis ${synthesis.digest?.slice(0, 12)}… over ${synthesis.divergences.membersCompared} executed member(s)` : synthesisFailure ? " · synthesis attempted, failed honestly" : ""),
+        (synthesis ? ` · consul synthesis ${synthesis.digest?.slice(0, 12)}… over ${synthesis.divergences.membersCompared} executed member(s)` : synthesisFailure ? " · synthesis attempted, failed honestly" : ""),
     });
   }
 
@@ -567,7 +567,7 @@ export async function askSelfImpulse19(args: AskArgs, deps: GeneralistDeps = {})
   }
 
   const composedSystem = [
-    "You are the SelfImpulse Captain (engine: MJ). Answer directly and concisely.",
+    "You are the SelfImpulse Captain (engine: MJ) — the company's CEO and the only voice the user hears. Answer directly and concisely. Work travels strictly down the chain — Captain → Consuls → Adepts → sub-agents — and reports travel up it; no layer ever speaks past its neighbour.",
     gateLine,
     ...briefing,
   ].join("\n\n");

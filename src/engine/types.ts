@@ -235,7 +235,7 @@ export interface MemberRunView {
   toolReceipts: Array<{ tool: string; outcome: string; inputPreview: string; outputPreview: string; digest?: string }>;
 }
 
-/** The domain Captain's report to the Generalist (19.0.0 as AgentLead, renamed 19.1.0) — computed from real member results. */
+/** The Consul's report to the Captain (19.0.0 as AgentLead, 19.1.0 Captain, restructured to Consul) — computed from real member results. */
 export interface CaptainReport {
   captainId: string;
   captainName: string;
@@ -286,7 +286,7 @@ export interface LiveDataVerdict {
 
 /** The Captain's synthesis over its members' real results (19.3.0). */
 export interface SynthesisRecord {
-  /** The synthesized domain result — the Captain's OWN provider call. */
+  /** The synthesized domain result — the Consul's OWN provider call. */
   text: string;
   captainId: string;
   captainName: string;
@@ -346,8 +346,9 @@ export interface GeneralistResponse {
    */
   workspace?: { kind: string; root: string } | null;
   /**
-   * 11WORKSPACE — the office floor this run opened. Captain is the regional
-   * manager; desks are Team Lead + HR; floor is the MoE-capped workers.
+   * 11WORKSPACE — the office floor this run opened. Captain (CEO) is the
+   * only human-facing seat; Consuls own domains; desks are Adept + HR; the
+   * floor is the MoE-capped sub-agent crew.
    * Absent only when nothing was routed.
    */
   office?: {

@@ -2,8 +2,8 @@
  * 11WORKSPACE — the office floor.
  *
  * A multi-team ask ("build an app, connect my internal docs, mail me")
- * is not a chat with 1,500 people. Captain (regional manager) opens the
- * desks the request actually needs; each Team Lead staffs workers from
+ * is not a chat with 1,500 people. The Captain (CEO) opens the desks the
+ * request actually needs; each Adept staffs sub-agents from
  * that desk; HR holds the bench. The workers who walk onto the floor
  * are capped at CREW_MAX (25) by Agentic MoE — that is 25MoE60:
  * 60 domain specialists (Lead+HR), 25 sub-agents active.
@@ -44,7 +44,7 @@ export interface FloorSeat {
 
 export interface ElevenWorkspace {
   name: typeof WORKSPACE_NAME;
-  /** Always the regional manager — the only agent the user talks to. */
+  /** Always the Captain (CEO) — the only agent the user talks to. */
   captain: "Captain";
   task: string;
   desks: OfficeDesk[];

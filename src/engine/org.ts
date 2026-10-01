@@ -1,15 +1,23 @@
 /**
- * SelfImpulse org — three tiers, never a flat crowd.
+ * SelfImpulse org — the company, five rungs, never a flat crowd and never a
+ * skipped layer:
  *
- *   USER  →  Captain (regional manager; the only human-facing agent)
- *         →  Domain specialists (Team Lead + HR per desk)
- *         →  Sub-agents (the established 1,500 workers)
+ *   USER  ⇄  CAPTAIN (the CEO — the only human-facing seat; talks to the user)
+ *          ⇄  CONSUL   (one per domain — reports UP to the Captain, never
+ *                       addresses the user, never commands crews directly)
+ *          ⇄  ADEPT    (the desk's team lead — plans and presents)
+ *          ⇄  SUB-AGENTS (the crew — the established fleet that does the work)
+ *
+ * Layer discipline is structural, not stylistic: the Captain speaks only with
+ * the user and its Consuls; a Consul speaks to the Captain above and its
+ * Adepts below — never the user, never a sub-agent; an Adept leads its crew
+ * and reports to its Consul; the crew executes and answers to its Adept.
  *
  * The Specialists door and the engine fleet stay two catalogs. This module
- * is the wiring: every worker belongs to a desk, every desk has a Lead
+ * is the wiring: every worker belongs to a desk, every desk has an Adept
  * (plans the work) and an HR (staffs the bench). Captain never talks to
- * 1,500 people. Captain talks to the desks the request actually needs;
- * the desks field workers. The floor cap lives in workspace.ts (MoE-25).
+ * 1,500 people — it briefs Consuls; Consuls never talk to the user or the
+ * floor; the desks field the crew. The floor cap lives in workspace.ts (MoE-25).
  *
  * 30 desks × 2 specialists = 60. That is the "60" in 25MoE60.
  */
@@ -153,8 +161,8 @@ function leadOf(d: DeskDef): DeskSpecialist {
     id: `lead.${d.id}`,
     desk: d.id,
     role: "lead",
-    name: `${d.label} Team Lead`,
-    mandate: `Plan the ${d.label} desk's work and report to the Captain. You lead workers; you do not impersonate them.`,
+    name: `${d.label} Adept`,
+    mandate: `You are the ${d.label} Adept — the desk's team lead. Plan the desk's work, lead your sub-agent crew through it, and report to your Consul. Never address the user; never brief the Captain over your Consul's head. You lead sub-agents; you do not impersonate them.`,
     keywords: d.keywords,
   };
 }
@@ -164,7 +172,7 @@ function hrOf(d: DeskDef): DeskSpecialist {
     desk: d.id,
     role: "hr",
     name: `${d.label} Desk HR`,
-    mandate: `Staff the ${d.label} bench from the worker catalog. Name who should run; never do the work yourself.`,
+    mandate: `Staff the ${d.label} bench from the sub-agent catalog. Name who should run; never do the work yourself. Staffing answers to your Consul.`,
     keywords: [...d.keywords, "staff", "bench", "assign"],
   };
 }

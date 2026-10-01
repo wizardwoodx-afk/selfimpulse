@@ -30033,23 +30033,23 @@ var init_captains = __esm({
       name,
       domain: domain2,
       mandate,
-      systemPrompt: `You are ${name}, captain of the ${domain2} domain. Your members are the ${domain2} specialists on the bench. ${focus} Report only what actually happened: name the members involved, their real outcomes, and the single next step. Never claim work that did not run.`
+      systemPrompt: `You are ${name} \u2014 Consul of the ${domain2} domain in the SelfImpulse company. You report to the Captain (the CEO) and to no one else: you never address the user, and you never command the crew directly \u2014 your Adepts lead their sub-agent crews, and you brief them through the desk. ${focus} Report only what actually happened: name the Adepts involved, their real outcomes, and the single next step. Never claim work that did not run. Layer discipline is absolute \u2014 no message skips the Consul.`
     });
     CAPTAINS = [
-      captain("code", "Captain of Code", "Owns implementation quality end to end.", "Sequence work so foundations land before dependents; pair every implementation step with its test and review path."),
-      captain("security", "Captain of Security", "Owns the trust boundary of every plan.", "Nothing ships without its threat reviewed; escalate anything touching credentials, egress or autonomy immediately."),
-      captain("testing", "Captain of Testing", "Owns the evidence that work is correct.", "Every claimed fix needs a failing-then-passing test; quarantine flake with an owner, never with a retry."),
-      captain("review", "Captain of Review", "Owns the quality gate before merge.", "Weight review effort by blast radius; no approval without the residual risks named."),
-      captain("data", "Captain of Data", "Owns data trust: lineage, quality, privacy.", "Every number names its source and freshness; destructive data steps are reversible or flagged."),
-      captain("devops", "Captain of DevOps", "Owns delivery and operability.", "Every change states its blast radius and rollback before it runs; recovery is rehearsed, not hoped for."),
-      captain("research", "Captain of Research", "Owns evidence quality behind decisions.", "Load-bearing claims need two independent sources or an honest single-sourced label."),
-      captain("writing", "Captain of Writing", "Owns clarity of everything shipped to readers.", "Lead with the answer; every command in docs runs as written or is flagged."),
-      captain("analysis", "Captain of Analysis", "Owns the honesty of numbers in decisions.", "Assumptions are visible before results; ranges over false point estimates."),
-      captain("design", "Captain of Design", "Owns the product's visible quality bar.", "Refuse the generic look; hierarchy works in greyscale first; every state is designed, including the worst one."),
-      captain("product", "Captain of Product", "Owns the problem definition behind every build.", "The problem statement ships before the solution; every order names the user outcome it serves."),
-      captain("business", "Captain of Business", "Owns the honesty of plans and numbers.", "Every projection lists its assumptions and its error range; a plan without a kill criterion is decoration."),
-      captain("legal", "Captain of Legal", "Owns obligations, consent and liability clarity.", "Obligations map to controls with evidence; never assure what the product cannot verify."),
-      captain("comms", "Captain of Comms", "Owns what we say, when, and to whom.", "Known, unknown, next \u2014 on a clock; corrections are appended, never erased.")
+      captain("code", "Consul of Code", "Owns implementation quality end to end.", "Sequence work so foundations land before dependents; pair every implementation step with its test and review path."),
+      captain("security", "Consul of Security", "Owns the trust boundary of every plan.", "Nothing ships without its threat reviewed; escalate anything touching credentials, egress or autonomy immediately."),
+      captain("testing", "Consul of Testing", "Owns the evidence that work is correct.", "Every claimed fix needs a failing-then-passing test; quarantine flake with an owner, never with a retry."),
+      captain("review", "Consul of Review", "Owns the quality gate before merge.", "Weight review effort by blast radius; no approval without the residual risks named."),
+      captain("data", "Consul of Data", "Owns data trust: lineage, quality, privacy.", "Every number names its source and freshness; destructive data steps are reversible or flagged."),
+      captain("devops", "Consul of DevOps", "Owns delivery and operability.", "Every change states its blast radius and rollback before it runs; recovery is rehearsed, not hoped for."),
+      captain("research", "Consul of Research", "Owns evidence quality behind decisions.", "Load-bearing claims need two independent sources or an honest single-sourced label."),
+      captain("writing", "Consul of Writing", "Owns clarity of everything shipped to readers.", "Lead with the answer; every command in docs runs as written or is flagged."),
+      captain("analysis", "Consul of Analysis", "Owns the honesty of numbers in decisions.", "Assumptions are visible before results; ranges over false point estimates."),
+      captain("design", "Consul of Design", "Owns the product's visible quality bar.", "Refuse the generic look; hierarchy works in greyscale first; every state is designed, including the worst one."),
+      captain("product", "Consul of Product", "Owns the problem definition behind every build.", "The problem statement ships before the solution; every order names the user outcome it serves."),
+      captain("business", "Consul of Business", "Owns the honesty of plans and numbers.", "Every projection lists its assumptions and its error range; a plan without a kill criterion is decoration."),
+      captain("legal", "Consul of Legal", "Owns obligations, consent and liability clarity.", "Obligations map to controls with evidence; never assure what the product cannot verify."),
+      captain("comms", "Consul of Comms", "Owns what we say, when, and to whom.", "Known, unknown, next \u2014 on a clock; corrections are appended, never erased.")
     ];
   }
 });
@@ -60589,8 +60589,8 @@ function leadOf(d3) {
     id: `lead.${d3.id}`,
     desk: d3.id,
     role: "lead",
-    name: `${d3.label} Team Lead`,
-    mandate: `Plan the ${d3.label} desk's work and report to the Captain. You lead workers; you do not impersonate them.`,
+    name: `${d3.label} Adept`,
+    mandate: `You are the ${d3.label} Adept \u2014 the desk's team lead. Plan the desk's work, lead your sub-agent crew through it, and report to your Consul. Never address the user; never brief the Captain over your Consul's head. You lead sub-agents; you do not impersonate them.`,
     keywords: d3.keywords
   };
 }
@@ -60600,7 +60600,7 @@ function hrOf(d3) {
     desk: d3.id,
     role: "hr",
     name: `${d3.label} Desk HR`,
-    mandate: `Staff the ${d3.label} bench from the worker catalog. Name who should run; never do the work yourself.`,
+    mandate: `Staff the ${d3.label} bench from the sub-agent catalog. Name who should run; never do the work yourself. Staffing answers to your Consul.`,
     keywords: [...d3.keywords, "staff", "bench", "assign"]
   };
 }
@@ -63286,7 +63286,7 @@ ${note}`);
       }
     }
     const header = `${captain2?.captainName ?? "The domain captain"} coordinated ${memberResults.length} specialists \u2014 each section below is that member's OWN provider run${synthesis ? ", and the synthesis above them is the captain's OWN reasoned result" : ""}:`;
-    const body = synthesis ? `\u2500\u2500 CAPTAIN SYNTHESIS (${synthesis.captainName} \xB7 ${synthesis.model} \xB7 synthesis receipt ${synthesis.digest?.slice(0, 12)}\u2026) \u2500\u2500
+    const body = synthesis ? `\u2500\u2500 CONSUL SYNTHESIS (${synthesis.captainName} \xB7 ${synthesis.model} \xB7 synthesis receipt ${synthesis.digest?.slice(0, 12)}\u2026) \u2500\u2500
 ${synthesis.text}
 
 \u2500\u2500 MEMBER EVIDENCE (each its own execution) \u2500\u2500
@@ -63305,7 +63305,7 @@ ${synthesisFailure ? `${synthesisFailure}
       captain: captain2,
       synthesis,
       memberRuns: memberRunViews,
-      note: `${executedCount} of ${memberResults.length} routed members executed \u2014 each with its own agent loop and member receipt` + (synthesis ? ` \xB7 captain synthesis ${synthesis.digest?.slice(0, 12)}\u2026 over ${synthesis.divergences.membersCompared} executed member(s)` : synthesisFailure ? " \xB7 synthesis attempted, failed honestly" : "")
+      note: `${executedCount} of ${memberResults.length} routed members executed \u2014 each with its own agent loop and member receipt` + (synthesis ? ` \xB7 consul synthesis ${synthesis.digest?.slice(0, 12)}\u2026 over ${synthesis.divergences.membersCompared} executed member(s)` : synthesisFailure ? " \xB7 synthesis attempted, failed honestly" : "")
     });
   }
   const primary = specialists[0] ?? null;
@@ -63349,7 +63349,7 @@ ${synthesisFailure ? `${synthesisFailure}
     });
   }
   const composedSystem = [
-    "You are the SelfImpulse Captain (engine: MJ). Answer directly and concisely.",
+    "You are the SelfImpulse Captain (engine: MJ) \u2014 the company's CEO and the only voice the user hears. Answer directly and concisely. Work travels strictly down the chain \u2014 Captain \u2192 Consuls \u2192 Adepts \u2192 sub-agents \u2014 and reports travel up it; no layer ever speaks past its neighbour.",
     gateLine,
     ...briefing
   ].join("\n\n");
@@ -232159,7 +232159,7 @@ function Work() {
         /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "card", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "card-b", children: [
           /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "mode-tag work", children: [
             /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("i", {}),
-            lastResp?.office ? "11WORKSPACE \xB7 You \u2192 Captain \u2192 desks \u2192 workers" : "Mission DAG \xB7 metallic flow \xB7 top to bottom"
+            lastResp?.office ? "11WORKSPACE \xB7 You \u2192 Captain \u2192 Consuls \u2192 Adepts \u2192 sub-agents" : "Mission DAG \xB7 metallic flow \xB7 top to bottom"
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h3", { children: lastUser ? trunc2(lastUser.text, 60) : "Mission" }),
           /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "prog", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("i", { style: { width: `${Math.round(complete2 / total * 100)}%` } }) }),
@@ -239461,7 +239461,7 @@ function Specialists() {
           /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "stop at a human gate" })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "hint", style: { margin: "0 2px 14px" }, children: "One specialist system: a team per domain. The Captain (regional manager) talks to 30 desks \xD7 Lead+HR \u2014 60 domain specialists \u2014 who field the 1,500 workers. Agentic MoE puts at most 25 workers on the 11WORKSPACE floor, chosen autonomously; you never pick the team. This door is the deterministic tool pack \u2014 a different catalog." }),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "hint", style: { margin: "0 2px 14px" }, children: "One specialist system: a company per domain. You speak only with the Captain (CEO); it briefs the Consuls \u2014 one per domain \u2014 who oversee 30 desks \xD7 Adept+HR (60 domain specialists) leading the 1,500 sub-agents. No layer ever skips the one above it. Agentic MoE puts at most 25 crew on the 11WORKSPACE floor, chosen autonomously; you never pick the team. This door is the deterministic tool pack \u2014 a different catalog." }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "seg", style: { flexWrap: "wrap" }, children: DOMAINS.map((d3) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("button", { "aria-pressed": domain2 === d3.id, onClick: () => setDomain(d3.id), children: d3.label }, d3.id)) }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "hint", style: { margin: "0 2px 14px" }, children: info3.blurb }),
       /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(ToolKit, { tools: toolsForDomain(domain2) }),

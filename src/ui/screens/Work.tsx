@@ -6,7 +6,7 @@ import { getSpecialist } from "../../engine/registry";
 
 /**
  * WORK — the user watches the crew work as a top→bottom flow.
- * No transcript, no agent names: You → Captain → AGENT nn → tools → verify.
+ * No transcript, no agent names: You → Captain → Consul → Adept → sub-agents → tools → verify.
  * Built from the real GeneralistResponse (memberRuns, toolReceipts, outcome).
  */
 export function Work(): React.ReactElement {
@@ -32,7 +32,7 @@ export function Work(): React.ReactElement {
           <ForceGraph mode="work" nodes={nodes} links={links} autoRotate={spin} fitSignal={fit} />
           <div className="hud">
             <div className="card"><div className="card-b">
-              <span className="mode-tag work"><i />{lastResp?.office ? "11WORKSPACE · You → Captain → desks → workers" : "Mission DAG · metallic flow · top to bottom"}</span>
+              <span className="mode-tag work"><i />{lastResp?.office ? "11WORKSPACE · You → Captain → Consuls → Adepts → sub-agents" : "Mission DAG · metallic flow · top to bottom"}</span>
               <h3>{lastUser ? trunc(lastUser.text, 60) : "Mission"}</h3>
               <div className="prog"><i style={{ width: `${Math.round((complete / total) * 100)}%` }} /></div>
               <div className="klist">

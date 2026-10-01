@@ -107,7 +107,7 @@ test("captains + failures — oversight that never fabricates", async () => {
   callNo = 0; calls.length = 0;
   const multi = await askSelfImpulse19({ text: MULTI_TEXT, userId: "probe-user" }, { provider: prov, fetchImpl: memberFetch });
   const nMem = multi.specialistIds.length;
-  check("a multi-routed request makes ONE PROVIDER CALL PER MEMBER (+1 re-rank, +1 captain synthesis)", nMem > 1 && calls.length === nMem + 2, { routed: nMem, calls: calls.length });
+  check("a multi-routed request makes ONE PROVIDER CALL PER MEMBER (+1 re-rank, +1 consul synthesis)", nMem > 1 && calls.length === nMem + 2, { routed: nMem, calls: calls.length });
   const memberAnswers = [...multi.reply.matchAll(/member answer #(\d+)/g)].map((m) => m[1]);
   check("each member's OWN distinct answer appears in the reply — no shared answer relabelled", memberAnswers.length === nMem && new Set(memberAnswers).size === nMem, memberAnswers);
   check("each member carries its own receipt digest, all distinct", (multi.captain?.members ?? []).every((m) => typeof m.memberDigest === "string" && /^[0-9a-f]{64}$/.test(m.memberDigest ?? "")) && new Set(multi.captain?.members.map((m) => m.memberDigest)).size === multi.specialistIds.length);

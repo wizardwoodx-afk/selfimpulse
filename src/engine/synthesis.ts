@@ -102,7 +102,7 @@ export function findDivergences(memberResults: Array<{ specialistId: string; tex
   };
 }
 
-/* ── the Captain's synthesis call ─────────────────────────────────────────── */
+/* ── the Consul's synthesis call (domain layer; CEO still owns the reply) ───── */
 
 export function buildSynthesisSystem(captain: Captain): string {
   return (

@@ -32,7 +32,7 @@ const prov: ProviderConfig = { kind: "openai-compatible", baseUrl: "https://api.
 const MULTI_TEXT = "write unit tests for the typescript parser and review the code changes";
 const SYNTH_MARKER = "single synthesized domain result";
 
-test("captain synthesis — reasoned collaboration over real executions (19.3.0)", async () => {
+test("consul synthesis — reasoned collaboration over real executions (19.3.0, company chain)", async () => {
   let pass = 0, fail = 0;
   const check = (name: string, cond: boolean, detail?: unknown) => {
     cond ? pass++ : fail++;
@@ -84,12 +84,12 @@ test("captain synthesis — reasoned collaboration over real executions (19.3.0)
   check("the request multi-routed", nMem > 1, nMem);
   check("synthesis exists and is its own receipted record", multi.synthesis !== undefined && /^[0-9a-f]{64}$/.test(multi.synthesis?.digest ?? ""), multi.synthesis?.digest);
   check("the synthesis digest is NOT any member digest", !(multi.captain?.members ?? []).some((m) => m.memberDigest === multi.synthesis?.digest));
-  check("the reply leads with the captain synthesis, then keeps every member section as evidence", multi.reply.includes("CAPTAIN SYNTHESIS") && multi.reply.includes("SYNTHESIZED RESULT") && multi.reply.includes("MEMBER EVIDENCE") && multi.reply.includes("member work A") && multi.reply.includes("member work B"));
+  check("the reply leads with the consul synthesis, then keeps every member section as evidence", multi.reply.includes("CONSUL SYNTHESIS") && multi.reply.includes("SYNTHESIZED RESULT") && multi.reply.includes("MEMBER EVIDENCE") && multi.reply.includes("member work A") && multi.reply.includes("member work B"));
   const expectedCaptain = captainForRoute(multi.specialistIds);
   check("the synthesis names the captain of the routed domain", expectedCaptain !== null && multi.synthesis?.captainId === expectedCaptain.id && multi.synthesis?.captainName === expectedCaptain.name, { got: multi.synthesis?.captainId, want: expectedCaptain?.id });
   check("divergences travelled with the record", (multi.synthesis?.divergences.singleSourced.length ?? 0) > 0 && multi.synthesis?.divergences.membersCompared === nMem, multi.synthesis?.divergences);
   check("a stray tool fence in the synthesis output is stripped before user or digest", !(multi.synthesis?.text ?? "").includes("\u0060\u0060\u0060tool") && !(multi.reply ?? "").includes("\u0060\u0060\u0060tool"));
-  check("the note receipts the synthesis honestly", (multi.note ?? "").includes("captain synthesis"), multi.note);
+  check("the note receipts the synthesis honestly", (multi.note ?? "").includes("consul synthesis"), multi.note);
   check("the synthesis rides inside the provenance digest", JSON.parse(responseCanonical({ ...multi, provenanceDigest: "" })).synthesis?.digest === multi.synthesis?.digest);
   check(`provider arithmetic: re-rank + ${nMem} members + 1 synthesis`, calls.length === nMem + 2, { calls: calls.length, nMem });
 

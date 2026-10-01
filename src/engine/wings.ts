@@ -1,7 +1,7 @@
 /**
  * SelfImpulse — WINGS: the inside-only capability planes.
  *
- *   ORG        Captain → Lead [Manager/HR/Team Lead] → sub-agents [the Crew]
+ *   ORG        Captain (CEO) → Consul [domain] → Adept/HR [desk] → sub-agents [the Crew]
  *              desk routing with honest refusal — nothing is invented.
  *   REACH      channel policy (pairing / allowlist / groups) + inbound safety
  *              scan (injection markers, vault probes).
@@ -66,7 +66,7 @@ export function isDeskRefusal(r: RouteResult): r is DeskRefusal {
 /**
  * Captain's routing table. An unmatched task is refused IN WORDS — no invented
  * worker, no silent default desk. Leads are always Lead + HR for the desk
- * (the org model: Lead [Manager/HR/Team Lead]); the crew are sub-agents.
+ * (the org model: Consul → Adept/HR); the crew are sub-agents.
  */
 export function routeCaptainTask(task: string): RouteResult {
   const t = task.toLowerCase();
