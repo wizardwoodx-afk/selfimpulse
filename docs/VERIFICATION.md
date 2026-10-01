@@ -31,7 +31,7 @@ Requires Node 22.12 or newer. The gate is green when the summary line reads
 
 - **The product** — `shellRender` server-renders the Shell and every door;
   `navAlign`, `patinaShell`, `consolePolicy`, `theme`, `buttonActions` pin
-  the seven doors (the seventh, Specialists, now spanning twenty-five domains and 240
+  the seven doors (the seventh, Specialists, now spanning twenty-five domains and 251
    specialists), the sidebar, the design tokens, and that every button
   reaches a real engine seam.
 - **The engine path** — `engineDoor`, `initiative`, `fedWired`, `meshRuntime`,

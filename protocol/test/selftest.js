@@ -2,7 +2,7 @@ import * as VH              from "../src/core/si-crypto.js";
 import { assertSignerBinding } from "../src/core/si-binding.js";
 import { PolicyEngine }     from "../src/core/si-policy.js";
 import { createSelfImpulse }     from "../src/server/selfimpulse.js";
-import { VHClient }         from "../src/client/si-sdk.js";
+import { VHClient }         from "../src/client/vh-sdk.js";
 import { VHTamperError, VHLedgerError, VHCryptoError } from "../src/core/si-errors.js";
 import { CheckpointStore }  from "../src/server/checkpoints.js";
 import { loadOrCreateSelfImpulseIdentity } from "../src/server/selfimpulse-identity.js";
@@ -58,9 +58,12 @@ check("tampered challenge rejects",       !(await VH.verifyChallenge(alice.sign.
 /* ─── L3 ─── */
 section("L3 · selfimpulseing + hash chain");
 const facts = { v: 2, kind: "share", from: { n: "A", fp: alice.fp }, to: { n: "B", fp: bob.fp }, file: "x.pdf", size: 10, hash: "a".repeat(64), ok: true, ts: Date.now() };
-const selfimpulse = await VH.buildSelfImpulse(facts, alice.sign.privateKey);
-check("selfimpulse verifies",           await VH.verifySelfImpulse(selfimpulse, alice.sign.publicJwk));
-check("selfimpulse rejected wrong key", !(await VH.verifySelfImpulse(selfimpulse, bob.sign.publicJwk)));
+/* Renamed from `selfimpulse`: the L5+ server instance below also binds
+   `const selfimpulse`, so the duplicate declaration was a hard SyntaxError
+   (`node --check` failed) and the suite could not run at all. */
+const sealedShare = await VH.buildSelfImpulse(facts, alice.sign.privateKey);
+check("selfimpulse verifies",           await VH.verifySelfImpulse(sealedShare, alice.sign.publicJwk));
+check("selfimpulse rejected wrong key", !(await VH.verifySelfImpulse(sealedShare, bob.sign.publicJwk)));
 
 /* ─── L4 ─── */
 section("L4 · link fingerprint");

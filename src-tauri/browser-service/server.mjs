@@ -200,37 +200,60 @@ async function launchBrowser() {
   ];
   if (process.platform === "linux" && process.env.HANDLE_BROWSER_NO_SANDBOX === "1") args.push("--no-sandbox");
   const proc = spawn(bin, args, { stdio: "ignore", detached: false });
-  proc.on("exit", () => { state.attached = false; state.cdp = null; state.browserWs = null; });
-  // DevToolsActivePort appears when ready.
-  const devToolsFile = path.join(userDataDir, "DevToolsActivePort");
-  const deadline = Date.now() + 20000;
-  let port = debugPort;
-  let wsPath = null;
-  while (Date.now() < deadline) {
-    await sleep(150);
-    try {
-      const txt = fs.readFileSync(devToolsFile, "utf8").trim().split("\n");
-      port = Number(txt[0]);
-      wsPath = (txt[1] ?? "").trim() || null;
-      if (port) break;
-    } catch { /* not up yet */ }
-  }
-  if (!port) { proc.kill(); return `the browser at ${bin} did not expose a DevTools port within 20s.`; }
-  const list = await fetchJson(port, "/json/version").catch(() => null);
-  const wsUrlPath = wsPath || list?.webSocketDebuggerUrl?.replace(/^ws:\/\/[^/]+/, "") || "/devtools/browser";
-  const cdp = await httpUpgrade(port, wsUrlPath.startsWith("/") ? wsPath ?? list?.webSocketDebuggerUrl?.replace(/^ws:\/\/[^/]+/, "") ?? "/devtools/browser" : `/devtools/browser/${wsUrlPath.split("/").pop()}`).catch(async () => {
-    // /json/version carries the browser ws url; use it verbatim when present.
-    const u = list?.webSocketDebuggerUrl;
-    if (u) return httpUpgrade(port, u.replace(/^ws:\/\/[^/]+/, ""));
-    throw new Error("no browser websocket endpoint");
-  });
-  state.attached = true;
-  state.engine = path.basename(bin);
-  state.browserPath = bin;
+  /* OWN THE CHILD IMMEDIATELY. state.proc was previously assigned only AFTER
+     the DevTools/WebSocket handshake succeeded, so a handshake failure left a
+     live chromium that nothing could kill (state.proc was still null), a
+     leaked profile dir, and a `create` answer that reached the caller as a
+     bare {ok:false, reason} with no notAttached flag. Ownership starts at
+     spawn; every failure path below abandons through `abandon()`. */
   state.proc = proc;
-  state.cdp = cdp;
-  state.browserWs = cdp;
-  return null;
+  proc.on("exit", () => {
+    state.attached = false; state.cdp = null; state.browserWs = null;
+    if (state.proc === proc) state.proc = null;
+  });
+  const abandon = (why) => {
+    try { proc.kill(); } catch { /* already gone */ }
+    try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    state.attached = false; state.cdp = null; state.browserWs = null;
+    if (state.proc === proc) state.proc = null;
+    return why;
+  };
+  try {
+    // DevToolsActivePort appears when ready.
+    const devToolsFile = path.join(userDataDir, "DevToolsActivePort");
+    const deadline = Date.now() + 20000;
+    let port = debugPort;
+    let wsPath = null;
+    while (Date.now() < deadline) {
+      await sleep(150);
+      try {
+        const txt = fs.readFileSync(devToolsFile, "utf8").trim().split("\n");
+        port = Number(txt[0]);
+        wsPath = (txt[1] ?? "").trim() || null;
+        if (port) break;
+      } catch { /* not up yet */ }
+    }
+    if (!port) return abandon(`the browser at ${bin} did not expose a DevTools port within 20s.`);
+    const list = await fetchJson(port, "/json/version").catch(() => null);
+    const wsUrlPath = wsPath || list?.webSocketDebuggerUrl?.replace(/^ws:\/\/[^/]+/, "") || "/devtools/browser";
+    const cdp = await httpUpgrade(port, wsUrlPath.startsWith("/") ? wsPath ?? list?.webSocketDebuggerUrl?.replace(/^ws:\/\/[^/]+/, "") ?? "/devtools/browser" : `/devtools/browser/${wsUrlPath.split("/").pop()}`).catch(async () => {
+      // /json/version carries the browser ws url; use it verbatim when present.
+      const u = list?.webSocketDebuggerUrl;
+      if (u) return httpUpgrade(port, u.replace(/^ws:\/\/[^/]+/, ""));
+      throw new Error("no browser websocket endpoint");
+    });
+    state.attached = true;
+    state.engine = path.basename(bin);
+    state.browserPath = bin;
+    state.cdp = cdp;
+    state.browserWs = cdp;
+    return null;
+  } catch (e) {
+    // Any init failure (no ws endpoint, upgrade error, DevTools timeout) is a
+    // STRING for createSession's notAttached wrap — never a thrown Error that
+    // escapes as a bare {ok:false, reason} without the fail-closed flag.
+    return abandon(String(e?.message ?? e));
+  }
 }
 
 function freePort() {
@@ -579,6 +602,7 @@ server.on("error", (e) => {
 for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
     try { state.proc?.kill(); } catch { /* already gone */ }
+    state.proc = null;
     process.exit(0);
   });
 }
