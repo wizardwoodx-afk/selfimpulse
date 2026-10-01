@@ -352,18 +352,66 @@ export const localDb = {
   },
 
   approvalList() {
-    return load().approvals.filter((a) => a.status === "OPEN");
+    // Capabilities never ride a list — only the authorize return hands one out.
+    return load()
+      .approvals.filter((a) => a.status === "OPEN")
+      .map(({ capability: _capability, ...rest }) => rest);
   },
-  approvalRequest(executionId: string, nodeKey: string, summary: string, payload: Record<string, unknown>) {
+  approvalRequest(executionId: string, nodeKey: string, summary: string, payload: Record<string, unknown>, requestedBy?: string) {
     const db = load();
-    const rec: ApprovalRecord = { id: uid("appr"), executionId, nodeKey, summary, payload, status: "OPEN", createdAt: nowIso() };
+    const rec: ApprovalRecord = {
+      id: uid("appr"),
+      executionId,
+      nodeKey,
+      summary,
+      payload,
+      status: "OPEN",
+      createdAt: nowIso(),
+      // C-2 (archive 4): the request binds who asked and what authority answers.
+      requestedBy: requestedBy && requestedBy.trim() ? requestedBy : `execution:${executionId}`,
+      authority: "human",
+    };
     db.approvals.unshift(rec);
     save(db);
     window.dispatchEvent(new CustomEvent("vh://approval", { detail: rec }));
-    return { id: rec.id };
+    return { id: rec.id, requestedBy: rec.requestedBy, authority: rec.authority };
   },
-  approvalDecide(id: string, decision: "APPROVED" | "REJECTED") {
-    // C-2 mirror of db.rs: a decision lands exactly once, on an OPEN approval.
+  /** C-2 (archive 4) — the web mirror's native-equivalent capability mint.
+   *
+   *  Desktop mints through an OS dialog; the browser's equivalent of a window
+   *  WebView scripts cannot answer is `window.confirm` — synchronous, modal,
+   *  and not programmatically dismissible. Declined confirm ⇒ no token, no
+   *  decision. The token is scoped to one verdict and expires in five minutes,
+   *  exactly like the native capability. */
+  approvalAuthorize(id: string, decision: "APPROVED" | "REJECTED") {
+    if (decision !== "APPROVED" && decision !== "REJECTED") {
+      throw new Error(`approval_authorize: decision must be APPROVED or REJECTED (got ${JSON.stringify(decision)})`);
+    }
+    const db = load();
+    const a = db.approvals.find((x) => x.id === id);
+    if (!a) throw new Error(`approval ${id} does not exist — nothing to authorize.`);
+    if (a.status !== "OPEN") throw new Error(`approval ${id} is not OPEN (current status ${a.status}) — nothing to authorize.`);
+    if (typeof window === "undefined" || typeof window.confirm !== "function") {
+      throw new Error("approval_authorize requires an interactive confirm dialog — refusing to mint a capability non-interactively.");
+    }
+    const word = decision === "APPROVED" ? "approve" : "refuse";
+    const ok = window.confirm(
+      `SelfImpulse — human approval gate\n\n${a.summary}\n\nRequester: ${a.requestedBy ?? `execution:${a.executionId}`}\nRequired authority: ${a.authority ?? "human"}\nVerdict if you confirm: ${decision}\n\n${word.toUpperCase()} this? Cancel mints nothing and decides nothing.`,
+    );
+    if (!ok) {
+      throw new Error(`approval ${id}: declined at the confirm dialog — no capability was minted and no decision was recorded.`);
+    }
+    const token = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? `cap_${crypto.randomUUID()}` : uid("cap");
+    a.capability = token;
+    a.capExpiresAt = Math.floor(Date.now() / 1000) + 300;
+    a.capDecision = decision;
+    save(db);
+    return { capability: token, expiresAt: a.capExpiresAt, approvalId: id, decision };
+  },
+  approvalDecide(id: string, decision: "APPROVED" | "REJECTED", capability: string) {
+    // C-2 mirror of db.rs (archive 4): state machine AND actor. A decision
+    // presents the capability minted at the interactive dialog for THIS
+    // approval, still fresh, for THIS verdict — then it lands exactly once.
     const db = load();
     const a = db.approvals.find((x) => x.id === id);
     if (!a) throw new Error(`approval ${id} does not exist — nothing was changed.`);
@@ -371,7 +419,26 @@ export const localDb = {
       throw new Error(
         `approval ${id} is not OPEN (current status ${a.status}) — a decision is final; an approval moves exactly once, from OPEN to APPROVED or REJECTED.`,
       );
+    if (!capability || !capability.trim())
+      throw new Error(
+        `approval ${id}: no capability presented — a decision must first pass approval_authorize, where a human answers the dialog. Requester code cannot decide its own request.`,
+      );
+    if (!a.capability)
+      throw new Error(`approval ${id} has no live capability — call approval_authorize first; the human's answer is what makes a decision legitimate.`);
+    if (a.capability !== capability)
+      throw new Error(`capability does not belong to approval ${id} — it was minted for a different request (confused-approver refused).`);
+    if (typeof a.capExpiresAt === "number" && Math.floor(Date.now() / 1000) > a.capExpiresAt)
+      throw new Error(`capability for approval ${id} expired (freshness window closed) — return to approval_authorize for a fresh answer.`);
+    if (a.capDecision !== decision)
+      throw new Error(
+        `capability for approval ${id} was minted for ${a.capDecision ?? "no verdict"}; it cannot cast ${decision}. Re-open approval_authorize and let the human pick this verdict explicitly.`,
+      );
     a.status = decision;
+    a.decidedBy = "human:confirm";
+    a.decidedAt = nowIso();
+    a.capability = undefined;
+    a.capExpiresAt = undefined;
+    a.capDecision = undefined;
     save(db);
   },
   approvalGet(executionId: string, nodeKey: string) {

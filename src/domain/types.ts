@@ -342,6 +342,21 @@ export interface ApprovalRecord {
   payload: Record<string, unknown>;
   status: "OPEN" | "APPROVED" | "REJECTED";
   createdAt: string;
+  /**
+   * C-2 (security review, archive 4): approver-authority binding.
+   * `requestedBy`/`authority` are bound at request time; a decision must
+   * present a capability minted through the interactive confirm/native
+   * dialog (`approval_authorize`), bound to one verdict with a freshness
+   * window. `capability` holds the minted token in the web mirror only —
+   * it is never included in list output.
+   */
+  requestedBy?: string;
+  authority?: string;
+  capability?: string;
+  capExpiresAt?: number;
+  capDecision?: string;
+  decidedBy?: string;
+  decidedAt?: string;
 }
 
 export interface DlqRecord {

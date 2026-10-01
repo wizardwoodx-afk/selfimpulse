@@ -242668,17 +242668,68 @@ var init_localDb = __esm({
         return { ok: true };
       },
       approvalList() {
-        return load3().approvals.filter((a3) => a3.status === "OPEN");
+        return load3().approvals.filter((a3) => a3.status === "OPEN").map(({ capability: _capability, ...rest2 }) => rest2);
       },
-      approvalRequest(executionId, nodeKey, summary, payload) {
+      approvalRequest(executionId, nodeKey, summary, payload, requestedBy) {
         const db = load3();
-        const rec = { id: uid("appr"), executionId, nodeKey, summary, payload, status: "OPEN", createdAt: nowIso() };
+        const rec = {
+          id: uid("appr"),
+          executionId,
+          nodeKey,
+          summary,
+          payload,
+          status: "OPEN",
+          createdAt: nowIso(),
+          // C-2 (archive 4): the request binds who asked and what authority answers.
+          requestedBy: requestedBy && requestedBy.trim() ? requestedBy : `execution:${executionId}`,
+          authority: "human"
+        };
         db.approvals.unshift(rec);
         save3(db);
         window.dispatchEvent(new CustomEvent("vh://approval", { detail: rec }));
-        return { id: rec.id };
+        return { id: rec.id, requestedBy: rec.requestedBy, authority: rec.authority };
       },
-      approvalDecide(id, decision) {
+      /** C-2 (archive 4) — the web mirror's native-equivalent capability mint.
+       *
+       *  Desktop mints through an OS dialog; the browser's equivalent of a window
+       *  WebView scripts cannot answer is `window.confirm` — synchronous, modal,
+       *  and not programmatically dismissible. Declined confirm ⇒ no token, no
+       *  decision. The token is scoped to one verdict and expires in five minutes,
+       *  exactly like the native capability. */
+      approvalAuthorize(id, decision) {
+        if (decision !== "APPROVED" && decision !== "REJECTED") {
+          throw new Error(`approval_authorize: decision must be APPROVED or REJECTED (got ${JSON.stringify(decision)})`);
+        }
+        const db = load3();
+        const a3 = db.approvals.find((x3) => x3.id === id);
+        if (!a3) throw new Error(`approval ${id} does not exist \u2014 nothing to authorize.`);
+        if (a3.status !== "OPEN") throw new Error(`approval ${id} is not OPEN (current status ${a3.status}) \u2014 nothing to authorize.`);
+        if (typeof window === "undefined" || typeof window.confirm !== "function") {
+          throw new Error("approval_authorize requires an interactive confirm dialog \u2014 refusing to mint a capability non-interactively.");
+        }
+        const word = decision === "APPROVED" ? "approve" : "refuse";
+        const ok2 = window.confirm(
+          `SelfImpulse \u2014 human approval gate
+
+${a3.summary}
+
+Requester: ${a3.requestedBy ?? `execution:${a3.executionId}`}
+Required authority: ${a3.authority ?? "human"}
+Verdict if you confirm: ${decision}
+
+${word.toUpperCase()} this? Cancel mints nothing and decides nothing.`
+        );
+        if (!ok2) {
+          throw new Error(`approval ${id}: declined at the confirm dialog \u2014 no capability was minted and no decision was recorded.`);
+        }
+        const token = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? `cap_${crypto.randomUUID()}` : uid("cap");
+        a3.capability = token;
+        a3.capExpiresAt = Math.floor(Date.now() / 1e3) + 300;
+        a3.capDecision = decision;
+        save3(db);
+        return { capability: token, expiresAt: a3.capExpiresAt, approvalId: id, decision };
+      },
+      approvalDecide(id, decision, capability) {
         const db = load3();
         const a3 = db.approvals.find((x3) => x3.id === id);
         if (!a3) throw new Error(`approval ${id} does not exist \u2014 nothing was changed.`);
@@ -242686,7 +242737,26 @@ var init_localDb = __esm({
           throw new Error(
             `approval ${id} is not OPEN (current status ${a3.status}) \u2014 a decision is final; an approval moves exactly once, from OPEN to APPROVED or REJECTED.`
           );
+        if (!capability || !capability.trim())
+          throw new Error(
+            `approval ${id}: no capability presented \u2014 a decision must first pass approval_authorize, where a human answers the dialog. Requester code cannot decide its own request.`
+          );
+        if (!a3.capability)
+          throw new Error(`approval ${id} has no live capability \u2014 call approval_authorize first; the human's answer is what makes a decision legitimate.`);
+        if (a3.capability !== capability)
+          throw new Error(`capability does not belong to approval ${id} \u2014 it was minted for a different request (confused-approver refused).`);
+        if (typeof a3.capExpiresAt === "number" && Math.floor(Date.now() / 1e3) > a3.capExpiresAt)
+          throw new Error(`capability for approval ${id} expired (freshness window closed) \u2014 return to approval_authorize for a fresh answer.`);
+        if (a3.capDecision !== decision)
+          throw new Error(
+            `capability for approval ${id} was minted for ${a3.capDecision ?? "no verdict"}; it cannot cast ${decision}. Re-open approval_authorize and let the human pick this verdict explicitly.`
+          );
         a3.status = decision;
+        a3.decidedBy = "human:confirm";
+        a3.decidedAt = nowIso();
+        a3.capability = void 0;
+        a3.capExpiresAt = void 0;
+        a3.capDecision = void 0;
         save3(db);
       },
       approvalGet(executionId, nodeKey) {
@@ -243011,9 +243081,9 @@ var init_client = __esm({
       evolutionRollback: async (candidateId, restoreRolePrompt) => {
         if (useTauri()) return tauriInvoke("evolution_rollback", { candidateId, restoreRolePrompt: restoreRolePrompt ?? null });
       },
-      approvalRequest: async (executionId, nodeKey, summary, payload) => {
-        if (useTauri()) return tauriInvoke("approval_request", { executionId, nodeKey, summary, payload });
-        return localDb.approvalRequest(executionId, nodeKey, summary, payload);
+      approvalRequest: async (executionId, nodeKey, summary, payload, requestedBy) => {
+        if (useTauri()) return tauriInvoke("approval_request", { executionId, nodeKey, summary, payload, requestedBy: requestedBy ?? null });
+        return localDb.approvalRequest(executionId, nodeKey, summary, payload, requestedBy);
       },
       approvalGet: async (executionId, nodeKey) => {
         if (useTauri()) return tauriInvoke("approval_get", { executionId, nodeKey });
@@ -243023,9 +243093,16 @@ var init_client = __esm({
         if (useTauri()) return tauriInvoke("approval_list");
         return localDb.approvalList();
       },
-      approvalDecide: async (approvalId, decision) => {
-        if (useTauri()) return tauriInvoke("approval_decide", { approvalId, decision });
-        localDb.approvalDecide(approvalId, decision);
+      /** C-2 (archive 4): mint the decision capability — native OS dialog in the
+       *  desktop app, an interactive confirm in the web mirror. The token it
+       *  returns is the ONLY thing approvalDecide will accept. */
+      approvalAuthorize: async (approvalId, decision) => {
+        if (useTauri()) return tauriInvoke("approval_authorize", { approvalId, decision });
+        return localDb.approvalAuthorize(approvalId, decision);
+      },
+      approvalDecide: async (approvalId, decision, capability) => {
+        if (useTauri()) return tauriInvoke("approval_decide", { approvalId, decision, capability });
+        localDb.approvalDecide(approvalId, decision, capability);
       },
       executionCreate: async (workflowId, workflowVersion) => {
         if (useTauri()) return tauriInvoke("execution_create", { workflowId, workflowVersion });

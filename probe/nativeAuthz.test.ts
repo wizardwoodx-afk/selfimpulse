@@ -55,11 +55,13 @@ const guardRs = read("src-tauri/src/guard.rs");
 const commandsRs = read("src-tauri/src/commands.rs");
 const dbRs = read("src-tauri/src/db.rs");
 const localDbTs = read("src/ipc/localDb.ts");
+const clientTs = read("src/ipc/client.ts");
 
 /** The privileged set: reviewer's ten plus the commands of the same class
- *  (secrets, sandbox boundary, code execution, browser actuation). */
+ *  (secrets, sandbox boundary, code execution, browser actuation) plus the
+ *  native capability minter added with C-2's authority binding. */
 const PRIVILEGED = [
-  "approval_decide", "evolution_decide", "evolution_rollback",
+  "approval_decide", "approval_authorize", "evolution_decide", "evolution_rollback",
   "secret_set", "secret_delete", "secret_get",
   "package_import", "package_export",
   "workspace_root_add", "workspace_root_remove",
@@ -87,6 +89,34 @@ for (const name of PRIVILEGED) {
   ok(`guard.rs policy table names "${name}"`, guardRs.includes(`"${name}"`));
 }
 ok("guard wrappers call authorize() before commands::", /authorize\(/.test(guardRs));
+/* Reviewer nuance (archive 4): EVERY privileged wrapper body — not just the
+   file as a whole — must cross authorize(). Split guard.rs at each command
+   attribute and require an authorize( call inside each wrapper segment. */
+{
+  const segs = guardRs.split("#[tauri::command]").slice(1);
+  const wrapperNames = segs
+    .map((s) => (/(?:pub\s+)?(?:async\s+)?fn\s+([a-z0-9_]+)/.exec(s) ?? [null, ""])[1] ?? "")
+    .filter((n) => PRIVILEGED.includes(n));
+  ok(
+    `every privileged wrapper body crosses authorize() (${wrapperNames.length}/${PRIVILEGED.length} found)`,
+    wrapperNames.length === PRIVILEGED.length,
+  );
+  const missing = wrapperNames.filter((n) => {
+    const seg = segs.find((s) => s.includes(`fn ${n}(`)) ?? "";
+    return !seg.includes("authorize(");
+  });
+  ok(
+    "no privileged wrapper skips the gate (browser wrappers included)",
+    missing.length === 0,
+    missing.join(","),
+  );
+  ok(
+    "browser wrappers refuse with {ok:false,reason} on gate denial",
+    /authorize\("browser_session_create"[\s\S]{0,200}ok": false/.test(guardRs) &&
+      /authorize\("browser_act"[\s\S]{0,200}ok": false/.test(guardRs) &&
+      /authorize\("browser_screenshot"[\s\S]{0,200}ok": false/.test(guardRs),
+  );
+}
 ok(
   "gate self-tests ship in guard.rs",
   /#\[cfg\(test\)\]/.test(guardRs) && /unknown_actions_are_denied/.test(guardRs),
@@ -100,8 +130,8 @@ ok(
 /* ────────────────────── C-2: authority-checked decisions ────────────────────── */
 section("C-2 — decisions are authority-checked transitions");
 ok(
-  "db::approval_decide only flips OPEN rows (guard inside the WHERE clause)",
-  /UPDATE approvals SET status=\?2 WHERE id=\?1 AND status='OPEN'/.test(dbRs),
+  "db::approval_decide only flips OPEN rows, recording the authorizing actor",
+  /UPDATE approvals SET status=\?2, decided_by='human:dialog'[\s\S]*?WHERE id=\?1 AND status='OPEN'/.test(dbRs),
 );
 ok(
   "db::approval_decide validates the decision enum",
@@ -112,8 +142,84 @@ ok(
   dbRs.includes("does not exist — nothing was changed."),
 );
 ok(
-  "db::approval_decide is not a bare unconditional UPDATE anymore",
-  !/UPDATE approvals SET status=\?2 WHERE id=\?"|UPDATE approvals SET status=\?2 WHERE id=\?1",/.test(dbRs),
+  "db::approval_decide takes the capability (the actor, not just the state)",
+  /pub fn approval_decide\(conn: &Connection, id: &str, decision: &str, capability: &str\)/.test(dbRs),
+);
+ok(
+  "decide without a capability is refused in words",
+  dbRs.includes("no capability presented"),
+);
+ok(
+  "capability ownership is proven (confused-approver refused)",
+  dbRs.includes("confused-approver refused") && dbRs.includes("cap_fingerprint(capability) != cap_hash"),
+);
+ok(
+  "capability freshness is enforced",
+  dbRs.includes("capability for approval {id} expired"),
+);
+ok(
+  "capability scope binds the ONE verdict it may cast",
+  dbRs.includes("was minted for {cap_decision}; it cannot cast {decision}"),
+);
+ok(
+  "the transition consumes the capability (single-use)",
+  dbRs.includes("cap_hash='', cap_expires_at=0, cap_decision=''"),
+);
+ok(
+  "approvals schema binds requester + authority + capability material",
+  /CREATE TABLE IF NOT EXISTS approvals \([\s\S]*?requested_by TEXT[\s\S]*?authority TEXT[\s\S]*?cap_hash TEXT[\s\S]*?cap_expires_at INTEGER[\s\S]*?cap_decision TEXT[\s\S]*?decided_by TEXT/.test(dbRs),
+);
+ok(
+  "existing databases migrate in place (archive-4 columns added)",
+  dbRs.includes("fn ensure_approval_authority_columns") && dbRs.includes("ALTER TABLE approvals ADD COLUMN requested_by"),
+);
+ok(
+  "approval_request binds requested_by and required authority at birth",
+  dbRs.includes("requested_by,authority) VALUES") && dbRs.includes("'human')"),
+);
+ok(
+  "the capability minter is the ONLY store of capability material",
+  /fn approval_mint_capability\(/.test(dbRs) && (dbRs.match(/UPDATE approvals SET cap_hash=/g) ?? []).length === 1,
+);
+ok(
+  "approval_authorize gates the mint behind the NATIVE dialog",
+  /fn approval_authorize\(app: tauri::AppHandle/.test(commandsRs) &&
+    commandsRs.includes(".blocking_show()") &&
+    commandsRs.includes("MessageDialogButtons::OkCancelCustom"),
+);
+ok(
+  "declining the native dialog mints nothing and decides nothing",
+  commandsRs.includes("declined at the native dialog — no capability was minted"),
+);
+ok(
+  "guard policy covers approval_authorize (enum at the gate) + empty-cap refusal",
+  guardRs.includes('"approval_decide" | "approval_authorize"') &&
+    guardRs.includes("guard: approval_decide requires the native capability"),
+);
+ok(
+  "lib.rs registers approval_authorize from guard::",
+  /guard::approval_authorize\b/.test(libRs) && !/commands::approval_authorize\b/.test(libRs),
+);
+ok(
+  "web-mode mirror mints only through an interactive confirm",
+  localDbTs.includes('typeof window.confirm !== "function"') &&
+    localDbTs.includes("window.confirm(") &&
+    localDbTs.includes("declined at the confirm dialog"),
+);
+ok(
+  "web-mode mirror enforces capability ownership, freshness and scope",
+  localDbTs.includes("confused-approver refused") &&
+    localDbTs.includes("expired (freshness window closed)") &&
+    localDbTs.includes("cannot cast"),
+);
+ok(
+  "lists never carry the capability",
+  dbRs.includes("Capabilities are NEVER listed") &&
+    localDbTs.includes("capability: _capability, ...rest"),
+);
+ok(
+  "the ipc client passes the capability through on decide",
+  clientTs.includes('approvalDecide: async (approvalId: string, decision: "APPROVED" | "REJECTED", capability: string)'),
 );
 ok(
   "db::evolution_decide only flips PROPOSED rows",
@@ -124,11 +230,6 @@ ok(
   /UPDATE evolution SET status='ROLLED_BACK' WHERE id=\?1 AND status='DECIDED'/.test(commandsRs),
 );
 ok(
-  "commands::approval_decide returns the guarded db result verbatim",
-  /db::approval_decide\(&\*lock_db\(&state\)\?, &approval_id, &decision\)\s*\n?\s*\)?\s*;?/.test(commandsRs) ||
-    commandsRs.includes("db::approval_decide(&*lock_db(&state)?, &approval_id, &decision)"),
-);
-ok(
   "web-mode mirror (localDb.ts) refuses decisions on non-OPEN approvals",
   localDbTs.includes('if (a.status !== "OPEN")') && localDbTs.includes("is not OPEN (current status"),
 );
@@ -137,8 +238,13 @@ ok(
   localDbTs.includes('if (c.status !== "PROPOSED")'),
 );
 ok(
-  "C-2 regression tests ship (cargo test c2_)",
-  dbRs.includes("mod c2_decision_transition_tests") && dbRs.includes("decided_approval_cannot_flip_again"),
+  "C-2 regression tests ship, covering the capability flow (cargo test c2_)",
+  dbRs.includes("mod c2_decision_transition_tests") &&
+    dbRs.includes("foreign_capability_is_a_confused_approver") &&
+    dbRs.includes("capability_cannot_cast_the_other_verdict") &&
+    dbRs.includes("expired_capability_is_refused") &&
+    dbRs.includes("decide_without_capability_is_refused") &&
+    dbRs.includes("existing_databases_gain_the_authority_columns"),
 );
 
 /* ─────────────────────── C-3: component-based refusal ─────────────────────── */

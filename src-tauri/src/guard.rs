@@ -32,7 +32,7 @@ use tauri::State;
 pub(crate) fn authorize(action: &str, arg: &str) -> Result<(), String> {
     match action {
         // ── verdicts ────────────────────────────────────────────────────────
-        "approval_decide" => {
+        "approval_decide" | "approval_authorize" => {
             if arg == "APPROVED" || arg == "REJECTED" {
                 Ok(())
             } else {
@@ -107,9 +107,22 @@ fn require_nonempty(action: &str, arg: &str) -> Result<(), String> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn approval_decide(state: State<Arc<AppState>>, approval_id: String, decision: String) -> Result<(), String> {
+pub fn approval_decide(state: State<Arc<AppState>>, approval_id: String, decision: String, capability: String) -> Result<(), String> {
     authorize("approval_decide", &decision)?;
-    commands::approval_decide(state, approval_id, decision)
+    // Centralized here (not per-caller): an empty capability is refused at the
+    // gate before any database state is examined.
+    if capability.trim().is_empty() {
+        return Err(format!(
+            "guard: approval_decide requires the native capability from approval_authorize — denied (empty capability)."
+        ));
+    }
+    commands::approval_decide(state, approval_id, decision, capability)
+}
+
+#[tauri::command]
+pub fn approval_authorize(app: tauri::AppHandle, state: State<Arc<AppState>>, approval_id: String, decision: String) -> Result<Value, String> {
+    authorize("approval_authorize", &decision)?;
+    commands::approval_authorize(app, state, approval_id, decision)
 }
 
 #[tauri::command]
@@ -218,8 +231,12 @@ pub fn control_run_workflow(state: State<Arc<AppState>>, workflow_id: String) ->
 
 #[tauri::command]
 pub async fn browser_session_create(key: Option<String>) -> Value {
-    // No argument to policy-check; the presence of this wrapper keeps the
-    // browser surface inside the same registration gate as everything else.
+    // C-1 invariant (review of archive 4): EVERY privileged wrapper crosses
+    // authorize() before touching its implementation — presence checks today,
+    // but the gate can never be silently skipped when the policy tightens.
+    if let Err(e) = authorize("browser_session_create", key.as_deref().unwrap_or("")) {
+        return json!({ "ok": false, "reason": e });
+    }
     commands::browser_session_create(key).await
 }
 
@@ -244,11 +261,18 @@ pub async fn browser_act(
     script: Option<String>,
     timeout_ms: Option<u64>,
 ) -> Value {
+    let subject = action.clone().or_else(|| session_id.clone()).unwrap_or_default();
+    if let Err(e) = authorize("browser_act", &subject) {
+        return json!({ "ok": false, "reason": e });
+    }
     commands::browser_act(args, session_id, action, selector, value, key, url, state, script, timeout_ms).await
 }
 
 #[tauri::command]
 pub async fn browser_screenshot(session_id: String, full_page: Option<bool>) -> Value {
+    if let Err(e) = authorize("browser_screenshot", &session_id) {
+        return json!({ "ok": false, "reason": e });
+    }
     commands::browser_screenshot(session_id, full_page).await
 }
 

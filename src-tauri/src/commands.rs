@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_dialog::DialogExt;
 
 pub struct AppState {
     pub db: Mutex<rusqlite::Connection>,
@@ -258,8 +259,13 @@ pub fn evolution_rollback(state: State<Arc<AppState>>, candidate_id: String, _re
 }
 
 #[tauri::command]
-pub fn approval_request(state: State<Arc<AppState>>, execution_id: String, node_key: String, summary: String, payload: Value) -> Result<Value, String> {
-    db::approval_request(&*lock_db(&state)?, &execution_id, &node_key, &summary, &payload).map_err(|e| e.to_string())
+pub fn approval_request(state: State<Arc<AppState>>, execution_id: String, node_key: String, summary: String, payload: Value, requested_by: Option<String>) -> Result<Value, String> {
+    // C-2 (archive 4): the requester is bound at request time; absent a name,
+    // the execution run itself is the honest requester of record.
+    let requester = requested_by
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| format!("execution:{execution_id}"));
+    db::approval_request(&*lock_db(&state)?, &execution_id, &node_key, &summary, &payload, &requester).map_err(|e| e.to_string())
 }
 #[tauri::command]
 pub fn approval_get(state: State<Arc<AppState>>, execution_id: String, node_key: String) -> Result<Value, String> {
@@ -269,12 +275,58 @@ pub fn approval_get(state: State<Arc<AppState>>, execution_id: String, node_key:
 pub fn approval_list(state: State<Arc<AppState>>) -> Result<Value, String> {
     db::approval_list(&*lock_db(&state)?).map_err(|e| e.to_string())
 }
+/// C-2 (archive 4) — mint the native approval capability.
+///
+/// The ONLY path that can produce a capability: a blocking OS dialog (native
+/// window — WebView scripts cannot answer it, cannot fake a click, and never
+/// see the result unless this invoke resolves). The human reads who asked,
+/// what is being asked, and which verdict the capability will carry; only an
+/// explicit confirm mints it. Cancel declines and mints nothing.
+///
+/// Freshness is short by design (5 minutes): the capability exists to bind a
+/// decision made *now*, not to be a bearer token for later.
 #[tauri::command]
-pub fn approval_decide(state: State<Arc<AppState>>, approval_id: String, decision: String) -> Result<(), String> {
-    // C-2: the state machine lives in db::approval_decide (OPEN → APPROVED|
-    // REJECTED, atomic, enumerated, errors on repeat/unknown). The guard layer
-    // (guard::approval_decide) authorizes the call before it reaches here.
-    db::approval_decide(&*lock_db(&state)?, &approval_id, &decision)
+pub fn approval_authorize(app: tauri::AppHandle, state: State<Arc<AppState>>, approval_id: String, decision: String) -> Result<Value, String> {
+    if decision != "APPROVED" && decision != "REJECTED" {
+        return Err(format!("approval_authorize: decision must be APPROVED or REJECTED (got {decision:?})"));
+    }
+    let (status, summary, requested_by, authority) = {
+        let conn = lock_db(&state)?;
+        match db::approval_open_info(&conn, &approval_id).map_err(|e| e.to_string())? {
+            None => return Err(format!("approval {approval_id} does not exist — nothing to authorize.")),
+            Some(info) => info,
+        }
+    };
+    if status != "OPEN" {
+        return Err(format!(
+            "approval {approval_id} is not OPEN (current status {status}) — nothing to authorize; a decision already happened."
+        ));
+    }
+    let verdict_word = if decision == "APPROVED" { "APPROVE this" } else { "REFUSE this" };
+    let ok_label = if decision == "APPROVED" { "Approve" } else { "Refuse" };
+    let confirmed = app
+        .dialog()
+        .message(format!(
+            "{summary}\n\nRequester: {requested_by}\nRequired authority: {authority}\nVerdict if you confirm: {decision}\n\n{verdict_word}? Cancel mints nothing and decides nothing."
+        ))
+        .title("SelfImpulse — human approval gate")
+        .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(ok_label, "Cancel"))
+        .blocking_show();
+    if !confirmed {
+        return Err(format!(
+            "approval {approval_id}: declined at the native dialog — no capability was minted and no decision was recorded."
+        ));
+    }
+    let ttl = 300; // seconds — the decision it binds should land immediately after the dialog
+    db::approval_mint_capability(&*lock_db(&state)?, &approval_id, decision, ttl)
+}
+#[tauri::command]
+pub fn approval_decide(state: State<Arc<AppState>>, approval_id: String, decision: String, capability: String) -> Result<(), String> {
+    // C-2, archive 4: the state machine AND the actor both live in
+    // db::approval_decide — capability ownership, freshness and verdict scope
+    // are proven before the atomic OPEN→decided transition, and the guard
+    // layer (guard::approval_decide) authorizes the call before it reaches here.
+    db::approval_decide(&*lock_db(&state)?, &approval_id, &decision, &capability)
 }
 
 #[tauri::command]

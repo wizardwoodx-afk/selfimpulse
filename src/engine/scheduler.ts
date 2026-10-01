@@ -256,7 +256,7 @@ export async function runWorkflow(graph: WorkflowGraph): Promise<string> {
     if (node.definitionId === "control.approval") {
       store.setNodeStatus(id, "waiting");
       await emit("NODE_WAITING", "INFO", id, { reason: "human-approval" });
-      await ipc.approvalRequest(execId, `${store.workflowId}:${id}`, `Approve output of ${node.title}`, collected);
+      await ipc.approvalRequest(execId, `${store.workflowId}:${id}`, `Approve output of ${node.title}`, collected, `workflow:${store.workflowId}`);
       let decided = false;
       for (let i = 0; i < 600 && !ctl.cancelled; i++) {
         const st = (await ipc.approvalGet(execId, `${store.workflowId}:${id}`)) as { decided?: boolean; status?: string };

@@ -7,6 +7,7 @@ pub fn open(path: &Path) -> rusqlite::Result<Connection> {
     let conn = Connection::open(path)?;
     init(&conn)?;
     ensure_skill_usage_columns(&conn)?;
+    ensure_approval_authority_columns(&conn)?;
     Ok(conn)
 }
 
@@ -102,7 +103,14 @@ pub fn init(conn: &Connection) -> rusqlite::Result<()> {
             summary TEXT NOT NULL,
             payload_json TEXT NOT NULL,
             status TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            requested_by TEXT NOT NULL DEFAULT '',
+            authority TEXT NOT NULL DEFAULT 'human',
+            cap_hash TEXT NOT NULL DEFAULT '',
+            cap_expires_at INTEGER NOT NULL DEFAULT 0,
+            cap_decision TEXT NOT NULL DEFAULT '',
+            decided_by TEXT NOT NULL DEFAULT '',
+            decided_at TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS dlq (
             id TEXT PRIMARY KEY,
@@ -155,6 +163,32 @@ fn ensure_skill_usage_columns(conn: &Connection) -> rusqlite::Result<()> {
         conn.execute_batch(
             "ALTER TABLE skills ADD COLUMN use_count INTEGER NOT NULL DEFAULT 0;
              ALTER TABLE skills ADD COLUMN last_used_at TEXT;",
+        )?;
+    }
+    Ok(())
+}
+
+/// C-2 (security review of archive 4): approvals gained approver-authority
+/// binding — who asked, what authority may answer, and the one-time native
+/// capability that a decision must present. Existing databases get the same
+/// columns added in place, exactly like the skills migration above.
+fn ensure_approval_authority_columns(conn: &Connection) -> rusqlite::Result<()> {
+    let has: Option<i64> = conn
+        .query_row(
+            "SELECT 1 FROM pragma_table_info('approvals') WHERE name='requested_by'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()?;
+    if has.is_none() {
+        conn.execute_batch(
+            "ALTER TABLE approvals ADD COLUMN requested_by TEXT NOT NULL DEFAULT '';
+             ALTER TABLE approvals ADD COLUMN authority TEXT NOT NULL DEFAULT 'human';
+             ALTER TABLE approvals ADD COLUMN cap_hash TEXT NOT NULL DEFAULT '';
+             ALTER TABLE approvals ADD COLUMN cap_expires_at INTEGER NOT NULL DEFAULT 0;
+             ALTER TABLE approvals ADD COLUMN cap_decision TEXT NOT NULL DEFAULT '';
+             ALTER TABLE approvals ADD COLUMN decided_by TEXT NOT NULL DEFAULT '';
+             ALTER TABLE approvals ADD COLUMN decided_at TEXT NOT NULL DEFAULT '';",
         )?;
     }
     Ok(())
@@ -537,13 +571,16 @@ pub fn mcp_remove(conn: &Connection, id: &str) -> rusqlite::Result<()> {
     Ok(())
 }
 
-pub fn approval_request(conn: &Connection, execution_id: &str, node_key: &str, summary: &str, payload: &Value) -> rusqlite::Result<Value> {
+pub fn approval_request(conn: &Connection, execution_id: &str, node_key: &str, summary: &str, payload: &Value, requested_by: &str) -> rusqlite::Result<Value> {
     let id = nid("appr");
+    // C-2 (archive 4): the request is BOUND at birth — who asked (requested_by)
+    // and what authority may answer (authority, always `human` for native
+    // approvals). The decision later has to prove it came through that authority.
     conn.execute(
-        "INSERT INTO approvals (id,execution_id,node_key,summary,payload_json,status,created_at) VALUES (?1,?2,?3,?4,?5,'OPEN',?6)",
-        params![id, execution_id, node_key, summary, payload.to_string(), now()],
+        "INSERT INTO approvals (id,execution_id,node_key,summary,payload_json,status,created_at,requested_by,authority) VALUES (?1,?2,?3,?4,?5,'OPEN',?6,?7,'human')",
+        params![id, execution_id, node_key, summary, payload.to_string(), now(), requested_by],
     )?;
-    Ok(json!({ "id": id }))
+    Ok(json!({ "id": id, "requestedBy": requested_by, "authority": "human" }))
 }
 
 pub fn approval_get(conn: &Connection, execution_id: &str, node_key: &str) -> rusqlite::Result<Value> {
@@ -561,7 +598,9 @@ pub fn approval_get(conn: &Connection, execution_id: &str, node_key: &str) -> ru
 }
 
 pub fn approval_list(conn: &Connection) -> rusqlite::Result<Value> {
-    let mut stmt = conn.prepare("SELECT id,execution_id,node_key,summary,payload_json,status,created_at FROM approvals WHERE status='OPEN'")?;
+    // Capabilities are NEVER listed — they exist only as a hash in the row and
+    // as the one-time return value of approval_authorize (archive 4, C-2).
+    let mut stmt = conn.prepare("SELECT id,execution_id,node_key,summary,payload_json,status,created_at,requested_by,authority FROM approvals WHERE status='OPEN'")?;
     let rows = stmt.query_map([], |r| {
         Ok(json!({
             "id": r.get::<_, String>(0)?,
@@ -571,45 +610,152 @@ pub fn approval_list(conn: &Connection) -> rusqlite::Result<Value> {
             "payload": serde_json::from_str::<Value>(&r.get::<_, String>(4)?).unwrap_or(json!({})),
             "status": r.get::<_, String>(5)?,
             "createdAt": r.get::<_, String>(6)?,
+            "requestedBy": r.get::<_, String>(7)?,
+            "authority": r.get::<_, String>(8)?,
         }))
     })?;
     Ok(Value::Array(rows.filter_map(|r| r.ok()).collect()))
 }
 
-/* C-2 (security review of archive 3): these two decisions used to be bare
- * `UPDATE ... SET status=?` statements — no caller authority, no allowed-state
- * check, no existence check, repeatable at will. Approvals and evolution
- * candidates now move through an authority-checked transition:
+/// Snapshot for the native authorize dialog: (status, summary, requested_by, authority).
+pub fn approval_open_info(conn: &Connection, id: &str) -> rusqlite::Result<Option<(String, String, String, String)>> {
+    conn.query_row(
+        "SELECT status, summary, requested_by, authority FROM approvals WHERE id=?1",
+        [id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+    )
+    .optional()
+}
+
+fn cap_fingerprint(token: &str) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(token.as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn now_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// C-2 (archive 4) — THE NATIVE APPROVAL CAPABILITY.
+///
+/// Only this mint stores anything a later decision can present, and the only
+/// caller of this mint is `commands::approval_authorize`, which gates it on a
+/// native OS dialog the WebView cannot answer for itself. The row keeps the
+/// SHA-256 of the token (never the token), the freshness window, and the ONE
+/// verdict the capability is allowed to cast — so a capability minted while
+/// looking at an APPROVED dialog cannot later cast REJECTED, and vice versa.
+pub fn approval_mint_capability(conn: &Connection, id: &str, decision: &str, ttl_secs: i64) -> Result<Value, String> {
+    if decision != "APPROVED" && decision != "REJECTED" {
+        return Err(format!("approval_authorize: decision must be APPROVED or REJECTED (got {decision:?})"));
+    }
+    let status: Option<String> = conn
+        .query_row("SELECT status FROM approvals WHERE id=?1", [id], |r| r.get(0))
+        .optional()
+        .map_err(|e| e.to_string())?;
+    match status {
+        None => return Err(format!("approval {id} does not exist — no capability was minted.")),
+        Some(st) if st != "OPEN" => {
+            return Err(format!(
+                "approval {id} is not OPEN (current status {st}) — no capability is minted for a decision that already happened."
+            ))
+        }
+        _ => {}
+    }
+    let token = nid("cap");
+    let expires = now_unix().saturating_add(ttl_secs.max(60));
+    conn.execute(
+        "UPDATE approvals SET cap_hash=?2, cap_expires_at=?3, cap_decision=?4 WHERE id=?1 AND status='OPEN'",
+        params![id, cap_fingerprint(&token), expires, decision],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(json!({ "capability": token, "expiresAt": expires, "approvalId": id, "decision": decision }))
+}
+
+/* C-2, two rounds deep:
  *
- *   - the decision must be one of the enumerated states (typo != verdict),
- *   - the transition happens ONLY from the state it may leave (OPEN / PROPOSED),
- *     enforced inside the WHERE clause so check and write are one atomic
- *     statement — there is no read-then-write window to race,
- *   - moving a decided row again is an ERROR with the current status in words,
- *     never a silent second flip,
- *   - a unknown id is an error, never a silent no-op that reads as success.
+ * Archive 3 fixed the STATE MACHINE (enumerated decision, OPEN only, exactly
+ * once, unknown id errors — all still enforced below, still one atomic
+ * statement). Archive 4 closes the remaining hole the reviewer named: the
+ * transition proved the state, not the ACTOR. There was no approver identity,
+ * no scope, no freshness — any code that knew an id could drive the machine.
+ *
+ * A decision now presents the native approval capability minted by
+ * `approval_mint_capability` (only reachable through the OS dialog in
+ * `approval_authorize`), and this function proves, before the UPDATE:
+ *
+ *   - the token was minted FOR THIS approval (hash match — a token minted for
+ *     any other request is a confused-approver and is refused),
+ *   - it is still fresh (inside its expiry window),
+ *   - it casts exactly THIS verdict (a dialog seen for APPROVED cannot cast
+ *     REJECTED),
+ *   - and it is single-use: the transition clears it, so replay after the
+ *     decision lands on the not-OPEN guard like any other second flip.
  */
-pub fn approval_decide(conn: &Connection, id: &str, decision: &str) -> Result<(), String> {
+pub fn approval_decide(conn: &Connection, id: &str, decision: &str, capability: &str) -> Result<(), String> {
     if decision != "APPROVED" && decision != "REJECTED" {
         return Err(format!(
             "approval_decide: decision must be APPROVED or REJECTED (got {decision:?})"
         ));
     }
+    if capability.trim().is_empty() {
+        return Err(format!(
+            "approval {id}: no capability presented — a decision must first pass approval_authorize, where a human answers the native dialog. Requester code cannot decide its own request."
+        ));
+    }
+    let row: Option<(String, String, i64, String)> = conn
+        .query_row(
+            "SELECT status, cap_hash, cap_expires_at, cap_decision FROM approvals WHERE id=?1",
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let (status, cap_hash, cap_expires_at, cap_decision) = match row {
+        None => return Err(format!("approval {id} does not exist — nothing was changed.")),
+        Some(r) => r,
+    };
+    if status != "OPEN" {
+        return Err(format!(
+            "approval {id} is not OPEN (current status {status}) — a decision is final; an approval moves exactly once, from OPEN to APPROVED or REJECTED."
+        ));
+    }
+    if cap_hash.is_empty() {
+        return Err(format!(
+            "approval {id} has no live capability — call approval_authorize first; the human's answer at the native dialog is what makes a decision legitimate."
+        ));
+    }
+    if cap_fingerprint(capability) != cap_hash {
+        return Err(format!(
+            "capability does not belong to approval {id} — it was minted for a different request (confused-approver refused)."
+        ));
+    }
+    if now_unix() > cap_expires_at {
+        return Err(format!(
+            "capability for approval {id} expired (freshness window closed at unix {cap_expires_at}) — return to approval_authorize for a fresh answer."
+        ));
+    }
+    if cap_decision != decision {
+        return Err(format!(
+            "capability for approval {id} was minted for {cap_decision}; it cannot cast {decision}. Re-open approval_authorize and let the human pick this verdict explicitly."
+        ));
+    }
     let changed = conn
         .execute(
-            "UPDATE approvals SET status=?2 WHERE id=?1 AND status='OPEN'",
-            params![id, decision],
+            "UPDATE approvals SET status=?2, decided_by='human:dialog', decided_at=?3, cap_hash='', cap_expires_at=0, cap_decision='' WHERE id=?1 AND status='OPEN'",
+            params![id, decision, now()],
         )
         .map_err(|e| e.to_string())?;
     if changed == 0 {
-        let existing: Option<String> = conn
+        // A racing second decision consumed the row between our check and the write.
+        let st: Option<String> = conn
             .query_row("SELECT status FROM approvals WHERE id=?1", [id], |r| r.get(0))
             .optional()
             .map_err(|e| e.to_string())?;
-        return Err(match existing {
-            Some(st) => format!(
-                "approval {id} is not OPEN (current status {st}) — a decision is final; an approval moves exactly once, from OPEN to APPROVED or REJECTED."
-            ),
+        return Err(match st {
+            Some(st) => format!("approval {id} is not OPEN (current status {st}) — another decision landed first."),
             None => format!("approval {id} does not exist — nothing was changed."),
         });
     }
@@ -811,70 +957,167 @@ pub fn suite_list(conn: &Connection) -> rusqlite::Result<Value> {
  * ────────────────────────────────────────────────────────────────────────── */
 #[cfg(test)]
 mod c2_decision_transition_tests {
-    use super::{approval_decide, evolution_decide, Connection};
+    use super::{approval_decide, approval_mint_capability, approval_request, ensure_approval_authority_columns, evolution_decide, Connection};
 
+    /// The SHIPPED schema (init), not a hand-rolled copy: the code that runs
+    /// in production is the code these tests exercise.
     fn approvals_db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch(
-            "CREATE TABLE approvals (id TEXT PRIMARY KEY, execution_id TEXT NOT NULL, node_key TEXT NOT NULL,
-             summary TEXT NOT NULL, payload_json TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL);
-             INSERT INTO approvals VALUES ('ap1','ex1','n1','s','{}','OPEN','t1');
-             INSERT INTO approvals VALUES ('ap2','ex1','n1','s','{}','OPEN','t1');",
+        super::init(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO approvals (id,execution_id,node_key,summary,payload_json,status,created_at) VALUES ('ap1','ex1','n1','s','{}','OPEN','t1')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO approvals (id,execution_id,node_key,summary,payload_json,status,created_at) VALUES ('ap2','ex1','n2','s','{}','OPEN','t1')",
+            [],
         )
         .unwrap();
         conn
     }
 
-    fn evolution_db() -> Connection {
-        let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch(
-            "CREATE TABLE evolution (id TEXT PRIMARY KEY, node_key TEXT NOT NULL, payload_json TEXT NOT NULL,
-             decision TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, decided_at TEXT);
-             INSERT INTO evolution VALUES ('ev1','n1','{}','PENDING','PROPOSED','t1',NULL);",
-        )
-        .unwrap();
-        conn
+    /// Mint through the same function the native dialog path uses.
+    fn mint(conn: &Connection, id: &str, decision: &str) -> String {
+        let v = approval_mint_capability(conn, id, decision, 300).unwrap();
+        v["capability"].as_str().unwrap().to_string()
     }
 
     #[test]
-    fn open_approval_decides_once() {
+    fn request_binds_requester_and_required_authority() {
         let conn = approvals_db();
-        assert!(approval_decide(&conn, "ap1", "APPROVED").is_ok());
-        let st: String = conn
-            .query_row("SELECT status FROM approvals WHERE id='ap1'", [], |r| r.get(0))
+        let v = approval_request(&conn, "ex9", "wf:node1", "ship it", &serde_json::json!({}), "workflow:wf1").unwrap();
+        assert_eq!(v["requestedBy"], "workflow:wf1");
+        assert_eq!(v["authority"], "human");
+        let (req, auth): (String, String) = conn
+            .query_row(
+                "SELECT requested_by, authority FROM approvals WHERE id=?1",
+                [v["id"].as_str().unwrap()],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!((req.as_str(), auth.as_str()), ("workflow:wf1", "human"));
+    }
+
+    #[test]
+    fn decide_without_capability_is_refused() {
+        let conn = approvals_db();
+        let err = approval_decide(&conn, "ap1", "APPROVED", "").unwrap_err();
+        assert!(err.contains("no capability"), "must demand the capability: {err}");
+        assert_eq!(
+            conn.query_row("SELECT status FROM approvals WHERE id='ap1'", [], |r| r.get::<_, String>(0)).unwrap(),
+            "OPEN"
+        );
+    }
+
+    #[test]
+    fn decide_with_fresh_capability_lands_once() {
+        let conn = approvals_db();
+        let cap = mint(&conn, "ap1", "APPROVED");
+        assert!(approval_decide(&conn, "ap1", "APPROVED", &cap).is_ok());
+        let (st, by, hash): (String, String, String) = conn
+            .query_row("SELECT status, decided_by, cap_hash FROM approvals WHERE id='ap1'", [], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            })
             .unwrap();
         assert_eq!(st, "APPROVED");
+        assert_eq!(by, "human:dialog", "the decision must record HOW it was authorized");
+        assert_eq!(hash, "", "the capability must be consumed (single-use)");
+        // replay of the same capability lands on the not-OPEN guard
+        let err = approval_decide(&conn, "ap1", "APPROVED", &cap).unwrap_err();
+        assert!(err.contains("not OPEN"), "replay must be a second-flip error: {err}");
     }
 
     #[test]
-    fn decided_approval_cannot_flip_again() {
+    fn foreign_capability_is_a_confused_approver() {
         let conn = approvals_db();
-        approval_decide(&conn, "ap1", "APPROVED").unwrap();
-        let err = approval_decide(&conn, "ap1", "REJECTED").unwrap_err();
-        assert!(err.contains("not OPEN"), "must say why: {err}");
-        let st: String = conn
-            .query_row("SELECT status FROM approvals WHERE id='ap1'", [], |r| r.get(0))
-            .unwrap();
-        assert_eq!(st, "APPROVED", "second attempt must not overwrite");
+        let cap = mint(&conn, "ap2", "APPROVED"); // minted against ap2
+        let err = approval_decide(&conn, "ap1", "APPROVED", &cap).unwrap_err();
+        assert!(err.contains("does not belong"), "cross-approval use must be refused: {err}");
+        let st: String = conn.query_row("SELECT status FROM approvals WHERE id='ap1'", [], |r| r.get(0)).unwrap();
+        assert_eq!(st, "OPEN");
+    }
+
+    #[test]
+    fn capability_cannot_cast_the_other_verdict() {
+        let conn = approvals_db();
+        let cap = mint(&conn, "ap1", "APPROVED"); // human saw the APPROVED dialog
+        let err = approval_decide(&conn, "ap1", "REJECTED", &cap).unwrap_err();
+        assert!(err.contains("minted for APPROVED"), "scope must bind the verdict: {err}");
+        assert!(approval_decide(&conn, "ap1", "APPROVED", &cap).is_ok());
+    }
+
+    #[test]
+    fn expired_capability_is_refused() {
+        let conn = approvals_db();
+        let cap = mint(&conn, "ap1", "APPROVED");
+        conn.execute("UPDATE approvals SET cap_expires_at=1 WHERE id='ap1'", []).unwrap(); // window long closed
+        let err = approval_decide(&conn, "ap1", "APPROVED", &cap).unwrap_err();
+        assert!(err.contains("expired"), "freshness must be enforced: {err}");
+        assert_eq!(
+            conn.query_row("SELECT status FROM approvals WHERE id='ap1'", [], |r| r.get::<_, String>(0)).unwrap(),
+            "OPEN"
+        );
     }
 
     #[test]
     fn decision_must_be_enumerated() {
         let conn = approvals_db();
-        assert!(approval_decide(&conn, "ap1", "MAYBE").is_err());
-        assert!(approval_decide(&conn, "ap1", "approved").is_err(), "typo != verdict");
+        assert!(approval_mint_capability(&conn, "ap1", "MAYBE", 300).is_err());
+        assert!(approval_mint_capability(&conn, "ap1", "approved", 300).is_err(), "typo != verdict");
+        assert!(approval_decide(&conn, "ap1", "MAYBE", "whatever").is_err());
     }
 
     #[test]
-    fn unknown_approval_errors_instead_of_silent_success() {
+    fn unknown_ids_error_everywhere() {
         let conn = approvals_db();
-        let err = approval_decide(&conn, "nope", "APPROVED").unwrap_err();
+        let err = approval_mint_capability(&conn, "ghost", "APPROVED", 300).unwrap_err();
+        assert!(err.contains("does not exist"), "{err}");
+        let err = approval_decide(&conn, "ghost", "APPROVED", "cap_x").unwrap_err();
         assert!(err.contains("does not exist"), "must say the id is unknown: {err}");
     }
 
     #[test]
+    fn minting_against_a_decided_approval_is_refused() {
+        let conn = approvals_db();
+        let cap = mint(&conn, "ap1", "APPROVED");
+        approval_decide(&conn, "ap1", "APPROVED", &cap).unwrap();
+        let err = approval_mint_capability(&conn, "ap1", "REJECTED", 300).unwrap_err();
+        assert!(err.contains("not OPEN"), "{err}");
+    }
+
+    #[test]
+    fn existing_databases_gain_the_authority_columns() {
+        let conn = Connection::open_in_memory().unwrap();
+        // the archive-3 shape: seven columns, no authority material at all
+        conn.execute_batch(
+            "CREATE TABLE approvals (id TEXT PRIMARY KEY, execution_id TEXT NOT NULL, node_key TEXT NOT NULL,
+             summary TEXT NOT NULL, payload_json TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL);
+             INSERT INTO approvals VALUES ('ap1','ex1','n1','s','{}','OPEN','t1');",
+        )
+        .unwrap();
+        ensure_approval_authority_columns(&conn).unwrap();
+        let cols: Vec<String> = {
+            let mut st = conn.prepare("SELECT name FROM pragma_table_info('approvals')").unwrap();
+            st.query_map([], |r| r.get(0)).unwrap().filter_map(|r| r.ok()).collect()
+        };
+        for want in ["requested_by", "authority", "cap_hash", "cap_expires_at", "cap_decision", "decided_by", "decided_at"] {
+            assert!(cols.iter().any(|c| c == want), "missing column {want}");
+        }
+        // and a decision without a capability on the migrated row is still refused
+        let err = approval_decide(&conn, "ap1", "APPROVED", "").unwrap_err();
+        assert!(err.contains("no capability"), "{err}");
+    }
+
+    #[test]
     fn evolution_decides_only_from_proposed() {
-        let conn = evolution_db();
+        let conn = Connection::open_in_memory().unwrap();
+        super::init(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO evolution (id,node_key,payload_json,decision,status,created_at) VALUES ('ev1','n1','{}','PENDING','PROPOSED','t1')",
+            [],
+        )
+        .unwrap();
         assert!(evolution_decide(&conn, "ev1", "ACCEPTED").is_ok());
         let err = evolution_decide(&conn, "ev1", "REJECTED").unwrap_err();
         assert!(err.contains("not PROPOSED"), "must say why: {err}");

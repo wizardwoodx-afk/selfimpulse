@@ -179,6 +179,7 @@ pub fn run() {
             commands::approval_get,
             commands::approval_list,
             guard::approval_decide,
+            guard::approval_authorize,
             commands::execution_create,
             commands::execution_finish,
             commands::event_emit,

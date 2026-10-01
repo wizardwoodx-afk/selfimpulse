@@ -67,6 +67,7 @@ interface NativeCommands {
   a2a_host_status: Record<string, unknown>;
   a2a_host_stop: Record<string, unknown>;
   app_info: Record<string, unknown>;
+  approval_authorize: Json;
   approval_decide: null;
   approval_get: Json;
   approval_list: Json;
@@ -565,9 +566,9 @@ export const ipc = {
     if (useTauri()) return tauriInvoke("evolution_rollback", { candidateId, restoreRolePrompt: restoreRolePrompt ?? null });
   },
 
-  approvalRequest: async (executionId: string, nodeKey: string, summary: string, payload: Record<string, unknown>) => {
-    if (useTauri()) return tauriInvoke("approval_request", { executionId, nodeKey, summary, payload });
-    return localDb.approvalRequest(executionId, nodeKey, summary, payload);
+  approvalRequest: async (executionId: string, nodeKey: string, summary: string, payload: Record<string, unknown>, requestedBy?: string) => {
+    if (useTauri()) return tauriInvoke("approval_request", { executionId, nodeKey, summary, payload, requestedBy: requestedBy ?? null });
+    return localDb.approvalRequest(executionId, nodeKey, summary, payload, requestedBy);
   },
   approvalGet: async (executionId: string, nodeKey: string) => {
     if (useTauri()) return tauriInvoke("approval_get", { executionId, nodeKey });
@@ -577,9 +578,16 @@ export const ipc = {
     if (useTauri()) return tauriInvoke("approval_list");
     return localDb.approvalList();
   },
-  approvalDecide: async (approvalId: string, decision: "APPROVED" | "REJECTED") => {
-    if (useTauri()) return tauriInvoke("approval_decide", { approvalId, decision });
-    localDb.approvalDecide(approvalId, decision);
+  /** C-2 (archive 4): mint the decision capability — native OS dialog in the
+   *  desktop app, an interactive confirm in the web mirror. The token it
+   *  returns is the ONLY thing approvalDecide will accept. */
+  approvalAuthorize: async (approvalId: string, decision: "APPROVED" | "REJECTED") => {
+    if (useTauri()) return tauriInvoke("approval_authorize", { approvalId, decision });
+    return localDb.approvalAuthorize(approvalId, decision);
+  },
+  approvalDecide: async (approvalId: string, decision: "APPROVED" | "REJECTED", capability: string) => {
+    if (useTauri()) return tauriInvoke("approval_decide", { approvalId, decision, capability });
+    localDb.approvalDecide(approvalId, decision, capability);
   },
 
   executionCreate: async (workflowId: string, workflowVersion: number) => {
