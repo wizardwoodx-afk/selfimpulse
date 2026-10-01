@@ -335,14 +335,19 @@ export const localDb = {
     return { id: rec.id };
   },
   evolutionDecide(id: string, decision: "ACCEPTED" | "REJECTED") {
+    // C-2 mirror of db.rs: DECIDED exactly once, only from PROPOSED, unknown
+    // ids error instead of silently reporting success.
     const db = load();
     const c = db.evolution.find((x) => x.id === id);
-    if (c) {
-      c.decision = decision;
-      c.status = "DECIDED";
-      c.decidedAt = nowIso();
-      save(db);
-    }
+    if (!c) throw new Error(`evolution candidate ${id} does not exist — nothing was changed.`);
+    if (c.status !== "PROPOSED")
+      throw new Error(
+        `evolution candidate ${id} is not PROPOSED (current status ${c.status}) — it moves exactly once, from PROPOSED to DECIDED.`,
+      );
+    c.decision = decision;
+    c.status = "DECIDED";
+    c.decidedAt = nowIso();
+    save(db);
     return { ok: true };
   },
 
@@ -358,12 +363,16 @@ export const localDb = {
     return { id: rec.id };
   },
   approvalDecide(id: string, decision: "APPROVED" | "REJECTED") {
+    // C-2 mirror of db.rs: a decision lands exactly once, on an OPEN approval.
     const db = load();
     const a = db.approvals.find((x) => x.id === id);
-    if (a) {
-      a.status = decision;
-      save(db);
-    }
+    if (!a) throw new Error(`approval ${id} does not exist — nothing was changed.`);
+    if (a.status !== "OPEN")
+      throw new Error(
+        `approval ${id} is not OPEN (current status ${a.status}) — a decision is final; an approval moves exactly once, from OPEN to APPROVED or REJECTED.`,
+      );
+    a.status = decision;
+    save(db);
   },
   approvalGet(executionId: string, nodeKey: string) {
     const a = load().approvals.find((x) => x.executionId === executionId && x.nodeKey === nodeKey && x.status !== "OPEN");

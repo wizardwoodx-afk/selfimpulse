@@ -77,7 +77,8 @@ ok("the echo stub of V5 is documented as history, not present as code", !/"echoe
 
 section("5. the new commands are registered in the Tauri handler");
 for (const cmd of ["control_disconnect_ports", "control_list_nodes", "control_run_workflow"]) {
-  ok(`${cmd} exists and is registered`, commands.includes(`pub fn ${cmd}`) && lib.includes(`commands::${cmd},`));
+  // C-1: privileged commands are (re)registered from guard:: — either home counts as registered.
+  ok(`${cmd} exists and is registered`, commands.includes(`pub fn ${cmd}`) && (lib.includes(`commands::${cmd},`) || lib.includes(`guard::${cmd},`)));
 }
 ok("mcp.rs derives its honest count from the same tables", mcp.includes("IMPLEMENTED_TOOLS.len()") && mcp.includes("notImplementedTools"));
 

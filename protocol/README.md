@@ -42,7 +42,7 @@ policy-governed, revocable selfimpulse on any selfimpulse.
 - Zero npm dependencies (node builtins only).
 
 ```bash
-node protocol/bridge/bridge-selftest.mjs   # 🏆 17 checks, zero install
+node protocol/bridge/bridge-selftest.mjs   # 🏆 18 checks, zero install
 ```
 
 ## Running

@@ -450,21 +450,44 @@ pub fn evolution_list(conn: &Connection, node_key: Option<&str>) -> rusqlite::Re
     Ok(Value::Array(out))
 }
 
-pub fn evolution_decide(conn: &Connection, id: &str, decision: &str) -> rusqlite::Result<Value> {
+/* C-2: authority-checked transition — DECIDED only from PROPOSED, exactly once.
+   (Same review as approval_decide below.) */
+pub fn evolution_decide(conn: &Connection, id: &str, decision: &str) -> Result<Value, String> {
+    if decision != "ACCEPTED" && decision != "REJECTED" {
+        return Err(format!(
+            "evolution_decide: decision must be ACCEPTED or REJECTED (got {decision:?})"
+        ));
+    }
     let ts = now();
-    conn.execute(
-        "UPDATE evolution SET decision=?2, status='DECIDED', decided_at=?3 WHERE id=?1",
-        params![id, decision, ts],
-    )?;
+    let changed = conn
+        .execute(
+            "UPDATE evolution SET decision=?2, status='DECIDED', decided_at=?3 WHERE id=?1 AND status='PROPOSED'",
+            params![id, decision, ts],
+        )
+        .map_err(|e| e.to_string())?;
+    if changed == 0 {
+        let existing: Option<String> = conn
+            .query_row("SELECT status FROM evolution WHERE id=?1", [id], |r| r.get(0))
+            .optional()
+            .map_err(|e| e.to_string())?;
+        return Err(match existing {
+            Some(st) => format!(
+                "evolution candidate {id} is not PROPOSED (current status {st}) — it moves exactly once, from PROPOSED to DECIDED."
+            ),
+            None => format!("evolution candidate {id} does not exist — nothing was changed."),
+        });
+    }
     let payload: Option<String> = conn
         .query_row("SELECT payload_json FROM evolution WHERE id=?1", [id], |r| r.get(0))
-        .optional()?;
+        .optional()
+        .map_err(|e| e.to_string())?;
     if let Some(p) = payload {
         if let Ok(mut v) = serde_json::from_str::<Value>(&p) {
             v["decision"] = json!(decision);
             v["status"] = json!("DECIDED");
             v["decidedAt"] = json!(ts);
-            conn.execute("UPDATE evolution SET payload_json=?2 WHERE id=?1", params![id, v.to_string()])?;
+            conn.execute("UPDATE evolution SET payload_json=?2 WHERE id=?1", params![id, v.to_string()])
+                .map_err(|e| e.to_string())?;
         }
     }
     Ok(json!({ "ok": true }))
@@ -553,8 +576,43 @@ pub fn approval_list(conn: &Connection) -> rusqlite::Result<Value> {
     Ok(Value::Array(rows.filter_map(|r| r.ok()).collect()))
 }
 
-pub fn approval_decide(conn: &Connection, id: &str, decision: &str) -> rusqlite::Result<()> {
-    conn.execute("UPDATE approvals SET status=?2 WHERE id=?1", params![id, decision])?;
+/* C-2 (security review of archive 3): these two decisions used to be bare
+ * `UPDATE ... SET status=?` statements — no caller authority, no allowed-state
+ * check, no existence check, repeatable at will. Approvals and evolution
+ * candidates now move through an authority-checked transition:
+ *
+ *   - the decision must be one of the enumerated states (typo != verdict),
+ *   - the transition happens ONLY from the state it may leave (OPEN / PROPOSED),
+ *     enforced inside the WHERE clause so check and write are one atomic
+ *     statement — there is no read-then-write window to race,
+ *   - moving a decided row again is an ERROR with the current status in words,
+ *     never a silent second flip,
+ *   - a unknown id is an error, never a silent no-op that reads as success.
+ */
+pub fn approval_decide(conn: &Connection, id: &str, decision: &str) -> Result<(), String> {
+    if decision != "APPROVED" && decision != "REJECTED" {
+        return Err(format!(
+            "approval_decide: decision must be APPROVED or REJECTED (got {decision:?})"
+        ));
+    }
+    let changed = conn
+        .execute(
+            "UPDATE approvals SET status=?2 WHERE id=?1 AND status='OPEN'",
+            params![id, decision],
+        )
+        .map_err(|e| e.to_string())?;
+    if changed == 0 {
+        let existing: Option<String> = conn
+            .query_row("SELECT status FROM approvals WHERE id=?1", [id], |r| r.get(0))
+            .optional()
+            .map_err(|e| e.to_string())?;
+        return Err(match existing {
+            Some(st) => format!(
+                "approval {id} is not OPEN (current status {st}) — a decision is final; an approval moves exactly once, from OPEN to APPROVED or REJECTED."
+            ),
+            None => format!("approval {id} does not exist — nothing was changed."),
+        });
+    }
     Ok(())
 }
 
@@ -742,4 +800,85 @@ pub fn suite_list(conn: &Connection) -> rusqlite::Result<Value> {
         out.push(row?);
     }
     Ok(Value::Array(out))
+}
+
+/* ── C-2 regression tests (security review of archive 3) ────────────────────
+ * approval_decide / evolution_decide used to be unconditional UPDATEs. These
+ * pin the authority-checked transition: enumerated decisions, OPEN/PROPOSED
+ * only, exactly once, unknown ids error instead of silently succeeding.
+ *
+ *   cargo test c2_
+ * ────────────────────────────────────────────────────────────────────────── */
+#[cfg(test)]
+mod c2_decision_transition_tests {
+    use super::{approval_decide, evolution_decide, Connection};
+
+    fn approvals_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE approvals (id TEXT PRIMARY KEY, execution_id TEXT NOT NULL, node_key TEXT NOT NULL,
+             summary TEXT NOT NULL, payload_json TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL);
+             INSERT INTO approvals VALUES ('ap1','ex1','n1','s','{}','OPEN','t1');
+             INSERT INTO approvals VALUES ('ap2','ex1','n1','s','{}','OPEN','t1');",
+        )
+        .unwrap();
+        conn
+    }
+
+    fn evolution_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE evolution (id TEXT PRIMARY KEY, node_key TEXT NOT NULL, payload_json TEXT NOT NULL,
+             decision TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, decided_at TEXT);
+             INSERT INTO evolution VALUES ('ev1','n1','{}','PENDING','PROPOSED','t1',NULL);",
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn open_approval_decides_once() {
+        let conn = approvals_db();
+        assert!(approval_decide(&conn, "ap1", "APPROVED").is_ok());
+        let st: String = conn
+            .query_row("SELECT status FROM approvals WHERE id='ap1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(st, "APPROVED");
+    }
+
+    #[test]
+    fn decided_approval_cannot_flip_again() {
+        let conn = approvals_db();
+        approval_decide(&conn, "ap1", "APPROVED").unwrap();
+        let err = approval_decide(&conn, "ap1", "REJECTED").unwrap_err();
+        assert!(err.contains("not OPEN"), "must say why: {err}");
+        let st: String = conn
+            .query_row("SELECT status FROM approvals WHERE id='ap1'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(st, "APPROVED", "second attempt must not overwrite");
+    }
+
+    #[test]
+    fn decision_must_be_enumerated() {
+        let conn = approvals_db();
+        assert!(approval_decide(&conn, "ap1", "MAYBE").is_err());
+        assert!(approval_decide(&conn, "ap1", "approved").is_err(), "typo != verdict");
+    }
+
+    #[test]
+    fn unknown_approval_errors_instead_of_silent_success() {
+        let conn = approvals_db();
+        let err = approval_decide(&conn, "nope", "APPROVED").unwrap_err();
+        assert!(err.contains("does not exist"), "must say the id is unknown: {err}");
+    }
+
+    #[test]
+    fn evolution_decides_only_from_proposed() {
+        let conn = evolution_db();
+        assert!(evolution_decide(&conn, "ev1", "ACCEPTED").is_ok());
+        let err = evolution_decide(&conn, "ev1", "REJECTED").unwrap_err();
+        assert!(err.contains("not PROPOSED"), "must say why: {err}");
+        assert!(evolution_decide(&conn, "ev1", "whenever").is_err());
+        assert!(evolution_decide(&conn, "ghost", "ACCEPTED").is_err());
+    }
 }

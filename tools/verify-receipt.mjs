@@ -91,7 +91,16 @@ function verify(rc) {
     prev = hash;
   }
   if (hmacHex(prev, rc.format) !== rc.seal) return { ok: false, reason: "seal mismatch" };
-  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  /* C-4 — mirror of receipts.ts verifyProofReceipt: the current format is
+     issuer-signed or it is not valid. The old `&& rc.signature` guard let a
+     stripped signature pass. Legacy mj-* verify unsigned as before. */
+  if (rc.format === "si-proof-receipt/2" && !rc.signature) {
+    return {
+      ok: false,
+      reason: `receipt carries no issuer signature${rc.signatureNote ? ` (${rc.signatureNote})` : ""}. For si-proof-receipt/2 an issuer signature is required: without it the chain attests only tamper-evidence against anyone who knows the published seal secret, not authorship.`,
+    };
+  }
+  if (rc.signature) {
     if (!rc.issuer?.publicKeyHex) return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const spki = Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(rc.issuer.publicKeyHex, "hex")]);
     const ok = crypto.verify(

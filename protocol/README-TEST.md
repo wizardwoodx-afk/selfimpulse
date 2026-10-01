@@ -46,7 +46,7 @@ trust a restatement of it anywhere else (including release notes).
 ## 4 · The bridge gate — genuinely zero-install
 
 ```bash
-node protocol/bridge/bridge-selftest.mjs      # → 17 checks, no dependencies
+node protocol/bridge/bridge-selftest.mjs      # → 18 checks, no dependencies
 ```
 
 Run it from the archive root. It needs no `npm install` at all — that is the

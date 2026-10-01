@@ -86,7 +86,16 @@ const vg = verifyReceiptChain(badSig);
 check("bad issuer signature detected", !vg.ok && /issuer signature/.test(vg.reason));
 
 const sealOnly = buildReceipt(baseEvents, { sign: false });
-check("seal-only receipt verifies as unsigned", verifyReceiptChain(sealOnly).ok === true);
+/* C-4 (review of archive 3): this used to assert the OPPOSITE — that a
+   current-format receipt without a signature verifies. The canonical verifier
+   (src/mission/receipts.ts) refuses exactly that; the bridge now does too. */
+const vsa = verifyReceiptChain(sealOnly);
+check("unsigned si-proof-receipt/2 refused (canonical parity)", !vsa.ok && /issuer signature/.test(vsa.reason ?? ""));
+
+const legacyUnsigned = { ...buildReceipt(baseEvents, { sign: false }), format: "mj-proof-receipt/1" };
+legacyUnsigned.seal = crypto.createHmac("sha256", "mj-commercial-v1-offline")
+  .update(legacyUnsigned.events[legacyUnsigned.events.length - 1].hash, "utf8").digest("hex");
+check("legacy mj-proof-receipt/1 still verifies unsigned", verifyReceiptChain(legacyUnsigned).ok === true);
 
 console.log("\n── anchoring into the selfimpulse chain ──");
 const anchor = generateBridgeIdentity("patina-agent");

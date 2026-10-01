@@ -242656,12 +242656,15 @@ var init_localDb = __esm({
       evolutionDecide(id, decision) {
         const db = load3();
         const c3 = db.evolution.find((x3) => x3.id === id);
-        if (c3) {
-          c3.decision = decision;
-          c3.status = "DECIDED";
-          c3.decidedAt = nowIso();
-          save3(db);
-        }
+        if (!c3) throw new Error(`evolution candidate ${id} does not exist \u2014 nothing was changed.`);
+        if (c3.status !== "PROPOSED")
+          throw new Error(
+            `evolution candidate ${id} is not PROPOSED (current status ${c3.status}) \u2014 it moves exactly once, from PROPOSED to DECIDED.`
+          );
+        c3.decision = decision;
+        c3.status = "DECIDED";
+        c3.decidedAt = nowIso();
+        save3(db);
         return { ok: true };
       },
       approvalList() {
@@ -242678,10 +242681,13 @@ var init_localDb = __esm({
       approvalDecide(id, decision) {
         const db = load3();
         const a3 = db.approvals.find((x3) => x3.id === id);
-        if (a3) {
-          a3.status = decision;
-          save3(db);
-        }
+        if (!a3) throw new Error(`approval ${id} does not exist \u2014 nothing was changed.`);
+        if (a3.status !== "OPEN")
+          throw new Error(
+            `approval ${id} is not OPEN (current status ${a3.status}) \u2014 a decision is final; an approval moves exactly once, from OPEN to APPROVED or REJECTED.`
+          );
+        a3.status = decision;
+        save3(db);
       },
       approvalGet(executionId, nodeKey) {
         const a3 = load3().approvals.find((x3) => x3.executionId === executionId && x3.nodeKey === nodeKey && x3.status !== "OPEN");

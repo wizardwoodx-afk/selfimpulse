@@ -234,12 +234,26 @@ pub fn evolution_list(state: State<Arc<AppState>>, node_key: Option<String>) -> 
 }
 #[tauri::command]
 pub fn evolution_decide(state: State<Arc<AppState>>, candidate_id: String, decision: String) -> Result<Value, String> {
-    db::evolution_decide(&*lock_db(&state)?, &candidate_id, &decision).map_err(|e| e.to_string())
+    db::evolution_decide(&*lock_db(&state)?, &candidate_id, &decision)
 }
 #[tauri::command]
 pub fn evolution_rollback(state: State<Arc<AppState>>, candidate_id: String, _restore_role_prompt: Option<Value>) -> Result<Value, String> {
+    // C-2: ROLLED_BACK is only reachable from DECIDED, exactly once, and a
+    // missing candidate is an error — not a silent UPDATE over any row.
     let conn = lock_db(&state)?;
-    conn.execute("UPDATE evolution SET status='ROLLED_BACK' WHERE id=?1", [&candidate_id]).map_err(|e| e.to_string())?;
+    let changed = conn
+        .execute("UPDATE evolution SET status='ROLLED_BACK' WHERE id=?1 AND status='DECIDED'", [&candidate_id])
+        .map_err(|e| e.to_string())?;
+    if changed == 0 {
+        let existing: Option<String> = conn
+            .query_row("SELECT status FROM evolution WHERE id=?1", [&candidate_id], |r| r.get(0))
+            .optional()
+            .map_err(|e| e.to_string())?;
+        return Err(match existing {
+            Some(st) => format!("evolution candidate {candidate_id} is not DECIDED (current status {st}) — it can only be rolled back once, from DECIDED."),
+            None => format!("evolution candidate {candidate_id} does not exist — nothing was changed."),
+        });
+    }
     Ok(json!({ "ok": true }))
 }
 
@@ -257,7 +271,10 @@ pub fn approval_list(state: State<Arc<AppState>>) -> Result<Value, String> {
 }
 #[tauri::command]
 pub fn approval_decide(state: State<Arc<AppState>>, approval_id: String, decision: String) -> Result<(), String> {
-    db::approval_decide(&*lock_db(&state)?, &approval_id, &decision).map_err(|e| e.to_string())
+    // C-2: the state machine lives in db::approval_decide (OPEN → APPROVED|
+    // REJECTED, atomic, enumerated, errors on repeat/unknown). The guard layer
+    // (guard::approval_decide) authorizes the call before it reaches here.
+    db::approval_decide(&*lock_db(&state)?, &approval_id, &decision)
 }
 
 #[tauri::command]
@@ -793,11 +810,14 @@ fn refuse_uncontainable_root(root: &str) -> Option<String> {
     let path = PathBuf::from(&norm);
     let canon = std::fs::canonicalize(&path).unwrap_or(path.clone());
     let c = canon.to_string_lossy().to_ascii_lowercase();
-    let with_sep = format!("{}\\", c.trim_end_matches('\\'));
+    let comps = path_components_lower(&c);
 
     // A drive root (C:\, D:\, \\server\share) is the whole volume, not a folder.
-    let is_drive_root = canon.parent().is_none();
-    let is_unc_root = c.starts_with("\\\\") && c.matches('\\').count() <= 2;
+    let is_drive_root = comps.len() == 1 && comps[0].ends_with(':');
+    // UNC detection reads the RAW input too: normalize_path_str collapses
+    // `\\server\share` to `server/share`, so a lexical-only check on `c`
+    // never sees the leading double backslash at all (C-3 companion).
+    let is_unc_root = (c.starts_with("\\") || root.starts_with("\\")) && comps.len() <= 2;
     if is_drive_root || is_unc_root {
         return Some(format!(
             "\"{norm}\" is a filesystem/volume root. The workspace boundary would be the entire machine, so it is refused. Pick a project folder inside it instead."
@@ -820,7 +840,7 @@ fn refuse_uncontainable_root(root: &str) -> Option<String> {
         "c:\\system volume information",
     ];
     for bad in FORBIDDEN_EXACT {
-        if with_sep == *bad {
+        if comps == path_components_lower(bad) {
             return Some(format!(
                 "\"{norm}\" is a system directory. Registering it would put the agent outside anything the sandbox is meant to contain; refused."
             ));
@@ -829,8 +849,8 @@ fn refuse_uncontainable_root(root: &str) -> Option<String> {
 
     // Home itself, and the SSH/credential directories wherever the profile sits.
     if let Ok(profile) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
-        let p = normalize_path_str(&profile).to_ascii_lowercase();
-        if !p.is_empty() && with_sep == format!("{}\\", p.trim_end_matches('\\')) {
+        let p = path_components_lower(&profile);
+        if !p.is_empty() && comps == p {
             return Some(format!(
                 "\"{norm}\" is the whole user profile. Register the project folder inside it instead of the profile itself."
             ));
@@ -838,13 +858,40 @@ fn refuse_uncontainable_root(root: &str) -> Option<String> {
     }
     const CREDENTIAL_DIRS: &[&str] = &[".ssh", ".aws", ".gnupg", ".config\\gcloud", ".docker", ".kube", ".azure"];
     for seg in CREDENTIAL_DIRS {
-        if with_sep.ends_with(&format!("\\{seg}")) {
+        // Tail match on PATH COMPONENTS (C-3): `...\me\.ssh`, `...\me\.ssh\`,
+        // `...\ME\.SSH`, `\\?\C:\Users\me\.ssh` and unix `.../.ssh` all hit.
+        // The old code matched suffixes against a `with_sep` string that ended
+        // in a separator, so `ends_with("\\.ssh")` could never be true — the
+        // refusal existed but never fired.
+        let want = path_components_lower(seg);
+        if !want.is_empty() && comps.len() >= want.len() && comps[comps.len() - want.len()..] == want[..] {
             return Some(format!(
                 "\"{norm}\" is a credential store ({seg}). The agent has no business reading key material; refused."
             ));
         }
     }
     None
+}
+
+/// Lowercased path components — tolerant of `\` vs `/`, empty segments, `.`,
+/// and the Windows extended-length prefix (`\\?\C:\...`, `\\?\UNC\server\share`).
+/// Both sides of every comparison in `refuse_uncontainable_root` go through
+/// this one normalizer; suffix-string tricks are exactly how C-3 happened.
+fn path_components_lower(s: &str) -> Vec<String> {
+    let mut s = s.to_ascii_lowercase();
+    if let Some(rest) = s.strip_prefix("\\\\?\\unc\\") {
+        s = format!("\\\\{rest}");
+    } else if let Some(rest) = s.strip_prefix("\\\\?\\") {
+        s = rest.to_string();
+    } else if let Some(rest) = s.strip_prefix("?/") {
+        // normalize_path_str folds `\\\\?\\C:\\x` to `?/C:/x` — strip the
+        // marker in its FOLDED form too, or lexical input never matches.
+        s = rest.to_string();
+    }
+    s.split(['\\', '/'])
+        .filter(|p| !p.is_empty() && *p != ".")
+        .map(|p| p.to_string())
+        .collect()
 }
 
 #[tauri::command]
@@ -1747,3 +1794,78 @@ use tauri::Emitter;
 
 
 
+
+/* ── C-3 regression tests (security review of archive 3) ────────────────────
+ * The credential/system refusal used to be built from suffix strings and
+ * silently never fired. These vectors are the reviewer's exact cases plus the
+ * trailing-separator, case and extended-prefix variants, expressed so they
+ * pass on ANY host (the logic is string-level; non-existent Windows paths
+ * fall back to the lexical form, which is what the old test-less code got
+ * wrong even there).
+ *
+ *   cargo test c3_    (Windows and unix alike)
+ * ────────────────────────────────────────────────────────────────────────── */
+#[cfg(test)]
+mod c3_credential_path_tests {
+    use super::{path_components_lower, refuse_uncontainable_root};
+
+    fn refused(root: &str) -> bool {
+        refuse_uncontainable_root(root).is_some()
+    }
+
+    #[test]
+    fn credential_dirs_are_refused_verbatim() {
+        assert!(refused(r"C:\Users\me\.ssh"), ".ssh must be refused");
+        assert!(refused(r"C:\Users\me\.aws"), ".aws must be refused");
+        assert!(refused(r"C:\Users\me\.kube"), ".kube must be refused");
+        assert!(refused(r"C:\Users\me\.docker"), ".docker must be refused");
+        assert!(refused(r"C:\Users\me\.gnupg"), ".gnupg must be refused");
+        assert!(refused(r"C:\Users\me\.azure"), ".azure must be refused");
+        assert!(refused(r"C:\Users\me\.config\gcloud"), ".config\gcloud must be refused");
+    }
+
+    #[test]
+    fn trailing_separator_variant_is_refused() {
+        // THE C-3 vector: with_sep ended in `\`, so ends_with(`\.ssh`) was false.
+        assert!(refused(r"C:\Users\me\.ssh\"), "trailing backslash must not defeat the check");
+        assert!(refused("C:/Users/me/.ssh/"), "trailing forward slash too");
+    }
+
+    #[test]
+    fn case_variant_is_refused() {
+        assert!(refused(r"C:\USERS\ME\.SSH"));
+        assert!(refused(r"c:\Users\Meadow\.AwS"));
+    }
+
+    #[test]
+    fn extended_length_prefix_variant_is_refused() {
+        // Windows canonicalize() returns \\?\C:\… — the old exact-string
+        // comparison never matched a path in that form either.
+        assert!(refused(r"\\?\C:\Users\me\.ssh"));
+        assert!(refused(r"\\?\C:\Users"));
+    }
+
+    #[test]
+    fn plain_workspaces_are_allowed() {
+        assert!(refuse_uncontainable_root(r"C:\Users\me\projects\ship").is_none());
+        assert!(refuse_uncontainable_root("/home/dev/repo").is_none());
+        // a directory that MEREly contains .ssh deeper is fine — only the tail matters
+        assert!(refuse_uncontainable_root(r"C:\work\vendor\.ssh-tools").is_none());
+    }
+
+    #[test]
+    fn system_dirs_and_volume_roots_are_refused() {
+        assert!(refused(r"C:\Users"), "system dir by components");
+        assert!(refused(r"C:\Windows\System32"), "system32 by components");
+        assert!(refused(r"C:\"), "drive root");
+        assert!(refused(r"\\server\share"), "UNC share root");
+    }
+
+    #[test]
+    fn normalizer_contract() {
+        assert_eq!(path_components_lower(r"\\?\C:\Users\ME\.SSH\"), ["c:", "users", "me", ".ssh"]);
+        assert_eq!(path_components_lower("C:/Users/me/.ssh/"), ["c:", "users", "me", ".ssh"]);
+        assert_eq!(path_components_lower(r"\\?\UNC\srv\share"), ["srv", "share"]);
+        assert_eq!(path_components_lower(r".config\gcloud"), [".config", "gcloud"]);
+    }
+}

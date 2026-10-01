@@ -116,7 +116,19 @@ export function verifyReceiptChain(rc) {
   }
   if (hmacHex(prev, rc.format) !== rc.seal) return { ok: false, reason: "seal mismatch" };
 
-  if ((rc.format === "si-proof-receipt/2" || rc.format === "mj-proof-receipt/2") && rc.signature) {
+  /* C-4 (review of archive 3): the CURRENT format must be issuer-signed, the
+     same policy verifyProofReceipt enforces in src/mission/receipts.ts:20.1.
+     The old `&& rc.signature` guard made the check evaporate when a signature
+     was stripped, so an unsigned si-proof-receipt/2 verified clean here while
+     the canonical verifier refused it. Legacy mj-* receipts predate the
+     signature requirement and keep verifying unsigned (the format promise). */
+  if (rc.format === "si-proof-receipt/2" && !rc.signature) {
+    return {
+      ok: false,
+      reason: `receipt carries no issuer signature${rc.signatureNote ? ` (${rc.signatureNote})` : ""}. For si-proof-receipt/2 an issuer signature is required: without it the chain attests only tamper-evidence against anyone who knows the published seal secret, not authorship.`,
+    };
+  }
+  if (rc.signature) {
     if (!rc.issuer?.publicKeyHex || !/^[0-9a-fA-F]{64}$/.test(rc.issuer.publicKeyHex))
       return { ok: false, reason: "receipt is signed but carries no issuer public key" };
     const spki = Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(rc.issuer.publicKeyHex, "hex")]);
@@ -191,7 +203,12 @@ export function verifyAnchor(env, signerPublicJwk) {
   const facts = opened.payload;
   if (facts?.kind !== "agent_action" || facts.action !== "anchor_receipt")
     return { ok: false, reason: "not-an-anchor-fact" };
-  if (!/receipt:[a-z0-9/-]+:head:[0-9a-f]{64}:events:\d+:seal:ok:issuer:[0-9a-f]{16}|issuer:unsigned$/.test(facts.evidence ?? ""))
-    return { ok: false, reason: "malformed-anchor-evidence" };
+  /* Evidence grammar, and the C-4 corollary: a current-format anchor may
+     never claim to bind an UNSIGNED receipt — verifyReceiptChain refuses to
+     produce that verdict, so only a forged evidence string gets here. */
+  const m = /^receipt:([a-z0-9/-]+):head:[0-9a-f]{64}:events:\d+:seal:ok:(issuer:[0-9a-f]{16}|issuer:unsigned)$/.exec(facts.evidence ?? "");
+  if (!m) return { ok: false, reason: "malformed-anchor-evidence" };
+  if (m[1] === "si-proof-receipt/2" && m[2] === "issuer:unsigned")
+    return { ok: false, reason: "current-format anchor evidence claims an unsigned receipt" };
   return { ok: true, facts };
 }
