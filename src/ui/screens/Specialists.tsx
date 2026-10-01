@@ -23,6 +23,7 @@
  */
 
 import React, { useState } from "react";
+import { TITLES } from "../../engine/chain";
 import {
   DOMAINS, TOOLS, toolsForDomain, specialistStatus, specialistsByDomain,
   type Domain, type Tool, type ToolResult, type Values, type Specialist,
@@ -209,7 +210,7 @@ export function Specialists(): React.ReactElement {
           <div><b>{gatedCount}</b><span>stop at a human gate</span></div>
         </div>
         <p className="hint" style={{ margin: "0 2px 14px" }}>
-          One specialist system: a company per domain. You speak only with the Captain (CEO); it briefs the Consuls — one per domain — who oversee 30 desks × Adept+HR (60 domain specialists) leading the 1,500 sub-agents. No layer ever skips the one above it. Agentic MoE puts at most 25 crew on the 11WORKSPACE floor, chosen autonomously; you never pick the team. This door is the deterministic tool pack — a different catalog.
+          {`One specialist system: a company per domain. You speak only with the ${TITLES.captain} (CEO); it briefs the ${TITLES.consul}s — one per domain — who oversee 30 desks × ${TITLES.adept}+HR (60 domain specialists) leading the 1,500 ${TITLES.crew.toLowerCase()}s. No layer ever skips the one above it. Agentic MoE puts at most 25 crew on the 11WORKSPACE floor, chosen autonomously; you never pick the team. This door is the deterministic tool pack — a different catalog.`}
         </p>
 
         <div className="seg" style={{ flexWrap: "wrap" }}>

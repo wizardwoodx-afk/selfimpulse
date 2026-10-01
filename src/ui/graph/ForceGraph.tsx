@@ -110,6 +110,8 @@ function palette(): Record<string, string> {
     you: mix(fg, pole, 0.3),
     gate: fg,
     captain: mix(fg, fg3, 0.08),
+    consul: mix(fg, fg3, 0.13),
+    adept: mix(fg, fg3, 0.22),
     session: mix(fg, fg3, 0.18),
     agent: mix(fg, fg3, 0.3),
     keyword: mix(fg, fg3, 0.45),
@@ -241,7 +243,7 @@ function makeNode(THREE: ThreeLib, n: FgNode, c: Record<string, string>, work: b
   const color = hexToInt(c[n.kind] ?? c.keyword);
   const r = Math.max(2.2, (n.val ?? 3) * (work ? 1.15 : 1.0));
   const geom = work
-    ? (n.kind === "you" || n.kind === "captain"
+    ? (n.kind === "you" || n.kind === "captain" || n.kind === "consul"
       ? new THREE.OctahedronGeometry(r * 1.15, 0)
       : n.kind === "gate"
         ? new THREE.TetrahedronGeometry(r * 1.1, 0)

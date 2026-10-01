@@ -32,6 +32,7 @@ import { buildSpecialistPrompt } from "./skills";
 import { estimateTokens, optimizeComposedPrompt, recordUsage } from "./tokenOptim";
 import { liveDataBanner, liveDataVerdict, verifyLiveEvidence } from "./liveData";
 import { buildCaptainReport, captainForRoute } from "./captains";
+import { TITLES } from "./chain";
 import { buildSynthesisSystem, buildSynthesisUser, findDivergences } from "./synthesis";
 import { runMemberAgent } from "./agentLoop";
 import { stripToolBlocks } from "./tools";
@@ -359,7 +360,7 @@ export async function askSelfImpulse19(args: AskArgs, deps: GeneralistDeps = {})
   if (!provider) {
     const plan = specialists.length
       ? specialists.map((s) => `${s.name} (${s.id}): ${s.capabilities[0]}`).join("\n")
-      : "no specialist cleared the routing bar — the Captain would handle this directly once a provider is configured";
+      : `no specialist cleared the routing bar — the ${TITLES.captain} would handle this directly once a provider is configured`;
     return finish({
       reply:
         `No provider key is configured, so nothing was executed. Here is the plan I would run:\n\n${plan}\n\n` +
@@ -464,8 +465,9 @@ export async function askSelfImpulse19(args: AskArgs, deps: GeneralistDeps = {})
     const executedCount = memberResults.filter((m) => m.outcome === "answered").length;
     const captain = buildCaptainReport(captainForRoute(memberResults.map((m) => m.specialistId))?.id ?? "", memberResults) ?? undefined;
 
-    /* 19.3.0 — Captain synthesis: the Captain reasons over the executed
-       members' real answers in its OWN provider call. Honest edges: only
+    /* 19.3.0 — Consul synthesis (the domain layer; the Captain still owns the
+       reply): the Consul reasons over the executed members' real answers in its
+       OWN provider call. Honest edges: only
        executed answers are synthesized; a failed synthesis call keeps every
        member answer and says so; single-member runs never synthesize. */
     let synthesis: SynthesisRecord | undefined;
@@ -505,7 +507,7 @@ export async function askSelfImpulse19(args: AskArgs, deps: GeneralistDeps = {})
 
     const header = `${captain?.captainName ?? "The domain captain"} coordinated ${memberResults.length} specialists — each section below is that member's OWN provider run${synthesis ? ", and the synthesis above them is the captain's OWN reasoned result" : ""}:`;
     const body = synthesis
-      ? `── CONSUL SYNTHESIS (${synthesis.captainName} · ${synthesis.model} · synthesis receipt ${synthesis.digest?.slice(0, 12)}…) ──\n${synthesis.text}\n\n── MEMBER EVIDENCE (each its own execution) ──\n\n${sections.join("\n\n")}`
+      ? `── ${TITLES.consul.toUpperCase()} SYNTHESIS (${synthesis.captainName} · ${synthesis.model} · synthesis receipt ${synthesis.digest?.slice(0, 12)}…) ──\n${synthesis.text}\n\n── MEMBER EVIDENCE (each its own execution) ──\n\n${sections.join("\n\n")}`
       : sections.join("\n\n");
     return finish({
       reply: `${header}\n\n${synthesisFailure ? `${synthesisFailure}\n\n` : ""}${body}`,
@@ -517,7 +519,7 @@ export async function askSelfImpulse19(args: AskArgs, deps: GeneralistDeps = {})
       synthesis,
       memberRuns: memberRunViews,
       note: `${executedCount} of ${memberResults.length} routed members executed — each with its own agent loop and member receipt` +
-        (synthesis ? ` · consul synthesis ${synthesis.digest?.slice(0, 12)}… over ${synthesis.divergences.membersCompared} executed member(s)` : synthesisFailure ? " · synthesis attempted, failed honestly" : ""),
+        (synthesis ? ` · ${TITLES.consul.toLowerCase()} synthesis ${synthesis.digest?.slice(0, 12)}… over ${synthesis.divergences.membersCompared} executed member(s)` : synthesisFailure ? " · synthesis attempted, failed honestly" : ""),
     });
   }
 
@@ -567,7 +569,7 @@ export async function askSelfImpulse19(args: AskArgs, deps: GeneralistDeps = {})
   }
 
   const composedSystem = [
-    "You are the SelfImpulse Captain (engine: MJ) — the company's CEO and the only voice the user hears. Answer directly and concisely. Work travels strictly down the chain — Captain → Consuls → Adepts → sub-agents — and reports travel up it; no layer ever speaks past its neighbour.",
+    `You are the SelfImpulse ${TITLES.captain} (engine: MJ) — the company's CEO and the only voice the user hears. Answer directly and concisely. Work travels strictly down the chain — ${TITLES.captain} → ${TITLES.consul}s → ${TITLES.adept}s → ${TITLES.crew.toLowerCase()}s — and reports travel up it; no layer ever speaks past its neighbour.`,
     gateLine,
     ...briefing,
   ].join("\n\n");

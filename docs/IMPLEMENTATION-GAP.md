@@ -18,7 +18,7 @@ These were verified in code, not inferred from the docs, and were not touched.
 | Frozen requirement | Where it lives | Verdict |
 |---|---|---|
 | One runtime, role/capability profiles | `engine/agentLoop.ts` `runMemberAgent`; tiers are `Specialist` records in `types.ts`, not separate codebases | satisfied |
-| Captain is the only human-facing agent | `captains.ts`; `face.tsx` | satisfied |
+| Captain is the only human-facing agent, and no rung of the company chain is skipped (Captain ⇄ Consul ⇄ Adept ⇄ sub-agents) | `chain.ts` (the law), `captains.ts` (one Consul per category), `workspace.ts` (refuses a desk with no Consul); `face.tsx` | satisfied |
 | Routing is sparse, capped | `moeV2.ts` `CREW_MAX = 25`, `POOL_CATEGORY_MIN = 3` | satisfied |
 | AI proposes, deterministic code authorises | `tools.ts:371` refuses non-`safe` tools without a gate; `generalist.ts:284` tier gate | satisfied |
 | Gate is a hard capability check, fail-closed | both above return `gated-out`, never auto-run | satisfied |

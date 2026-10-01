@@ -353,7 +353,7 @@ export interface GeneralistResponse {
    */
   office?: {
     name: "11WORKSPACE";
-    desks: Array<{ id: string; label: string; lead: string; hr: string; pooled: number; onFloor: number }>;
+    desks: Array<{ id: string; label: string; consulId: string; consul: string; lead: string; hr: string; pooled: number; onFloor: number }>;
     floor: Array<{ id: string; desk: string; name: string }>;
     cap: number;
     line: string;

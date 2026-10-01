@@ -3,6 +3,8 @@ import { useVh } from "../store";
 import { ForceGraph, type FgNode, type FgLink } from "../graph/ForceGraph";
 import { GateCard } from "./GateCard";
 import { getSpecialist } from "../../engine/registry";
+import { homeDesk, deskById, consulForDesk, leadFor } from "../../engine/org";
+import { TITLES } from "../../engine/chain";
 
 /**
  * WORK — the user watches the crew work as a top→bottom flow.
@@ -32,7 +34,7 @@ export function Work(): React.ReactElement {
           <ForceGraph mode="work" nodes={nodes} links={links} autoRotate={spin} fitSignal={fit} />
           <div className="hud">
             <div className="card"><div className="card-b">
-              <span className="mode-tag work"><i />{lastResp?.office ? "11WORKSPACE · You → Captain → Consuls → Adepts → sub-agents" : "Mission DAG · metallic flow · top to bottom"}</span>
+              <span className="mode-tag work"><i />{lastResp?.office ? `11WORKSPACE · You → ${TITLES.captain} → ${TITLES.consul}s → ${TITLES.adept}s → ${TITLES.crew.toLowerCase()}s` : "Mission DAG · metallic flow · top to bottom"}</span>
               <h3>{lastUser ? trunc(lastUser.text, 60) : "Mission"}</h3>
               <div className="prog"><i style={{ width: `${Math.round((complete / total) * 100)}%` }} /></div>
               <div className="klist">
@@ -43,7 +45,7 @@ export function Work(): React.ReactElement {
                 <div><span>Waiting on you</span><span>{gate ? 1 : 0}</span></div>
                 {savedTokens > 0 && <div><span>Tokens saved</span><span>{savedTokens}</span></div>}
               </div>
-              <div className="legend work"><span><i style={{ background: "#FFFFFF" }} />you</span><span><i style={{ background: "#F4F5F7" }} />captain</span><span><i style={{ background: "#D9DCE0" }} />agents</span><span><i style={{ background: "#A6ABB1" }} />tools</span><span><i style={{ background: "#EDEEF0" }} />gate</span><span><i style={{ background: "#4FB3AF" }} />live</span></div>
+              <div className="legend work"><span><i style={{ background: "#FFFFFF" }} />you</span><span><i style={{ background: "#F4F5F7" }} />captain</span><span><i style={{ background: "#E8EAED" }} />consul</span><span><i style={{ background: "#DFE1E5" }} />adept</span><span><i style={{ background: "#D9DCE0" }} />agents</span><span><i style={{ background: "#A6ABB1" }} />tools</span><span><i style={{ background: "#EDEEF0" }} />gate</span><span><i style={{ background: "#4FB3AF" }} />live</span></div>
             </div></div>
             {lastResp && (
               <div className="card"><div className="card-b">
@@ -72,27 +74,51 @@ export function Work(): React.ReactElement {
 function trunc(s: string, n: number) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 
 function build(resp: ReturnType<typeof useVh.getState>["lastResp"], busy: boolean, gateAction: string | null, stewardName: string) {
-  const nodes: FgNode[] = [{ id: "you", name: "You", kind: "you", val: 10 }, { id: "st", name: stewardName, kind: "captain", val: 7 }];
+  const nodes: FgNode[] = [{ id: "you", name: "You", kind: "you", val: 10 }, { id: "st", name: stewardName, kind: "captain", val: 7, live: busy, sub: TITLES.captain }];
   const links: FgLink[] = [{ source: "you", target: "st", live: busy }];
   let tools = 0, receipts = 0;
   const ids = resp?.specialistIds ?? [];
   const runs = new Map((resp?.memberRuns ?? []).map((r) => [r.specialistId, r]));
   const office = resp?.office;
   const deskOf = new Map((office?.floor ?? []).map((s) => [s.id, s.desk]));
-  if (office && office.desks.length > 0) {
-    for (const d of office.desks) {
-      nodes.push({ id: `d:${d.id}`, name: d.label, kind: "captain", val: 5, sub: `${d.lead} · ${d.onFloor} on floor` });
-      links.push({ source: "st", target: `d:${d.id}`, live: busy });
+  /* THE COMPANY CHAIN, drawn rung by rung: You → Captain → Consul → Adept → sub-agents.
+     No edge skips a rung: a sub-agent hangs off its Adept's desk, a desk off its Consul,
+     a Consul off the Captain. A desk comes from the run's office when there is one, else
+     from the specialist's HOME desk — a static fact of the org, not a claim the run opened it. */
+  const desks = new Map<string, { label: string; sub: string; consulId: string; consul: string }>();
+  for (const d of office?.desks ?? []) desks.set(d.id, { label: d.label, sub: `${d.lead} · ${d.onFloor} on floor`, consulId: d.consulId, consul: d.consul });
+  const deskFor = (sid: string): string | undefined => {
+    const seated = deskOf.get(sid);
+    if (seated && desks.has(seated)) return seated;
+    const sp = getSpecialist(sid);
+    if (!sp) return undefined;
+    const home = homeDesk(sp);
+    if (!desks.has(home)) {
+      const def = deskById(home);
+      const consul = consulForDesk(home);
+      if (!def || !consul) return undefined; // never draw an edge that would skip a rung
+      desks.set(home, { label: def.label, sub: leadFor(home)?.name ?? def.label, consulId: consul.id, consul: consul.name });
     }
+    return home;
+  };
+  const deskOfAgent = ids.map(deskFor);
+  const consuls = new Map<string, string>();
+  for (const d of desks.values()) consuls.set(d.consulId, d.consul);
+  for (const [cid, cname] of consuls) {
+    nodes.push({ id: `c:${cid}`, name: cname, kind: "consul", val: 6, live: busy, sub: TITLES.consul });
+    links.push({ source: "st", target: `c:${cid}`, live: busy });
+  }
+  for (const [did, d] of desks) {
+    nodes.push({ id: `d:${did}`, name: d.label, kind: "adept", val: 5, sub: d.sub });
+    links.push({ source: `c:${d.consulId}`, target: `d:${did}`, live: busy });
   }
   ids.forEach((sid, i) => {
     const tag = `AGENT ${String(i + 1).padStart(2, "0")}`;
     const sp = getSpecialist(sid);
     const run = runs.get(sid);
-    const desk = deskOf.get(sid);
-    const parent = desk && office?.desks.some((d) => d.id === desk) ? `d:${desk}` : "st";
+    const desk = deskOfAgent[i];
     nodes.push({ id: `a${i}`, name: tag, kind: "agent", val: 6, live: busy, sub: sp?.category ? String(sp.category) : undefined });
-    links.push({ source: parent, target: `a${i}`, live: busy });
+    if (desk) links.push({ source: `d:${desk}`, target: `a${i}`, live: busy });
     (run?.toolReceipts ?? []).forEach((t, j) => {
       const id = `t${i}_${j}`; tools += 1;
       const refused = /refus|denied|blocked/i.test(t.outcome);
@@ -101,9 +127,8 @@ function build(resp: ReturnType<typeof useVh.getState>["lastResp"], busy: boolea
       if (t.digest) { receipts += 1; nodes.push({ id: `r${id}`, name: `receipt ${t.digest.slice(0, 8)}…`, kind: "wreceipt", val: 2 }); links.push({ source: id, target: `r${id}` }); }
     });
   });
-  if (ids.length === 0 && busy) { nodes.push({ id: "a0", name: "AGENT 01", kind: "agent", val: 6, live: true }); links.push({ source: "st", target: "a0", live: true }); }
   if (gateAction) { nodes.push({ id: "gate", name: gateAction, kind: "gate", val: 5, live: true }); links.push({ source: ids.length ? "a0" : "st", target: "gate", live: true }); }
   if (resp?.provenanceDigest) { receipts += 1; nodes.push({ id: "prov", name: `provenance ${resp.provenanceDigest.slice(0, 8)}…`, kind: "wreceipt", val: 3 }); links.push({ source: "st", target: "prov" }); }
   if (resp && !busy) { nodes.push({ id: "v", name: `Verify · ${resp.outcome}`, kind: resp.outcome === "refused" ? "refused" : "tool", val: 4 }); (ids.length ? ids.map((_, i) => `a${i}`) : ["st"]).forEach((s) => links.push({ source: s, target: "v" })); }
-  return { nodes, links, agents: Math.max(ids.length, busy ? 1 : 0), tools, receipts };
+  return { nodes, links, agents: ids.length, tools, receipts };
 }

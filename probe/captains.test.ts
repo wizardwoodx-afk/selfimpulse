@@ -37,7 +37,10 @@ test("captains + failures — oversight that never fabricates", async () => {
   };
 
   console.log("\n── 1. the lead layer ──");
-  check("every domain has exactly one Captain", CAPTAINS.length === 14 && new Set(CAPTAINS.map((l) => l.domain)).size === 14);
+  check("every domain has exactly one Consul", CAPTAINS.length === 16 && new Set(CAPTAINS.map((l) => l.domain)).size === 16);
+  check("every category the fleet fields has a Consul above it — silicon (350 sub-agents) included, finance too", [...new Set(SPECIALISTS.map((s) => s.category))].every((c) => captainForDomain(c) !== null) && captainForDomain("finance") !== null && captainForDomain("silicon") !== null);
+  check("a silicon-only route reaches a Consul (it used to reach none — the Captain briefed the crew directly)", captainForRoute(SPECIALISTS.filter((s) => s.category === "silicon").slice(0, 3).map((s) => s.id))?.domain === "silicon");
+  check("a Consul's playbook forbids the layer skips (never the user, never a sub-agent directly)", CAPTAINS.every((l) => /report to the Captain/.test(l.systemPrompt) && /never address the user/.test(l.systemPrompt) && /never command a sub-agent directly/.test(l.systemPrompt)));
   check("captains have a mandate and their own playbook", CAPTAINS.every((l) => l.mandate.length > 10 && l.systemPrompt.includes(l.name)));
   check("captainForDomain resolves every category", ["code", "security", "design"].every((c) => captainForDomain(c as "code") !== null));
   check("captainForRoute picks the dominant domain", captainForRoute(["code.typescript", "code.debugging", "testing.unit"])?.domain === "code");

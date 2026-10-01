@@ -16,9 +16,10 @@ import { getSpecialist } from "./registry";
 import { tokenize } from "./router";
 import { scanDomains, selectCrewV2, CREW_MAX, type CrewSelection } from "./moeV2";
 import {
-  DESKS, leadFor, hrFor, homeDesk, workersOnDesk,
+  DESKS, leadFor, hrFor, homeDesk, workersOnDesk, consulForDesk,
   ORG_DESK_COUNT, ORG_SPECIALIST_COUNT, type DeskId, type DeskDef,
 } from "./org";
+import { TITLES, LayerSkipError } from "./chain";
 import { ESTABLISHED_SPECIALISTS } from "./federation/fleet";
 
 export const WORKSPACE_NAME = "11WORKSPACE";
@@ -28,6 +29,9 @@ export const DESK_SCORE_MIN = 3;
 export interface OfficeDesk {
   id: DeskId;
   label: string;
+  /** The Consul directly above this desk's Adept — the rung the Captain briefs through. */
+  consul: { id: string; name: string };
+  /** The desk's Adept (team lead). */
   lead: { id: string; name: string };
   hr: { id: string; name: string };
   pooled: number;
@@ -107,9 +111,19 @@ export function musterWorkspace(request: string): ElevenWorkspace {
   const desks: OfficeDesk[] = involved.map((d) => {
     const lead = leadFor(d.id)!;
     const hr = hrFor(d.id)!;
+    /* THE NO-SKIP LAW, applied to real data. This desk's reporting line is
+       Captain → Consul → Adept → crew. If no Consul owns the desk's domain, the
+       Captain would be briefing an Adept directly — a skipped rung — so the desk
+       is REFUSED rather than seated quietly. (probe/workspace pins that none of
+       the shipped desks can trip this.) */
+    const consul = consulForDesk(d.id);
+    if (!consul) {
+      throw new LayerSkipError("captain", "adept", `the ${d.label} desk has no ${TITLES.consul} above its ${TITLES.adept}`);
+    }
     return {
       id: d.id,
       label: d.label,
+      consul: { id: consul.id, name: consul.name },
       lead: { id: lead.id, name: lead.name },
       hr: { id: hr.id, name: hr.name },
       pooled: workersOnDesk(d.id).length,
@@ -117,10 +131,11 @@ export function musterWorkspace(request: string): ElevenWorkspace {
     };
   });
 
+  const consulCount = new Set(desks.map((d) => d.consul.id)).size;
   const line =
-    `${WORKSPACE_NAME}: Captain opened ${desks.length} desk(s) · ` +
-    `floor ${floor.length}/${FLOOR_CAP} workers of ${ESTABLISHED_SPECIALISTS.length} · ` +
-    `${ORG_SPECIALIST_COUNT} domain specialists (Lead+HR) across ${ORG_DESK_COUNT} desks · ` +
+    `${WORKSPACE_NAME}: ${TITLES.captain} opened ${desks.length} desk(s) under ${consulCount} ${TITLES.consul}(s) · ` +
+    `floor ${floor.length}/${FLOOR_CAP} ${TITLES.crew.toLowerCase()}s of ${ESTABLISHED_SPECIALISTS.length} · ` +
+    `${ORG_SPECIALIST_COUNT} domain specialists (${TITLES.adept}+HR) across ${ORG_DESK_COUNT} desks · ` +
     `MoE tier=${selection.gate.tier}. Autonomous — no team was picked by the user.`;
 
   return {
@@ -168,7 +183,8 @@ export function officeSnapshot(office: ElevenWorkspace): ElevenOfficeSnapshot {
   return {
     name: WORKSPACE_NAME,
     desks: office.desks.map((d) => ({
-      id: d.id, label: d.label, lead: d.lead.name, hr: d.hr.name,
+      id: d.id, label: d.label, consulId: d.consul.id, consul: d.consul.name,
+      lead: d.lead.name, hr: d.hr.name,
       pooled: d.pooled, onFloor: d.onFloor,
     })),
     floor: office.floor.map((s) => ({ id: s.id, desk: s.desk, name: s.name })),
@@ -179,7 +195,7 @@ export function officeSnapshot(office: ElevenWorkspace): ElevenOfficeSnapshot {
 
 export interface ElevenOfficeSnapshot {
   name: typeof WORKSPACE_NAME;
-  desks: Array<{ id: string; label: string; lead: string; hr: string; pooled: number; onFloor: number }>;
+  desks: Array<{ id: string; label: string; consulId: string; consul: string; lead: string; hr: string; pooled: number; onFloor: number }>;
   floor: Array<{ id: string; desk: string; name: string }>;
   cap: number;
   line: string;

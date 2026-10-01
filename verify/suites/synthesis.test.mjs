@@ -33982,29 +33982,72 @@ function liveDataBanner(v) {
 \u26A0 LIVE-DATA CHECK (runtime GuardRail): this answer makes time-sensitive claims (${v.claims.slice(0, 4).join(", ")}) without sufficient dated live sources (${v.sources} URL(s), ${v.datedClaims} dated claim(s)).${retrievalNote} Treat it as knowledge-cutoff data until verified \u2014 flagged honestly instead of dressed as fresh.`;
 }
 
+// src/engine/chain.ts
+var RUNGS = ["user", "captain", "consul", "adept", "crew"];
+var TITLES = {
+  captain: "Captain",
+  consul: "Consul",
+  adept: "Adept",
+  crew: "Sub-agent"
+};
+function rungLabel(r2) {
+  return r2 === "user" ? "user" : TITLES[r2];
+}
+function rungIndex(r2) {
+  return RUNGS.indexOf(r2);
+}
+function legalPath(from, to) {
+  const a = rungIndex(from);
+  const b2 = rungIndex(to);
+  const step = a <= b2 ? 1 : -1;
+  const out = [];
+  for (let i = a; i !== b2; i += step) out.push(RUNGS[i]);
+  out.push(RUNGS[b2]);
+  return out;
+}
+var LayerSkipError = class _LayerSkipError extends Error {
+  from;
+  to;
+  constructor(from, to, detail) {
+    super(_LayerSkipError.explain(from, to, detail));
+    this.name = "LayerSkipError";
+    this.from = from;
+    this.to = to;
+  }
+  static explain(from, to, detail) {
+    const head = from === to ? `peers on the ${rungLabel(from)} rung coordinate through the rung above them, never sideways` : `the ${rungLabel(from)} cannot address the ${rungLabel(to)} directly \u2014 the message must travel ${legalPath(from, to).map(rungLabel).join(" \u2192 ")}`;
+    return detail ? `${head} (${detail})` : head;
+  }
+};
+
 // src/engine/captains.ts
-var captain = (domain2, name, mandate, focus) => ({
-  id: `captain.${domain2}`,
-  name,
-  domain: domain2,
-  mandate,
-  systemPrompt: `You are ${name} \u2014 Consul of the ${domain2} domain in the SelfImpulse company. You report to the Captain (the CEO) and to no one else: you never address the user, and you never command the crew directly \u2014 your Adepts lead their sub-agent crews, and you brief them through the desk. ${focus} Report only what actually happened: name the Adepts involved, their real outcomes, and the single next step. Never claim work that did not run. Layer discipline is absolute \u2014 no message skips the Consul.`
-});
+var captain = (domain2, label, mandate, focus) => {
+  const name = `${TITLES.consul} of ${label}`;
+  return {
+    id: `captain.${domain2}`,
+    name,
+    domain: domain2,
+    mandate,
+    systemPrompt: `You are the ${name} in the SelfImpulse company. You report to the ${TITLES.captain} (the CEO) and to no one else: you never address the user, and you never command a ${TITLES.crew.toLowerCase()} directly \u2014 your ${TITLES.adept}s lead the crews, and their results reach you through their desks. ${focus} Report only what actually happened: name the members involved, their real outcomes, and the single next step. Never claim work that did not run. Layer discipline is absolute \u2014 no message skips a rung.`
+  };
+};
 var CAPTAINS = [
-  captain("code", "Consul of Code", "Owns implementation quality end to end.", "Sequence work so foundations land before dependents; pair every implementation step with its test and review path."),
-  captain("security", "Consul of Security", "Owns the trust boundary of every plan.", "Nothing ships without its threat reviewed; escalate anything touching credentials, egress or autonomy immediately."),
-  captain("testing", "Consul of Testing", "Owns the evidence that work is correct.", "Every claimed fix needs a failing-then-passing test; quarantine flake with an owner, never with a retry."),
-  captain("review", "Consul of Review", "Owns the quality gate before merge.", "Weight review effort by blast radius; no approval without the residual risks named."),
-  captain("data", "Consul of Data", "Owns data trust: lineage, quality, privacy.", "Every number names its source and freshness; destructive data steps are reversible or flagged."),
-  captain("devops", "Consul of DevOps", "Owns delivery and operability.", "Every change states its blast radius and rollback before it runs; recovery is rehearsed, not hoped for."),
-  captain("research", "Consul of Research", "Owns evidence quality behind decisions.", "Load-bearing claims need two independent sources or an honest single-sourced label."),
-  captain("writing", "Consul of Writing", "Owns clarity of everything shipped to readers.", "Lead with the answer; every command in docs runs as written or is flagged."),
-  captain("analysis", "Consul of Analysis", "Owns the honesty of numbers in decisions.", "Assumptions are visible before results; ranges over false point estimates."),
-  captain("design", "Consul of Design", "Owns the product's visible quality bar.", "Refuse the generic look; hierarchy works in greyscale first; every state is designed, including the worst one."),
-  captain("product", "Consul of Product", "Owns the problem definition behind every build.", "The problem statement ships before the solution; every order names the user outcome it serves."),
-  captain("business", "Consul of Business", "Owns the honesty of plans and numbers.", "Every projection lists its assumptions and its error range; a plan without a kill criterion is decoration."),
-  captain("legal", "Consul of Legal", "Owns obligations, consent and liability clarity.", "Obligations map to controls with evidence; never assure what the product cannot verify."),
-  captain("comms", "Consul of Comms", "Owns what we say, when, and to whom.", "Known, unknown, next \u2014 on a clock; corrections are appended, never erased.")
+  captain("code", "Code", "Owns implementation quality end to end.", "Sequence work so foundations land before dependents; pair every implementation step with its test and review path."),
+  captain("security", "Security", "Owns the trust boundary of every plan.", "Nothing ships without its threat reviewed; escalate anything touching credentials, egress or autonomy immediately."),
+  captain("testing", "Testing", "Owns the evidence that work is correct.", "Every claimed fix needs a failing-then-passing test; quarantine flake with an owner, never with a retry."),
+  captain("review", "Review", "Owns the quality gate before merge.", "Weight review effort by blast radius; no approval without the residual risks named."),
+  captain("data", "Data", "Owns data trust: lineage, quality, privacy.", "Every number names its source and freshness; destructive data steps are reversible or flagged."),
+  captain("devops", "DevOps", "Owns delivery and operability.", "Every change states its blast radius and rollback before it runs; recovery is rehearsed, not hoped for."),
+  captain("research", "Research", "Owns evidence quality behind decisions.", "Load-bearing claims need two independent sources or an honest single-sourced label."),
+  captain("writing", "Writing", "Owns clarity of everything shipped to readers.", "Lead with the answer; every command in docs runs as written or is flagged."),
+  captain("analysis", "Analysis", "Owns the honesty of numbers in decisions.", "Assumptions are visible before results; ranges over false point estimates."),
+  captain("design", "Design", "Owns the product's visible quality bar.", "Refuse the generic look; hierarchy works in greyscale first; every state is designed, including the worst one."),
+  captain("product", "Product", "Owns the problem definition behind every build.", "The problem statement ships before the solution; every order names the user outcome it serves."),
+  captain("business", "Business", "Owns the honesty of plans and numbers.", "Every projection lists its assumptions and its error range; a plan without a kill criterion is decoration."),
+  captain("legal", "Legal", "Owns obligations, consent and liability clarity.", "Obligations map to controls with evidence; never assure what the product cannot verify."),
+  captain("comms", "Comms", "Owns what we say, when, and to whom.", "Known, unknown, next \u2014 on a clock; corrections are appended, never erased."),
+  captain("finance", "Finance", "Owns the integrity of every figure that touches money.", "Every number names its ledger, period and currency; anything regulated is flagged for a licensed human, never improvised; reconcile before you report."),
+  captain("silicon", "Silicon", "Owns correctness from RTL to sign-off evidence.", "Nothing is called verified without its testbench, coverage and corner named; every timing, power or area claim cites the tool run that produced it; a waived check names its owner.")
 ];
 function getCaptain(id) {
   return CAPTAINS.find((l) => l.id === id) ?? null;
@@ -44176,8 +44219,8 @@ function leadOf(d) {
     id: `lead.${d.id}`,
     desk: d.id,
     role: "lead",
-    name: `${d.label} Adept`,
-    mandate: `You are the ${d.label} Adept \u2014 the desk's team lead. Plan the desk's work, lead your sub-agent crew through it, and report to your Consul. Never address the user; never brief the Captain over your Consul's head. You lead sub-agents; you do not impersonate them.`,
+    name: `${d.label} ${TITLES.adept}`,
+    mandate: `You are the ${d.label} ${TITLES.adept} \u2014 the desk's team lead. Plan the desk's work, lead your ${TITLES.crew.toLowerCase()} crew through it, and report to your ${TITLES.consul}. Never address the user; never report to the ${TITLES.captain} over your ${TITLES.consul}'s head. You lead ${TITLES.crew.toLowerCase()}s; you do not impersonate them.`,
     keywords: d.keywords
   };
 }
@@ -44187,13 +44230,20 @@ function hrOf(d) {
     desk: d.id,
     role: "hr",
     name: `${d.label} Desk HR`,
-    mandate: `Staff the ${d.label} bench from the sub-agent catalog. Name who should run; never do the work yourself. Staffing answers to your Consul.`,
+    mandate: `Staff the ${d.label} bench from the ${TITLES.crew.toLowerCase()} catalog. Name who should run; never do the work yourself. Staffing answers to your ${TITLES.consul}.`,
     keywords: [...d.keywords, "staff", "bench", "assign"]
   };
 }
 var DOMAIN_SPECIALISTS = Object.freeze(
   DESKS.flatMap((d) => [leadOf(d), hrOf(d)])
 );
+function deskById(id) {
+  return DESKS.find((d) => d.id === id);
+}
+function consulForDesk(id) {
+  const d = deskById(id);
+  return d ? captainForDomain(d.workerCategory) : null;
+}
 function leadFor(id) {
   return DOMAIN_SPECIALISTS.find((s) => s.desk === id && s.role === "lead");
 }
@@ -44305,16 +44355,22 @@ function musterWorkspace(request) {
   const desks = involved.map((d) => {
     const lead = leadFor(d.id);
     const hr = hrFor(d.id);
+    const consul = consulForDesk(d.id);
+    if (!consul) {
+      throw new LayerSkipError("captain", "adept", `the ${d.label} desk has no ${TITLES.consul} above its ${TITLES.adept}`);
+    }
     return {
       id: d.id,
       label: d.label,
+      consul: { id: consul.id, name: consul.name },
       lead: { id: lead.id, name: lead.name },
       hr: { id: hr.id, name: hr.name },
       pooled: workersOnDesk(d.id).length,
       onFloor: onFloor.get(d.id) ?? 0
     };
   });
-  const line = `${WORKSPACE_NAME}: Captain opened ${desks.length} desk(s) \xB7 floor ${floor.length}/${FLOOR_CAP} workers of ${ESTABLISHED_SPECIALISTS.length} \xB7 ${ORG_SPECIALIST_COUNT} domain specialists (Lead+HR) across ${ORG_DESK_COUNT} desks \xB7 MoE tier=${selection.gate.tier}. Autonomous \u2014 no team was picked by the user.`;
+  const consulCount = new Set(desks.map((d) => d.consul.id)).size;
+  const line = `${WORKSPACE_NAME}: ${TITLES.captain} opened ${desks.length} desk(s) under ${consulCount} ${TITLES.consul}(s) \xB7 floor ${floor.length}/${FLOOR_CAP} ${TITLES.crew.toLowerCase()}s of ${ESTABLISHED_SPECIALISTS.length} \xB7 ${ORG_SPECIALIST_COUNT} domain specialists (${TITLES.adept}+HR) across ${ORG_DESK_COUNT} desks \xB7 MoE tier=${selection.gate.tier}. Autonomous \u2014 no team was picked by the user.`;
   return {
     name: WORKSPACE_NAME,
     captain: "Captain",
@@ -44335,6 +44391,8 @@ function officeSnapshot(office) {
     desks: office.desks.map((d) => ({
       id: d.id,
       label: d.label,
+      consulId: d.consul.id,
+      consul: d.consul.name,
       lead: d.lead.name,
       hr: d.hr.name,
       pooled: d.pooled,
@@ -45042,7 +45100,7 @@ async function askSelfImpulse19(args, deps = {}) {
     }
   }
   if (!provider) {
-    const plan = specialists.length ? specialists.map((s) => `${s.name} (${s.id}): ${s.capabilities[0]}`).join("\n") : "no specialist cleared the routing bar \u2014 the Captain would handle this directly once a provider is configured";
+    const plan = specialists.length ? specialists.map((s) => `${s.name} (${s.id}): ${s.capabilities[0]}`).join("\n") : `no specialist cleared the routing bar \u2014 the ${TITLES.captain} would handle this directly once a provider is configured`;
     return finish({
       reply: `No provider key is configured, so nothing was executed. Here is the plan I would run:
 
@@ -45152,7 +45210,7 @@ ${note}`);
       }
     }
     const header = `${captain2?.captainName ?? "The domain captain"} coordinated ${memberResults.length} specialists \u2014 each section below is that member's OWN provider run${synthesis ? ", and the synthesis above them is the captain's OWN reasoned result" : ""}:`;
-    const body = synthesis ? `\u2500\u2500 CONSUL SYNTHESIS (${synthesis.captainName} \xB7 ${synthesis.model} \xB7 synthesis receipt ${synthesis.digest?.slice(0, 12)}\u2026) \u2500\u2500
+    const body = synthesis ? `\u2500\u2500 ${TITLES.consul.toUpperCase()} SYNTHESIS (${synthesis.captainName} \xB7 ${synthesis.model} \xB7 synthesis receipt ${synthesis.digest?.slice(0, 12)}\u2026) \u2500\u2500
 ${synthesis.text}
 
 \u2500\u2500 MEMBER EVIDENCE (each its own execution) \u2500\u2500
@@ -45171,7 +45229,7 @@ ${synthesisFailure ? `${synthesisFailure}
       captain: captain2,
       synthesis,
       memberRuns: memberRunViews,
-      note: `${executedCount} of ${memberResults.length} routed members executed \u2014 each with its own agent loop and member receipt` + (synthesis ? ` \xB7 consul synthesis ${synthesis.digest?.slice(0, 12)}\u2026 over ${synthesis.divergences.membersCompared} executed member(s)` : synthesisFailure ? " \xB7 synthesis attempted, failed honestly" : "")
+      note: `${executedCount} of ${memberResults.length} routed members executed \u2014 each with its own agent loop and member receipt` + (synthesis ? ` \xB7 ${TITLES.consul.toLowerCase()} synthesis ${synthesis.digest?.slice(0, 12)}\u2026 over ${synthesis.divergences.membersCompared} executed member(s)` : synthesisFailure ? " \xB7 synthesis attempted, failed honestly" : "")
     });
   }
   const primary = specialists[0] ?? null;
@@ -45215,7 +45273,7 @@ ${synthesisFailure ? `${synthesisFailure}
     });
   }
   const composedSystem = [
-    "You are the SelfImpulse Captain (engine: MJ) \u2014 the company's CEO and the only voice the user hears. Answer directly and concisely. Work travels strictly down the chain \u2014 Captain \u2192 Consuls \u2192 Adepts \u2192 sub-agents \u2014 and reports travel up it; no layer ever speaks past its neighbour.",
+    `You are the SelfImpulse ${TITLES.captain} (engine: MJ) \u2014 the company's CEO and the only voice the user hears. Answer directly and concisely. Work travels strictly down the chain \u2014 ${TITLES.captain} \u2192 ${TITLES.consul}s \u2192 ${TITLES.adept}s \u2192 ${TITLES.crew.toLowerCase()}s \u2014 and reports travel up it; no layer ever speaks past its neighbour.`,
     gateLine,
     ...briefing
   ].join("\n\n");
@@ -45313,12 +45371,12 @@ test("consul synthesis \u2014 reasoned collaboration over real executions (19.3.
   check2("the request multi-routed", nMem > 1, nMem);
   check2("synthesis exists and is its own receipted record", multi.synthesis !== void 0 && /^[0-9a-f]{64}$/.test(multi.synthesis?.digest ?? ""), multi.synthesis?.digest);
   check2("the synthesis digest is NOT any member digest", !(multi.captain?.members ?? []).some((m) => m.memberDigest === multi.synthesis?.digest));
-  check2("the reply leads with the consul synthesis, then keeps every member section as evidence", multi.reply.includes("CONSUL SYNTHESIS") && multi.reply.includes("SYNTHESIZED RESULT") && multi.reply.includes("MEMBER EVIDENCE") && multi.reply.includes("member work A") && multi.reply.includes("member work B"));
+  check2("the reply leads with the consul synthesis, then keeps every member section as evidence", multi.reply.includes(`${TITLES.consul.toUpperCase()} SYNTHESIS`) && multi.reply.includes("SYNTHESIZED RESULT") && multi.reply.includes("MEMBER EVIDENCE") && multi.reply.includes("member work A") && multi.reply.includes("member work B"));
   const expectedCaptain = captainForRoute(multi.specialistIds);
   check2("the synthesis names the captain of the routed domain", expectedCaptain !== null && multi.synthesis?.captainId === expectedCaptain.id && multi.synthesis?.captainName === expectedCaptain.name, { got: multi.synthesis?.captainId, want: expectedCaptain?.id });
   check2("divergences travelled with the record", (multi.synthesis?.divergences.singleSourced.length ?? 0) > 0 && multi.synthesis?.divergences.membersCompared === nMem, multi.synthesis?.divergences);
   check2("a stray tool fence in the synthesis output is stripped before user or digest", !(multi.synthesis?.text ?? "").includes("```tool") && !(multi.reply ?? "").includes("```tool"));
-  check2("the note receipts the synthesis honestly", (multi.note ?? "").includes("consul synthesis"), multi.note);
+  check2("the note receipts the synthesis honestly", (multi.note ?? "").includes(`${TITLES.consul.toLowerCase()} synthesis`), multi.note);
   check2("the synthesis rides inside the provenance digest", JSON.parse(responseCanonical({ ...multi, provenanceDigest: "" })).synthesis?.digest === multi.synthesis?.digest);
   check2(`provider arithmetic: re-rank + ${nMem} members + 1 synthesis`, calls.length === nMem + 2, { calls: calls.length, nMem });
   console.log("\n\u2500\u2500 4. a failed synthesis call never fakes a combination \u2500\u2500");

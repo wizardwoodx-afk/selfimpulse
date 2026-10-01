@@ -1,58 +1,72 @@
 /**
  * SelfImpulse — the CONSUL layer (19.0.0 as AgentLead; renamed Captain in
  * 19.1.0 "Shipyard"; renamed Consul in the company restructure). The company
- * chain is strict and never skips a rung:
+ * chain is strict and never skips a rung (the law lives in ./chain):
  *
  *   USER ⇄ CAPTAIN (CEO — the only human-facing seat)
  *           ⇄ CONSUL (this file — one per domain; reports UP to the CEO,
- *                     never addresses the user, never commands crews)
+ *                     never addresses the user, never commands the crew)
  *                     ⇄ ADEPT (desk lead) ⇄ SUB-AGENTS (the crew)
  *
- * Specialists within a domain are not a flat crowd: each of the ten domains
- * has a Captain — a named oversight role that (a) plans domain work
- * across its members, (b) aggregates what actually happened, and (c)
- * reports DIRECTLY to the Generalist in a structured, honest report. The
- * lead never fabricates member outcomes: its report is computed from the
- * real pipeline results, and it is part of the provenance-digested
- * response. A lead is an orchestrator over states — like the goal engine,
- * it calls no provider and invents nothing.
+ * Specialists within a domain are not a flat crowd: every domain has exactly
+ * one Consul — a named oversight role that (a) plans domain work across its
+ * members, (b) aggregates what actually happened, and (c) reports UP to the
+ * Captain in a structured, honest report. The Consul never fabricates member
+ * outcomes: its report is computed from the real pipeline results, and it is
+ * part of the provenance-digested response. A Consul is an orchestrator over
+ * states — like the goal engine, it calls no provider and invents nothing.
+ *
+ * Coverage is an invariant, not a hope: every specialist category — including
+ * finance and silicon, whose desks field hundreds of sub-agents — has a Consul,
+ * and every desk's category resolves to one (probe/workspace pins both). A
+ * domain with no Consul would let the Captain brief an Adept directly.
+ *
+ * Ids keep the historical `captain.<domain>` prefix: stored receipts, synthesis
+ * records and probes reference them, so the TITLE changed and the key did not.
  */
 import type { CaptainReport, SpecialistCategory } from "./types";
 import { getSpecialist, specialistsForCategory } from "./registry";
+import { TITLES } from "./chain";
 
+/** A Consul seat. The type keeps its historical name so stored records still parse. */
 export interface Captain {
   id: string;
   name: string;
   domain: SpecialistCategory;
-  /** What this lead is accountable for, in one sentence. */
+  /** What this Consul is accountable for, in one sentence. */
   mandate: string;
-  /** The lead's own playbook, composed into oversight prompts. */
+  /** The Consul's own playbook, composed into oversight prompts. */
   systemPrompt: string;
 }
 
-const captain = (domain: SpecialistCategory, name: string, mandate: string, focus: string): Captain => ({
-  id: `captain.${domain}`,
-  name,
-  domain,
-  mandate,
-  systemPrompt: `You are ${name} — Consul of the ${domain} domain in the SelfImpulse company. You report to the Captain (the CEO) and to no one else: you never address the user, and you never command the crew directly — your Adepts lead their sub-agent crews, and you brief them through the desk. ${focus} Report only what actually happened: name the Adepts involved, their real outcomes, and the single next step. Never claim work that did not run. Layer discipline is absolute — no message skips the Consul.`,
-});
+const captain = (domain: SpecialistCategory, label: string, mandate: string, focus: string): Captain => {
+  const name = `${TITLES.consul} of ${label}`;
+  return {
+    id: `captain.${domain}`,
+    name,
+    domain,
+    mandate,
+    systemPrompt: `You are the ${name} in the SelfImpulse company. You report to the ${TITLES.captain} (the CEO) and to no one else: you never address the user, and you never command a ${TITLES.crew.toLowerCase()} directly — your ${TITLES.adept}s lead the crews, and their results reach you through their desks. ${focus} Report only what actually happened: name the members involved, their real outcomes, and the single next step. Never claim work that did not run. Layer discipline is absolute — no message skips a rung.`,
+  };
+};
 
 export const CAPTAINS: Captain[] = [
-  captain("code", "Consul of Code", "Owns implementation quality end to end.", "Sequence work so foundations land before dependents; pair every implementation step with its test and review path."),
-  captain("security", "Consul of Security", "Owns the trust boundary of every plan.", "Nothing ships without its threat reviewed; escalate anything touching credentials, egress or autonomy immediately."),
-  captain("testing", "Consul of Testing", "Owns the evidence that work is correct.", "Every claimed fix needs a failing-then-passing test; quarantine flake with an owner, never with a retry."),
-  captain("review", "Consul of Review", "Owns the quality gate before merge.", "Weight review effort by blast radius; no approval without the residual risks named."),
-  captain("data", "Consul of Data", "Owns data trust: lineage, quality, privacy.", "Every number names its source and freshness; destructive data steps are reversible or flagged."),
-  captain("devops", "Consul of DevOps", "Owns delivery and operability.", "Every change states its blast radius and rollback before it runs; recovery is rehearsed, not hoped for."),
-  captain("research", "Consul of Research", "Owns evidence quality behind decisions.", "Load-bearing claims need two independent sources or an honest single-sourced label."),
-  captain("writing", "Consul of Writing", "Owns clarity of everything shipped to readers.", "Lead with the answer; every command in docs runs as written or is flagged."),
-  captain("analysis", "Consul of Analysis", "Owns the honesty of numbers in decisions.", "Assumptions are visible before results; ranges over false point estimates."),
-  captain("design", "Consul of Design", "Owns the product's visible quality bar.", "Refuse the generic look; hierarchy works in greyscale first; every state is designed, including the worst one."),
-  captain("product", "Consul of Product", "Owns the problem definition behind every build.", "The problem statement ships before the solution; every order names the user outcome it serves."),
-  captain("business", "Consul of Business", "Owns the honesty of plans and numbers.", "Every projection lists its assumptions and its error range; a plan without a kill criterion is decoration."),
-  captain("legal", "Consul of Legal", "Owns obligations, consent and liability clarity.", "Obligations map to controls with evidence; never assure what the product cannot verify."),
-  captain("comms", "Consul of Comms", "Owns what we say, when, and to whom.", "Known, unknown, next — on a clock; corrections are appended, never erased."),
+  captain("code", "Code", "Owns implementation quality end to end.", "Sequence work so foundations land before dependents; pair every implementation step with its test and review path."),
+  captain("security", "Security", "Owns the trust boundary of every plan.", "Nothing ships without its threat reviewed; escalate anything touching credentials, egress or autonomy immediately."),
+  captain("testing", "Testing", "Owns the evidence that work is correct.", "Every claimed fix needs a failing-then-passing test; quarantine flake with an owner, never with a retry."),
+  captain("review", "Review", "Owns the quality gate before merge.", "Weight review effort by blast radius; no approval without the residual risks named."),
+  captain("data", "Data", "Owns data trust: lineage, quality, privacy.", "Every number names its source and freshness; destructive data steps are reversible or flagged."),
+  captain("devops", "DevOps", "Owns delivery and operability.", "Every change states its blast radius and rollback before it runs; recovery is rehearsed, not hoped for."),
+  captain("research", "Research", "Owns evidence quality behind decisions.", "Load-bearing claims need two independent sources or an honest single-sourced label."),
+  captain("writing", "Writing", "Owns clarity of everything shipped to readers.", "Lead with the answer; every command in docs runs as written or is flagged."),
+  captain("analysis", "Analysis", "Owns the honesty of numbers in decisions.", "Assumptions are visible before results; ranges over false point estimates."),
+  captain("design", "Design", "Owns the product's visible quality bar.", "Refuse the generic look; hierarchy works in greyscale first; every state is designed, including the worst one."),
+  captain("product", "Product", "Owns the problem definition behind every build.", "The problem statement ships before the solution; every order names the user outcome it serves."),
+  captain("business", "Business", "Owns the honesty of plans and numbers.", "Every projection lists its assumptions and its error range; a plan without a kill criterion is decoration."),
+  captain("legal", "Legal", "Owns obligations, consent and liability clarity.", "Obligations map to controls with evidence; never assure what the product cannot verify."),
+  captain("comms", "Comms", "Owns what we say, when, and to whom.", "Known, unknown, next — on a clock; corrections are appended, never erased."),
+  captain("finance", "Finance", "Owns the integrity of every figure that touches money.", "Every number names its ledger, period and currency; anything regulated is flagged for a licensed human, never improvised; reconcile before you report."),
+  captain("silicon", "Silicon", "Owns correctness from RTL to sign-off evidence.", "Nothing is called verified without its testbench, coverage and corner named; every timing, power or area claim cites the tool run that produced it; a waived check names its owner."),
 ];
 
 export function getCaptain(id: string): Captain | null {
@@ -63,7 +77,7 @@ export function captainForDomain(domain: SpecialistCategory): Captain | null {
   return CAPTAINS.find((l) => l.domain === domain) ?? null;
 }
 
-/** The lead accountable for a routed set: the domain with the most members routed (ties → first routed). */
+/** The Consul accountable for a routed set: the domain with the most members routed (ties → first routed). */
 export function captainForRoute(specialistIds: string[]): Captain | null {
   const counts = new Map<SpecialistCategory, number>();
   let firstCat: SpecialistCategory | null = null;

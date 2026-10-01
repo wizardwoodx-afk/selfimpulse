@@ -8,10 +8,14 @@
  *          ⇄  ADEPT    (the desk's team lead — plans and presents)
  *          ⇄  SUB-AGENTS (the crew — the established fleet that does the work)
  *
- * Layer discipline is structural, not stylistic: the Captain speaks only with
- * the user and its Consuls; a Consul speaks to the Captain above and its
- * Adepts below — never the user, never a sub-agent; an Adept leads its crew
- * and reports to its Consul; the crew executes and answers to its Adept.
+ * Layer discipline is structural, not stylistic. The law is ./chain (a message
+ * moves exactly one rung; LayerSkipError otherwise) and it is enforced where
+ * the data lives: every desk's category resolves to exactly one Consul
+ * (consulForDesk below), and workspace.ts refuses to seat a desk whose Consul
+ * is missing. The Captain speaks only with the user and its Consuls; a Consul
+ * speaks to the Captain above and its Adepts below — never the user, never a
+ * sub-agent; an Adept leads its crew and reports to its Consul; the crew
+ * executes and answers to its Adept.
  *
  * The Specialists door and the engine fleet stay two catalogs. This module
  * is the wiring: every worker belongs to a desk, every desk has an Adept
@@ -23,6 +27,8 @@
  */
 import type { Specialist, SpecialistCategory } from "./types";
 import { ESTABLISHED_SPECIALISTS } from "./federation/fleet";
+import { TITLES } from "./chain";
+import { captainForDomain, type Captain } from "./captains";
 
 export const ORG_DESK_COUNT = 30;
 export const ORG_SPECIALIST_COUNT = 60; // Lead + HR per desk
@@ -161,8 +167,8 @@ function leadOf(d: DeskDef): DeskSpecialist {
     id: `lead.${d.id}`,
     desk: d.id,
     role: "lead",
-    name: `${d.label} Adept`,
-    mandate: `You are the ${d.label} Adept — the desk's team lead. Plan the desk's work, lead your sub-agent crew through it, and report to your Consul. Never address the user; never brief the Captain over your Consul's head. You lead sub-agents; you do not impersonate them.`,
+    name: `${d.label} ${TITLES.adept}`,
+    mandate: `You are the ${d.label} ${TITLES.adept} — the desk's team lead. Plan the desk's work, lead your ${TITLES.crew.toLowerCase()} crew through it, and report to your ${TITLES.consul}. Never address the user; never report to the ${TITLES.captain} over your ${TITLES.consul}'s head. You lead ${TITLES.crew.toLowerCase()}s; you do not impersonate them.`,
     keywords: d.keywords,
   };
 }
@@ -172,7 +178,7 @@ function hrOf(d: DeskDef): DeskSpecialist {
     desk: d.id,
     role: "hr",
     name: `${d.label} Desk HR`,
-    mandate: `Staff the ${d.label} bench from the sub-agent catalog. Name who should run; never do the work yourself. Staffing answers to your Consul.`,
+    mandate: `Staff the ${d.label} bench from the ${TITLES.crew.toLowerCase()} catalog. Name who should run; never do the work yourself. Staffing answers to your ${TITLES.consul}.`,
     keywords: [...d.keywords, "staff", "bench", "assign"],
   };
 }
@@ -183,6 +189,15 @@ export const DOMAIN_SPECIALISTS: readonly DeskSpecialist[] = Object.freeze(
 
 export function deskById(id: DeskId): DeskDef | undefined {
   return DESKS.find((d) => d.id === id);
+}
+/**
+ * The Consul directly above a desk's Adept: the Consul who owns the desk's
+ * worker category. Null means a skipped rung — workspace.ts refuses such
+ * a desk and probe/workspace pins that none of the shipped desks is one.
+ */
+export function consulForDesk(id: DeskId): Captain | null {
+  const d = deskById(id);
+  return d ? captainForDomain(d.workerCategory) : null;
 }
 export function leadFor(id: DeskId): DeskSpecialist | undefined {
   return DOMAIN_SPECIALISTS.find((s) => s.desk === id && s.role === "lead");

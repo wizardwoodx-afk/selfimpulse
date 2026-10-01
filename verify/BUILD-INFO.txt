@@ -316,18 +316,29 @@ the pre-seed Agentic Test Protocol v1 (24/24 on this build).
   what the code has always done and what graphSecurityStatus() reports.
 
 ORG/SECURITY (the company restructure + the archive-3/4/5 security rounds).
-The runtime chain is now a company with no skipped rung: USER ⇄ CAPTAIN (the
-CEO — the only human-facing seat) ⇄ CONSUL (one per domain, renamed from the
-domain-captains layer; reports up, never addresses the user, never commands
-the crew) ⇄ ADEPT (the desk's team lead, renamed from Team Lead) ⇄ SUB-AGENTS
-(the crew). The reply header and receipt note follow the layer (CONSUL
-SYNTHESIS / consul synthesis). The security substrate is FROZEN for the
-upcoming Qoder specialist expansion: archive-3 shipped the deny-by-default
-native gate (guard.rs, probe/nativeAuthz), the authority-checked decision
-state machines, the component-based credential-path refusal and bridge
-signature parity; archive-4 completed C-2 with the approver-authority
-capability (native OS dialog → SHA-256-stored, freshness-bounded,
-verdict-scoped, single-use token presented to approval_decide) and closed the
-wrapper invariant (every privileged command crosses authorize()); archive-5's
-review confirmed C-1..C-4 all fixed (nativeAuthz 118/118) and flagged THIS
-record's stale prose counts, which are eliminated above by construction.
+The runtime chain is a company with no skipped rung: USER ⇄ CAPTAIN (the CEO —
+the only human-facing seat) ⇄ CONSUL (one per domain; reports up, never
+addresses the user, never commands the crew) ⇄ ADEPT (the desk's team lead) ⇄
+SUB-AGENTS (the crew). The law is src/engine/chain.ts (a message moves exactly
+one rung; LayerSkipError otherwise) and the titles live there ONCE — a rename is
+a one-line change. It is enforced on the real data, not just worded: every desk
+resolves to exactly one Consul of its own domain, workspace.ts REFUSES to seat a
+desk with none, and the Work graph is drawn rung by rung (Captain → Consul →
+Adept → sub-agents; the placeholder agent that hung off the Captain is gone).
+Building it exposed two real skips, both fixed: finance and silicon had NO
+Consul (a silicon-only run, 350 routed sub-agents, got no Consul report and no
+Consul synthesis — the Captain briefed the crew directly), so the roster is now
+sixteen, one per specialist category; and the Work graph linked Captain → desk.
+The reply header and receipt note follow the layer (CONSUL SYNTHESIS / consul
+synthesis). What chain.ts does NOT claim: that an LLM message crossed every rung
+on every run — it is the reporting structure a run is seated in and the rule any
+hop in it must obey. The security substrate is FROZEN for the upcoming Qoder
+specialist expansion: archive-3 shipped the deny-by-default native gate
+(guard.rs, probe/nativeAuthz), the authority-checked decision state machines,
+the component-based credential-path refusal and bridge signature parity;
+archive-4 completed C-2 with the approver-authority capability (native OS
+dialog → SHA-256-stored, freshness-bounded, verdict-scoped, single-use token
+presented to approval_decide) and closed the wrapper invariant (every
+privileged command crosses authorize()); archive-5's review confirmed C-1..C-4
+all fixed (nativeAuthz 118/118) and flagged THIS record's stale prose counts,
+which are eliminated above by construction.

@@ -570,10 +570,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path) {
-  if (!path)
+function getElementAtPath(obj, path2) {
+  if (!path2)
     return obj;
-  return path.reduce((acc, key) => acc?.[key], obj);
+  return path2.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -832,11 +832,11 @@ function explicitlyAborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path, issues) {
+function prefixIssues(path2, issues) {
   return issues.map((iss) => {
     var _a3;
     (_a3 = iss).path ?? (_a3.path = []);
-    iss.path.unshift(path);
+    iss.path.unshift(path2);
     return iss;
   });
 }
@@ -1361,16 +1361,16 @@ function flattenError(error63, mapper = (issue2) => issue2.message) {
 }
 function formatError(error63, mapper = (issue2) => issue2.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error64, path = []) => {
+  const processError = (error64, path2 = []) => {
     for (const issue2 of error64.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path2, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
       } else {
-        const fullpath = [...path, ...issue2.path];
+        const fullpath = [...path2, ...issue2.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue2));
         } else {
@@ -1409,17 +1409,17 @@ function formatError(error63, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error63, mapper = (issue2) => issue2.message) {
   const result = { errors: [] };
-  const processError = (error64, path = []) => {
+  const processError = (error64, path2 = []) => {
     var _a3;
     for (const issue2 of error64.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path2, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path2, ...issue2.path]);
       } else {
-        const fullpath = [...path, ...issue2.path];
+        const fullpath = [...path2, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -1458,8 +1458,8 @@ function treeifyError(error63, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path) {
+  const path2 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path2) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -4852,7 +4852,7 @@ function isRef(value) {
 function cloneIssues(issues) {
   return issues.map((iss) => iss.path ? { ...iss, path: iss.path.slice() } : { ...iss });
 }
-function isRecursive(inst, stack, resolve) {
+function isRecursive(inst, stack, resolve2) {
   const cached2 = recursive.get(inst);
   if (cached2 !== void 0)
     return cached2 ? PROVEN : NONE;
@@ -4862,7 +4862,7 @@ function isRecursive(inst, stack, resolve) {
   let result = NONE;
   const check2 = (child) => {
     if (result !== PROVEN && child?._zod) {
-      const answer = isRecursive(child, stack, resolve);
+      const answer = isRecursive(child, stack, resolve2);
       if (answer > result)
         result = answer;
     }
@@ -4873,7 +4873,7 @@ function isRecursive(inst, stack, resolve) {
       const desc = Object.getOwnPropertyDescriptor(sh, key);
       if (spread && !desc.enumerable)
         continue;
-      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve) : NONE;
+      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve2) : NONE;
       if (child > answer)
         answer = child;
     }
@@ -4940,7 +4940,7 @@ function isRecursive(inst, stack, resolve) {
       break;
     // `$ZodLazy` caches its inner on the def, so a resolved edge is followed exactly
     case "lazy": {
-      const inner = def._cachedInner ?? (resolve ? inst._zod.innerType : void 0);
+      const inner = def._cachedInner ?? (resolve2 ? inst._zod.innerType : void 0);
       merge2(inner ? isRecursive(inner, stack, false) : ASSUMED);
       break;
     }
@@ -19445,13 +19445,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path = ref.slice(1).split("/").filter(Boolean);
-  if (path.length === 0) {
+  const path2 = ref.slice(1).split("/").filter(Boolean);
+  if (path2.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path[0] === defsKey) {
-    const key = path[1] === void 0 ? void 0 : decodeJSONPointerSegment(path[1]);
+  if (path2[0] === defsKey) {
+    const key = path2[1] === void 0 ? void 0 : decodeJSONPointerSegment(path2[1]);
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -20875,6 +20875,10 @@ var init_mcpRuntime = __esm({
     MCP_OUTPUT_CAP = 2e3;
   }
 });
+
+// probe/workspace.test.ts
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 // src/engine/selfOverrides.ts
 var KEY = "engine.self.overrides.v1";
@@ -41652,6 +41656,131 @@ function moeV2Line(sel) {
   return `Agentic MoE v2: tier=${sel.gate.tier}, crew ${sel.crew.length}/${sel.gate.k} from a ${sel.gate.poolSize}-specialist pool across ${domains} domain(s) \xB7 ${bench} bench reserve(s) staged for failover${sel.pruned.length ? ` \xB7 ${sel.pruned.length} pruned with reasons` : ""}.`;
 }
 
+// src/engine/chain.ts
+var RUNGS = ["user", "captain", "consul", "adept", "crew"];
+var TITLES = {
+  captain: "Captain",
+  consul: "Consul",
+  adept: "Adept",
+  crew: "Sub-agent"
+};
+var ROLES = {
+  user: "the owner \u2014 speaks only with the Captain",
+  captain: "the CEO \u2014 the only seat that speaks with the user; briefs and hears only its Consuls",
+  consul: "owns one domain \u2014 reports up to the Captain, briefs down to its Adepts; never the user, never the crew",
+  adept: "the desk's team lead \u2014 leads the sub-agent crew and reports to its Consul",
+  crew: "the sub-agents that do the work \u2014 answer to their Adept alone"
+};
+function rungLabel(r2) {
+  return r2 === "user" ? "user" : TITLES[r2];
+}
+function rungIndex(r2) {
+  return RUNGS.indexOf(r2);
+}
+function legalPath(from, to) {
+  const a = rungIndex(from);
+  const b2 = rungIndex(to);
+  const step = a <= b2 ? 1 : -1;
+  const out = [];
+  for (let i = a; i !== b2; i += step) out.push(RUNGS[i]);
+  out.push(RUNGS[b2]);
+  return out;
+}
+function mayAddress(from, to) {
+  return Math.abs(rungIndex(from) - rungIndex(to)) === 1;
+}
+var LayerSkipError = class _LayerSkipError extends Error {
+  from;
+  to;
+  constructor(from, to, detail) {
+    super(_LayerSkipError.explain(from, to, detail));
+    this.name = "LayerSkipError";
+    this.from = from;
+    this.to = to;
+  }
+  static explain(from, to, detail) {
+    const head = from === to ? `peers on the ${rungLabel(from)} rung coordinate through the rung above them, never sideways` : `the ${rungLabel(from)} cannot address the ${rungLabel(to)} directly \u2014 the message must travel ${legalPath(from, to).map(rungLabel).join(" \u2192 ")}`;
+    return detail ? `${head} (${detail})` : head;
+  }
+};
+function assertMayAddress(from, to) {
+  if (!mayAddress(from, to)) throw new LayerSkipError(from, to);
+}
+function assertChain(line) {
+  for (let i = 1; i < line.length; i++) assertMayAddress(line[i - 1], line[i]);
+}
+
+// src/engine/captains.ts
+var captain = (domain2, label, mandate, focus) => {
+  const name = `${TITLES.consul} of ${label}`;
+  return {
+    id: `captain.${domain2}`,
+    name,
+    domain: domain2,
+    mandate,
+    systemPrompt: `You are the ${name} in the SelfImpulse company. You report to the ${TITLES.captain} (the CEO) and to no one else: you never address the user, and you never command a ${TITLES.crew.toLowerCase()} directly \u2014 your ${TITLES.adept}s lead the crews, and their results reach you through their desks. ${focus} Report only what actually happened: name the members involved, their real outcomes, and the single next step. Never claim work that did not run. Layer discipline is absolute \u2014 no message skips a rung.`
+  };
+};
+var CAPTAINS = [
+  captain("code", "Code", "Owns implementation quality end to end.", "Sequence work so foundations land before dependents; pair every implementation step with its test and review path."),
+  captain("security", "Security", "Owns the trust boundary of every plan.", "Nothing ships without its threat reviewed; escalate anything touching credentials, egress or autonomy immediately."),
+  captain("testing", "Testing", "Owns the evidence that work is correct.", "Every claimed fix needs a failing-then-passing test; quarantine flake with an owner, never with a retry."),
+  captain("review", "Review", "Owns the quality gate before merge.", "Weight review effort by blast radius; no approval without the residual risks named."),
+  captain("data", "Data", "Owns data trust: lineage, quality, privacy.", "Every number names its source and freshness; destructive data steps are reversible or flagged."),
+  captain("devops", "DevOps", "Owns delivery and operability.", "Every change states its blast radius and rollback before it runs; recovery is rehearsed, not hoped for."),
+  captain("research", "Research", "Owns evidence quality behind decisions.", "Load-bearing claims need two independent sources or an honest single-sourced label."),
+  captain("writing", "Writing", "Owns clarity of everything shipped to readers.", "Lead with the answer; every command in docs runs as written or is flagged."),
+  captain("analysis", "Analysis", "Owns the honesty of numbers in decisions.", "Assumptions are visible before results; ranges over false point estimates."),
+  captain("design", "Design", "Owns the product's visible quality bar.", "Refuse the generic look; hierarchy works in greyscale first; every state is designed, including the worst one."),
+  captain("product", "Product", "Owns the problem definition behind every build.", "The problem statement ships before the solution; every order names the user outcome it serves."),
+  captain("business", "Business", "Owns the honesty of plans and numbers.", "Every projection lists its assumptions and its error range; a plan without a kill criterion is decoration."),
+  captain("legal", "Legal", "Owns obligations, consent and liability clarity.", "Obligations map to controls with evidence; never assure what the product cannot verify."),
+  captain("comms", "Comms", "Owns what we say, when, and to whom.", "Known, unknown, next \u2014 on a clock; corrections are appended, never erased."),
+  captain("finance", "Finance", "Owns the integrity of every figure that touches money.", "Every number names its ledger, period and currency; anything regulated is flagged for a licensed human, never improvised; reconcile before you report."),
+  captain("silicon", "Silicon", "Owns correctness from RTL to sign-off evidence.", "Nothing is called verified without its testbench, coverage and corner named; every timing, power or area claim cites the tool run that produced it; a waived check names its owner.")
+];
+function getCaptain(id) {
+  return CAPTAINS.find((l) => l.id === id) ?? null;
+}
+function captainForDomain(domain2) {
+  return CAPTAINS.find((l) => l.domain === domain2) ?? null;
+}
+function captainForRoute(specialistIds) {
+  const counts = /* @__PURE__ */ new Map();
+  let firstCat = null;
+  for (const id of specialistIds) {
+    const s = getSpecialist(id);
+    if (!s) continue;
+    if (firstCat === null) firstCat = s.category;
+    counts.set(s.category, (counts.get(s.category) ?? 0) + 1);
+  }
+  if (firstCat === null) return null;
+  let best = firstCat;
+  let bestN = -1;
+  for (const [cat, n] of counts) if (n > bestN) {
+    best = cat;
+    bestN = n;
+  }
+  return captainForDomain(best);
+}
+function buildCaptainReport(captainId, results) {
+  const l = getCaptain(captainId);
+  if (!l || results.length === 0) return null;
+  const done = results.filter((r2) => r2.outcome === "answered" || r2.outcome === "peer-delegated").length;
+  const status = done === results.length ? "completed" : done > 0 ? "partial" : results.some((r2) => r2.outcome === "refused" || r2.outcome === "gated-out") ? "blocked" : results.every((r2) => r2.outcome === "planned") ? "planned" : "blocked";
+  const members2 = results.map((r2) => ({
+    specialistId: r2.specialistId,
+    name: getSpecialist(r2.specialistId)?.name ?? r2.specialistId,
+    outcome: r2.outcome,
+    note: r2.note,
+    memberDigest: r2.memberDigest
+  }));
+  const failures2 = results.filter((r2) => r2.outcome !== "answered" && r2.outcome !== "peer-delegated").map((r2) => `${getSpecialist(r2.specialistId)?.name ?? r2.specialistId}: ${r2.outcome}${r2.note ? ` \u2014 ${r2.note.slice(0, 80)}` : ""}`);
+  const summary = status === "completed" ? `All ${done} routed ${l.domain} member(s) executed; work is done end to end.` : status === "partial" ? `${done} of ${results.length} routed member(s) executed; the rest did not run \u2014 see failures.` : status === "planned" ? `No member executed (no provider); the ${l.domain} plan is ready to run when a key exists.` : `Nothing executed in the ${l.domain} domain; progress stopped at the gate or a refusal.`;
+  const nextStep = status === "completed" ? "None \u2014 accept or reject the work in the log." : status === "planned" ? "Add a provider key and re-run the plan." : status === "partial" ? "Re-run only the failed members; the executed ones keep their receipts." : "Resolve the blocking decision at the gate, then resume.";
+  return { captainId: l.id, captainName: l.name, domain: l.domain, status, summary, members: members2, failures: failures2, nextStep };
+}
+
 // src/engine/org.ts
 var ORG_DESK_COUNT = 30;
 var ORG_SPECIALIST_COUNT = 60;
@@ -41903,8 +42032,8 @@ function leadOf(d) {
     id: `lead.${d.id}`,
     desk: d.id,
     role: "lead",
-    name: `${d.label} Adept`,
-    mandate: `You are the ${d.label} Adept \u2014 the desk's team lead. Plan the desk's work, lead your sub-agent crew through it, and report to your Consul. Never address the user; never brief the Captain over your Consul's head. You lead sub-agents; you do not impersonate them.`,
+    name: `${d.label} ${TITLES.adept}`,
+    mandate: `You are the ${d.label} ${TITLES.adept} \u2014 the desk's team lead. Plan the desk's work, lead your ${TITLES.crew.toLowerCase()} crew through it, and report to your ${TITLES.consul}. Never address the user; never report to the ${TITLES.captain} over your ${TITLES.consul}'s head. You lead ${TITLES.crew.toLowerCase()}s; you do not impersonate them.`,
     keywords: d.keywords
   };
 }
@@ -41914,13 +42043,20 @@ function hrOf(d) {
     desk: d.id,
     role: "hr",
     name: `${d.label} Desk HR`,
-    mandate: `Staff the ${d.label} bench from the sub-agent catalog. Name who should run; never do the work yourself. Staffing answers to your Consul.`,
+    mandate: `Staff the ${d.label} bench from the ${TITLES.crew.toLowerCase()} catalog. Name who should run; never do the work yourself. Staffing answers to your ${TITLES.consul}.`,
     keywords: [...d.keywords, "staff", "bench", "assign"]
   };
 }
 var DOMAIN_SPECIALISTS = Object.freeze(
   DESKS.flatMap((d) => [leadOf(d), hrOf(d)])
 );
+function deskById(id) {
+  return DESKS.find((d) => d.id === id);
+}
+function consulForDesk(id) {
+  const d = deskById(id);
+  return d ? captainForDomain(d.workerCategory) : null;
+}
 function leadFor(id) {
   return DOMAIN_SPECIALISTS.find((s) => s.desk === id && s.role === "lead");
 }
@@ -42049,16 +42185,22 @@ function musterWorkspace(request) {
   const desks = involved.map((d) => {
     const lead = leadFor(d.id);
     const hr = hrFor(d.id);
+    const consul = consulForDesk(d.id);
+    if (!consul) {
+      throw new LayerSkipError("captain", "adept", `the ${d.label} desk has no ${TITLES.consul} above its ${TITLES.adept}`);
+    }
     return {
       id: d.id,
       label: d.label,
+      consul: { id: consul.id, name: consul.name },
       lead: { id: lead.id, name: lead.name },
       hr: { id: hr.id, name: hr.name },
       pooled: workersOnDesk(d.id).length,
       onFloor: onFloor.get(d.id) ?? 0
     };
   });
-  const line = `${WORKSPACE_NAME}: Captain opened ${desks.length} desk(s) \xB7 floor ${floor.length}/${FLOOR_CAP} workers of ${ESTABLISHED_SPECIALISTS.length} \xB7 ${ORG_SPECIALIST_COUNT} domain specialists (Lead+HR) across ${ORG_DESK_COUNT} desks \xB7 MoE tier=${selection.gate.tier}. Autonomous \u2014 no team was picked by the user.`;
+  const consulCount = new Set(desks.map((d) => d.consul.id)).size;
+  const line = `${WORKSPACE_NAME}: ${TITLES.captain} opened ${desks.length} desk(s) under ${consulCount} ${TITLES.consul}(s) \xB7 floor ${floor.length}/${FLOOR_CAP} ${TITLES.crew.toLowerCase()}s of ${ESTABLISHED_SPECIALISTS.length} \xB7 ${ORG_SPECIALIST_COUNT} domain specialists (${TITLES.adept}+HR) across ${ORG_DESK_COUNT} desks \xB7 MoE tier=${selection.gate.tier}. Autonomous \u2014 no team was picked by the user.`;
   return {
     name: WORKSPACE_NAME,
     captain: "Captain",
@@ -42091,6 +42233,8 @@ function officeSnapshot(office) {
     desks: office.desks.map((d) => ({
       id: d.id,
       label: d.label,
+      consulId: d.consul.id,
+      consul: d.consul.name,
       lead: d.lead.name,
       hr: d.hr.name,
       pooled: d.pooled,
@@ -42957,72 +43101,6 @@ function liveDataBanner(v) {
 \u26A0 LIVE-DATA CHECK (runtime GuardRail): this answer makes time-sensitive claims (${v.claims.slice(0, 4).join(", ")}) without sufficient dated live sources (${v.sources} URL(s), ${v.datedClaims} dated claim(s)).${retrievalNote} Treat it as knowledge-cutoff data until verified \u2014 flagged honestly instead of dressed as fresh.`;
 }
 
-// src/engine/captains.ts
-var captain = (domain2, name, mandate, focus) => ({
-  id: `captain.${domain2}`,
-  name,
-  domain: domain2,
-  mandate,
-  systemPrompt: `You are ${name} \u2014 Consul of the ${domain2} domain in the SelfImpulse company. You report to the Captain (the CEO) and to no one else: you never address the user, and you never command the crew directly \u2014 your Adepts lead their sub-agent crews, and you brief them through the desk. ${focus} Report only what actually happened: name the Adepts involved, their real outcomes, and the single next step. Never claim work that did not run. Layer discipline is absolute \u2014 no message skips the Consul.`
-});
-var CAPTAINS = [
-  captain("code", "Consul of Code", "Owns implementation quality end to end.", "Sequence work so foundations land before dependents; pair every implementation step with its test and review path."),
-  captain("security", "Consul of Security", "Owns the trust boundary of every plan.", "Nothing ships without its threat reviewed; escalate anything touching credentials, egress or autonomy immediately."),
-  captain("testing", "Consul of Testing", "Owns the evidence that work is correct.", "Every claimed fix needs a failing-then-passing test; quarantine flake with an owner, never with a retry."),
-  captain("review", "Consul of Review", "Owns the quality gate before merge.", "Weight review effort by blast radius; no approval without the residual risks named."),
-  captain("data", "Consul of Data", "Owns data trust: lineage, quality, privacy.", "Every number names its source and freshness; destructive data steps are reversible or flagged."),
-  captain("devops", "Consul of DevOps", "Owns delivery and operability.", "Every change states its blast radius and rollback before it runs; recovery is rehearsed, not hoped for."),
-  captain("research", "Consul of Research", "Owns evidence quality behind decisions.", "Load-bearing claims need two independent sources or an honest single-sourced label."),
-  captain("writing", "Consul of Writing", "Owns clarity of everything shipped to readers.", "Lead with the answer; every command in docs runs as written or is flagged."),
-  captain("analysis", "Consul of Analysis", "Owns the honesty of numbers in decisions.", "Assumptions are visible before results; ranges over false point estimates."),
-  captain("design", "Consul of Design", "Owns the product's visible quality bar.", "Refuse the generic look; hierarchy works in greyscale first; every state is designed, including the worst one."),
-  captain("product", "Consul of Product", "Owns the problem definition behind every build.", "The problem statement ships before the solution; every order names the user outcome it serves."),
-  captain("business", "Consul of Business", "Owns the honesty of plans and numbers.", "Every projection lists its assumptions and its error range; a plan without a kill criterion is decoration."),
-  captain("legal", "Consul of Legal", "Owns obligations, consent and liability clarity.", "Obligations map to controls with evidence; never assure what the product cannot verify."),
-  captain("comms", "Consul of Comms", "Owns what we say, when, and to whom.", "Known, unknown, next \u2014 on a clock; corrections are appended, never erased.")
-];
-function getCaptain(id) {
-  return CAPTAINS.find((l) => l.id === id) ?? null;
-}
-function captainForDomain(domain2) {
-  return CAPTAINS.find((l) => l.domain === domain2) ?? null;
-}
-function captainForRoute(specialistIds) {
-  const counts = /* @__PURE__ */ new Map();
-  let firstCat = null;
-  for (const id of specialistIds) {
-    const s = getSpecialist(id);
-    if (!s) continue;
-    if (firstCat === null) firstCat = s.category;
-    counts.set(s.category, (counts.get(s.category) ?? 0) + 1);
-  }
-  if (firstCat === null) return null;
-  let best = firstCat;
-  let bestN = -1;
-  for (const [cat, n] of counts) if (n > bestN) {
-    best = cat;
-    bestN = n;
-  }
-  return captainForDomain(best);
-}
-function buildCaptainReport(captainId, results) {
-  const l = getCaptain(captainId);
-  if (!l || results.length === 0) return null;
-  const done = results.filter((r2) => r2.outcome === "answered" || r2.outcome === "peer-delegated").length;
-  const status = done === results.length ? "completed" : done > 0 ? "partial" : results.some((r2) => r2.outcome === "refused" || r2.outcome === "gated-out") ? "blocked" : results.every((r2) => r2.outcome === "planned") ? "planned" : "blocked";
-  const members2 = results.map((r2) => ({
-    specialistId: r2.specialistId,
-    name: getSpecialist(r2.specialistId)?.name ?? r2.specialistId,
-    outcome: r2.outcome,
-    note: r2.note,
-    memberDigest: r2.memberDigest
-  }));
-  const failures2 = results.filter((r2) => r2.outcome !== "answered" && r2.outcome !== "peer-delegated").map((r2) => `${getSpecialist(r2.specialistId)?.name ?? r2.specialistId}: ${r2.outcome}${r2.note ? ` \u2014 ${r2.note.slice(0, 80)}` : ""}`);
-  const summary = status === "completed" ? `All ${done} routed ${l.domain} member(s) executed; work is done end to end.` : status === "partial" ? `${done} of ${results.length} routed member(s) executed; the rest did not run \u2014 see failures.` : status === "planned" ? `No member executed (no provider); the ${l.domain} plan is ready to run when a key exists.` : `Nothing executed in the ${l.domain} domain; progress stopped at the gate or a refusal.`;
-  const nextStep = status === "completed" ? "None \u2014 accept or reject the work in the log." : status === "planned" ? "Add a provider key and re-run the plan." : status === "partial" ? "Re-run only the failed members; the executed ones keep their receipts." : "Resolve the blocking decision at the gate, then resume.";
-  return { captainId: l.id, captainName: l.name, domain: l.domain, status, summary, members: members2, failures: failures2, nextStep };
-}
-
 // src/engine/synthesis.ts
 var ATOM_PATTERNS = [
   { kind: "percent", re: /\b\d+(?:\.\d+)?\s?%/g },
@@ -43530,22 +43608,22 @@ function resolveWorkspacePath(root, p) {
 }
 async function fsFor(ctx) {
   if (ctx.fsImpl) return ctx.fsImpl;
-  const fs = await import("node:fs/promises");
+  const fs2 = await import("node:fs/promises");
   const pathMod = await import("node:path");
   return {
     kind: "node",
     async readdir(p) {
-      const entries = await fs.readdir(p, { withFileTypes: true });
+      const entries = await fs2.readdir(p, { withFileTypes: true });
       return entries.map((e) => ({ name: e.name, isDirectory: e.isDirectory() }));
     },
     async stat(p) {
-      const st = await fs.stat(p);
+      const st = await fs2.stat(p);
       if (!st.isFile()) return { isFile: false, size: 0 };
       return { isFile: true, size: st.size };
     },
     async readText(p, maxBytes) {
-      const st = await fs.stat(p);
-      const fh = await fs.open(p, "r");
+      const st = await fs2.stat(p);
+      const fh = await fs2.open(p, "r");
       try {
         const buf = Buffer.alloc(Math.min(st.size, maxBytes));
         const { bytesRead } = await fh.read(buf, 0, buf.length, 0);
@@ -43555,11 +43633,11 @@ async function fsFor(ctx) {
       }
     },
     async mkdir(p) {
-      await fs.mkdir(p, { recursive: true });
+      await fs2.mkdir(p, { recursive: true });
     },
     async writeText(p, content) {
-      await fs.mkdir(pathMod.dirname(p), { recursive: true });
-      await fs.writeFile(p, content, "utf8");
+      await fs2.mkdir(pathMod.dirname(p), { recursive: true });
+      await fs2.writeFile(p, content, "utf8");
     }
   };
 }
@@ -43567,8 +43645,8 @@ async function execFsList(input2, ctx) {
   const resolved = resolveWorkspacePath(ctx.workspaceRoot, String(input2.path ?? ""));
   if (!resolved) return { outcome: "refused", output: `path refused: "${String(input2.path ?? "")}" escapes the workspace root or is invalid` };
   try {
-    const fs = await fsFor(ctx);
-    const entries = await fs.readdir(resolved);
+    const fs2 = await fsFor(ctx);
+    const entries = await fs2.readdir(resolved);
     const lines = entries.slice(0, 100).map((e) => e.isDirectory ? `${e.name}/` : e.name);
     return { outcome: "ok", output: lines.length > 0 ? lines.join("\n") : "(empty directory)" };
   } catch (err) {
@@ -43579,10 +43657,10 @@ async function execFsRead(input2, ctx) {
   const resolved = resolveWorkspacePath(ctx.workspaceRoot, String(input2.path ?? ""));
   if (!resolved) return { outcome: "refused", output: `path refused: "${String(input2.path ?? "")}" escapes the workspace root or is invalid` };
   try {
-    const fs = await fsFor(ctx);
-    const st = await fs.stat(resolved);
+    const fs2 = await fsFor(ctx);
+    const st = await fs2.stat(resolved);
     if (!st.isFile) return { outcome: "error", output: "not a regular file" };
-    const { text, truncated } = await fs.readText(resolved, MAX_READ_BYTES);
+    const { text, truncated } = await fs2.readText(resolved, MAX_READ_BYTES);
     const tail = truncated ? `
 [truncated \u2014 file is ${st.size} bytes, first ${MAX_READ_BYTES} returned]` : "";
     return { outcome: "ok", output: text + tail };
@@ -43595,8 +43673,8 @@ async function execFsWrite(input2, ctx) {
   if (!resolved) return { outcome: "refused", output: `path refused: "${String(input2.path ?? "")}" escapes the workspace root or is invalid` };
   if (typeof input2.content !== "string") return { outcome: "error", output: `fs.write needs a string "content" field` };
   try {
-    const fs = await fsFor(ctx);
-    await fs.writeText(resolved, input2.content);
+    const fs2 = await fsFor(ctx);
+    await fs2.writeText(resolved, input2.content);
     return { outcome: "ok", output: `wrote ${new TextEncoder().encode(input2.content).length} bytes to ${input2.path}` };
   } catch (err) {
     return { outcome: "error", output: `fs.write failed: ${err instanceof Error ? err.message : String(err)}` };
@@ -45070,7 +45148,7 @@ async function askSelfImpulse19(args, deps = {}) {
     }
   }
   if (!provider) {
-    const plan = specialists.length ? specialists.map((s) => `${s.name} (${s.id}): ${s.capabilities[0]}`).join("\n") : "no specialist cleared the routing bar \u2014 the Captain would handle this directly once a provider is configured";
+    const plan = specialists.length ? specialists.map((s) => `${s.name} (${s.id}): ${s.capabilities[0]}`).join("\n") : `no specialist cleared the routing bar \u2014 the ${TITLES.captain} would handle this directly once a provider is configured`;
     return finish({
       reply: `No provider key is configured, so nothing was executed. Here is the plan I would run:
 
@@ -45180,7 +45258,7 @@ ${note}`);
       }
     }
     const header = `${captain2?.captainName ?? "The domain captain"} coordinated ${memberResults.length} specialists \u2014 each section below is that member's OWN provider run${synthesis ? ", and the synthesis above them is the captain's OWN reasoned result" : ""}:`;
-    const body = synthesis ? `\u2500\u2500 CONSUL SYNTHESIS (${synthesis.captainName} \xB7 ${synthesis.model} \xB7 synthesis receipt ${synthesis.digest?.slice(0, 12)}\u2026) \u2500\u2500
+    const body = synthesis ? `\u2500\u2500 ${TITLES.consul.toUpperCase()} SYNTHESIS (${synthesis.captainName} \xB7 ${synthesis.model} \xB7 synthesis receipt ${synthesis.digest?.slice(0, 12)}\u2026) \u2500\u2500
 ${synthesis.text}
 
 \u2500\u2500 MEMBER EVIDENCE (each its own execution) \u2500\u2500
@@ -45199,7 +45277,7 @@ ${synthesisFailure ? `${synthesisFailure}
       captain: captain2,
       synthesis,
       memberRuns: memberRunViews,
-      note: `${executedCount} of ${memberResults.length} routed members executed \u2014 each with its own agent loop and member receipt` + (synthesis ? ` \xB7 consul synthesis ${synthesis.digest?.slice(0, 12)}\u2026 over ${synthesis.divergences.membersCompared} executed member(s)` : synthesisFailure ? " \xB7 synthesis attempted, failed honestly" : "")
+      note: `${executedCount} of ${memberResults.length} routed members executed \u2014 each with its own agent loop and member receipt` + (synthesis ? ` \xB7 ${TITLES.consul.toLowerCase()} synthesis ${synthesis.digest?.slice(0, 12)}\u2026 over ${synthesis.divergences.membersCompared} executed member(s)` : synthesisFailure ? " \xB7 synthesis attempted, failed honestly" : "")
     });
   }
   const primary = specialists[0] ?? null;
@@ -45243,7 +45321,7 @@ ${synthesisFailure ? `${synthesisFailure}
     });
   }
   const composedSystem = [
-    "You are the SelfImpulse Captain (engine: MJ) \u2014 the company's CEO and the only voice the user hears. Answer directly and concisely. Work travels strictly down the chain \u2014 Captain \u2192 Consuls \u2192 Adepts \u2192 sub-agents \u2014 and reports travel up it; no layer ever speaks past its neighbour.",
+    `You are the SelfImpulse ${TITLES.captain} (engine: MJ) \u2014 the company's CEO and the only voice the user hears. Answer directly and concisely. Work travels strictly down the chain \u2014 ${TITLES.captain} \u2192 ${TITLES.consul}s \u2192 ${TITLES.adept}s \u2192 ${TITLES.crew.toLowerCase()}s \u2014 and reports travel up it; no layer ever speaks past its neighbour.`,
     gateLine,
     ...briefing
   ].join("\n\n");
@@ -45396,6 +45474,131 @@ async function main() {
     "a single-fact ask still musters without a picker",
     single.name === WORKSPACE_NAME && single.floor.length <= 1
   );
+  console.log("\n== the company chain: USER \u21C4 Captain \u21C4 Consul \u21C4 Adept \u21C4 sub-agents ==");
+  ok("five rungs, in command order", RUNGS.join(">") === "user>captain>consul>adept>crew");
+  ok(
+    "the renamed rungs carry short, premium titles (Consul, Adept)",
+    TITLES.consul === "Consul" && TITLES.adept === "Adept" && TITLES.consul.length <= 7 && TITLES.adept.length <= 7
+  );
+  ok("every rung states its role in one line", RUNGS.every((r2) => ROLES[r2].length > 20));
+  const hops = [["user", "captain"], ["captain", "consul"], ["consul", "adept"], ["adept", "crew"]];
+  ok(
+    "every adjacent hop is legal both ways \u2014 briefs travel down, reports travel up",
+    hops.every(([a, b2]) => mayAddress(a, b2) && mayAddress(b2, a))
+  );
+  const skips = [
+    ["user", "consul"],
+    ["user", "adept"],
+    ["user", "crew"],
+    ["captain", "adept"],
+    ["captain", "crew"],
+    ["consul", "crew"]
+  ];
+  ok(
+    "no rung may skip another, in either direction",
+    skips.every(([a, b2]) => !mayAddress(a, b2) && !mayAddress(b2, a))
+  );
+  ok(
+    "the owner's two rules: a Consul cannot talk to the USER, and cannot talk to the CREW",
+    !mayAddress("consul", "user") && !mayAddress("user", "consul") && !mayAddress("consul", "crew") && !mayAddress("crew", "consul")
+  );
+  ok(
+    "a rung cannot address itself \u2014 peers coordinate through the rung above, never sideways",
+    RUNGS.every((r2) => !mayAddress(r2, r2))
+  );
+  ok("a skip throws LayerSkipError that names the path the message must travel", (() => {
+    try {
+      assertMayAddress("consul", "crew");
+      return false;
+    } catch (e) {
+      return e instanceof LayerSkipError && e.from === "consul" && e.to === "crew" && e.message.includes("Consul cannot address the Sub-agent directly") && e.message.includes("Consul \u2192 Adept \u2192 Sub-agent");
+    }
+  })());
+  ok(
+    "legalPath spans every rung in order, up and down",
+    legalPath("user", "crew").join(">") === RUNGS.join(">") && legalPath("crew", "user").join(">") === [...RUNGS].reverse().join(">") && legalPath("captain", "adept").join(">") === "captain>consul>adept"
+  );
+  ok("a whole reporting line passes; the same line with the Consul dropped is refused", (() => {
+    assertChain(["user", "captain", "consul", "adept", "crew"]);
+    try {
+      assertChain(["user", "captain", "adept", "crew"]);
+      return false;
+    } catch (e) {
+      return e instanceof LayerSkipError;
+    }
+  })());
+  ok(
+    "EVERY desk resolves to exactly one Consul of its own domain \u2014 no Adept reports straight to the Captain",
+    DESKS.every((d) => {
+      const c = consulForDesk(d.id);
+      return c !== null && c.domain === d.workerCategory;
+    }),
+    DESKS.filter((d) => consulForDesk(d.id) === null).map((d) => d.id).join(",")
+  );
+  ok(
+    "finance and silicon have Consuls \u2014 their desks field hundreds of sub-agents",
+    captainForDomain("finance")?.name === `${TITLES.consul} of Finance` && captainForDomain("silicon")?.name === `${TITLES.consul} of Silicon`
+  );
+  ok(
+    "every established sub-agent's category has a Consul above it",
+    ESTABLISHED_SPECIALISTS.every((s) => captainForDomain(s.category) !== null)
+  );
+  ok(
+    "Consul names derive from the single TITLES source",
+    CAPTAINS.every((c) => c.name.startsWith(`${TITLES.consul} of `))
+  );
+  ok(
+    "the Adept and HR mandates keep the chain: report to the Consul, never to the user or over the Consul's head",
+    DESKS.every((d) => {
+      const l = leadFor(d.id);
+      const h = hrFor(d.id);
+      return l.name === `${d.label} ${TITLES.adept}` && l.mandate.includes(`report to your ${TITLES.consul}`) && l.mandate.includes("Never address the user") && h.mandate.includes(`answers to your ${TITLES.consul}`);
+    })
+  );
+  ok(
+    "every desk in a live muster carries its Consul; the snapshot carries the reporting line",
+    office.desks.length > 0 && office.desks.every((d) => d.consul.id === consulForDesk(d.id).id) && snap.desks.every((d) => d.consulId.startsWith("captain.") && d.consul.startsWith(`${TITLES.consul} of `))
+  );
+  ok(
+    "the accounting line says who is above the desks (Captain \u2192 N Consul(s))",
+    office.line.includes(`${TITLES.captain} opened`) && office.line.includes(`${TITLES.consul}(s)`) && office.line.includes(`${TITLES.adept}+HR`)
+  );
+  ok("seating a desk with no Consul is REFUSED \u2014 LayerSkipError, not a quiet seat", (() => {
+    const saved = CAPTAINS.slice();
+    CAPTAINS.splice(0, CAPTAINS.length, ...saved.filter((c) => c.domain !== "code"));
+    try {
+      musterWorkspace("build me a react frontend app with a typescript backend and tests");
+      return false;
+    } catch (e) {
+      return e instanceof LayerSkipError && e.from === "captain" && e.to === "adept" && /no Consul above its Adept/.test(e.message);
+    } finally {
+      CAPTAINS.splice(0, CAPTAINS.length, ...saved);
+    }
+  })());
+  ok("\u2026and the roster is restored after that mutation test", CAPTAINS.length === 16 && captainForDomain("code") !== null);
+  const SCAN_ROOT = fs.existsSync(path.join(process.cwd(), "package.json")) ? process.cwd() : path.resolve(".");
+  const scanDirs = ["src/engine", "src/ui/screens"];
+  const retired = /Team Lead|regional manager|Captain of |CAPTAIN SYNTHESIS|captain synthesis/;
+  const offenders = [];
+  let scanned = 0;
+  for (const dir of scanDirs) {
+    const abs = path.join(SCAN_ROOT, dir);
+    if (!fs.existsSync(abs)) continue;
+    for (const f2 of fs.readdirSync(abs)) {
+      if (!/\.(ts|tsx)$/.test(f2)) continue;
+      scanned++;
+      const lines = fs.readFileSync(path.join(abs, f2), "utf8").split("\n");
+      lines.forEach((line, i) => {
+        if (retired.test(line)) offenders.push(`${dir}/${f2}:${i + 1}`);
+      });
+    }
+  }
+  ok("the title scan really read the engine and the screens (not vacuous)", scanned >= 50, `scanned=${scanned}`);
+  ok(
+    "no engine or screen still carries a retired layer title (Team Lead / regional manager / Captain of \u2026 / CAPTAIN SYNTHESIS)",
+    offenders.length === 0,
+    offenders.slice(0, 5).join(" ; ")
+  );
   void (async () => {
     const planned = await askSelfImpulse19({ text: compound, userId: "workspace-probe" });
     ok(
@@ -45406,6 +45609,10 @@ async function main() {
     ok(
       "the live floor is the routed specialistIds (workers, not leads)",
       !!planned.office && planned.specialistIds.length === planned.office.floor.length && planned.specialistIds.every((id) => planned.office.floor.some((s) => s.id === id)) && planned.specialistIds.every((id) => getSpecialist(id) !== null)
+    );
+    ok(
+      "the live response's office carries each desk's Consul (the chain rides the provenance digest)",
+      !!planned.office && planned.office.desks.length > 0 && planned.office.desks.every((d) => typeof d.consul === "string" && d.consul.startsWith(`${TITLES.consul} of `) && d.consulId.startsWith("captain.")) && JSON.parse(responseCanonical({ ...planned, provenanceDigest: "" })).office.desks.every((d) => !!d.consul)
     );
     ok(
       "the plan names 11WORKSPACE in words",

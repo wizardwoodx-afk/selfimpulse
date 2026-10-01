@@ -14,8 +14,16 @@ can verify later. Built on the **MJ** engine.
 - **Captain** — one calm place to ask. The Captain routes your request to the
   right specialists, executes only when a provider is connected, and answers
   in words when it can't.
-- **Work** — watch the crew work as a live 3D mission DAG: you → the Captain →
-  agents → tools → receipts. Risky actions pause here for your approval.
+- **The company** — the product is organised like one, and no rung is ever
+  skipped. You speak only with the **Captain** (the CEO). The Captain briefs a
+  **Consul** — one per domain, sixteen in all — who reports up to it and never
+  addresses you or a sub-agent. Each Consul oversees its desks' **Adepts** (the
+  team leads), and each Adept leads a crew of **sub-agents** who do the work. A
+  message moves exactly one rung up or down (`src/engine/chain.ts`);
+  `probe/workspace` pins the law and refuses a desk that has no Consul.
+- **Work** — watch the crew work as a live 3D mission DAG, drawn rung by rung:
+  you → the Captain → a Consul → an Adept → sub-agents → tools → receipts.
+  Risky actions pause here for your approval.
 - **Specialists** — domain teams (frontend, engineering, healthcare, finance
   and more). The Captain picks ≤3 candidates per mission; execution expands
   to at most twenty-five live seats on the floor (see
