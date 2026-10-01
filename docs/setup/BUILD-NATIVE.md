@@ -48,13 +48,16 @@ node --version     # 22.12 or newer (package.json engines floor)
 ## 2. Build
 
 > **Identity:** the active native namespace is SelfImpulse —
-> `vh.sqlite`, the `si-desktop` keychain service and `vh://event` events.
+> `vh.sqlite`, the `si-desktop` keychain service and `vh://event` events (these internal
+> names are kept deliberately so existing data keeps working). The bundle identifier is
+> `com.selfimpulse.app`; builds before it used `com.elevenhandle.app`, and the app COPIES that
+> data directory across on first launch (copy-only — the old one is never touched).
 > Earlier builds used `mj.sqlite` / `mj-desktop`: the app migrates the
 > database file on first run and still READS legacy keychain entries, so no
 > stored secret is lost; all new writes use the current names.
 
 ```powershell
-cd elevenhandle
+cd selfimpulse
 npm ci                 # NOT npm install — the lockfile is the tested set
 npm run tauri:build    # = tauri build; runs `tsc --noEmit && vite build` first
 ```
@@ -75,7 +78,7 @@ Verified on Windows 11, with the command that verified it:
 | `tauri build` → NSIS installer | ok — `SelfImpulse_x64-setup.exe`, installs per-user |
 | Launch smoke | exe stays alive, main window titled "SelfImpulse", SQLite store created |
 | Bundle icons | `32x32.png`, `128x128.png`, `128x128@2x.png`, `512x512.png`, `icon.png`, `icon.ico` |
-| `tauri.conf.json` | valid JSON, `frontendDist: ../dist`, `identifier: com.elevenhandle.app`, bundle target nsis |
+| `tauri.conf.json` | valid JSON, `frontendDist: ../dist`, `identifier: com.selfimpulse.app`, bundle target nsis |
 | Mission/verification suites | 81/81 live, 80/80 offline |
 
 **Not** verified, because it needs your machine and keys:

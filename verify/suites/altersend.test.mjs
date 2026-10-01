@@ -1,5 +1,8 @@
 import { createRequire as __mjCreateRequire } from "node:module"; const require = __mjCreateRequire(import.meta.url);
 
+// probe/altersend.test.ts
+import * as http from "node:http";
+
 // src/mission/a2aServer.ts
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
@@ -1143,15 +1146,34 @@ var AlterSendStore = class {
 };
 
 // src/mission/a2aClient.ts
+function guardedBase(raw, expectOrigin) {
+  const base = raw.replace(/\/+$/, "");
+  const g = checkEgressUrl(base);
+  if (!g.ok) return { ok: false, reason: `policy:egress-refused \u2014 ${g.reason}` };
+  let origin;
+  try {
+    origin = new URL(base).origin;
+  } catch {
+    return { ok: false, reason: "policy:egress-refused \u2014 not a parseable URL" };
+  }
+  if (expectOrigin !== void 0 && expectOrigin !== origin) {
+    return { ok: false, reason: `policy:credential-origin-mismatch \u2014 this credential was issued by ${expectOrigin}, not ${origin}; it was not sent` };
+  }
+  return { ok: true, base, origin };
+}
 async function sendFileToPeer(opts) {
+  const guarded = guardedBase(opts.baseUrl, opts.expectOrigin);
+  if (!guarded.ok) return guarded;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 3e4);
   try {
-    const res = await fetch(`${opts.baseUrl.replace(/\/+$/, "")}/vh/altersend`, {
+    const res = await fetch(`${guarded.base}/vh/altersend`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${opts.token}` },
       body: JSON.stringify({ name: opts.name, data: opts.bytes.toString("base64") }),
-      signal: ctl.signal
+      signal: ctl.signal,
+      redirect: "error"
+      // never let a redirect carry the bearer token somewhere unvetted
     });
     const body = await res.json();
     if (!res.ok) return { ok: false, reason: String(body.reason ?? body.error ?? res.status) };
@@ -1163,12 +1185,16 @@ async function sendFileToPeer(opts) {
   }
 }
 async function fetchFileFromPeer(opts) {
+  const guarded = guardedBase(opts.baseUrl, opts.expectOrigin);
+  if (!guarded.ok) return guarded;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 3e4);
   try {
-    const res = await fetch(`${opts.baseUrl.replace(/\/+$/, "")}/vh/altersend/${encodeURIComponent(opts.id)}`, {
+    const res = await fetch(`${guarded.base}/vh/altersend/${encodeURIComponent(opts.id)}`, {
       headers: { authorization: `Bearer ${opts.token}` },
-      signal: ctl.signal
+      signal: ctl.signal,
+      redirect: "error"
+      // never let a redirect carry the bearer token somewhere unvetted
     });
     const body = await res.json();
     if (!res.ok) return { ok: false, reason: String(body.reason ?? body.error ?? res.status) };
@@ -1384,6 +1410,59 @@ section("6 \xB7 the HTTP surface");
   ok(list.ok, "listing works with one");
   const listed = await list.json();
   ok(Array.isArray(listed.offers) && listed.offers.length > 0, "the offers are listed");
+  section("7. the file helpers obey the egress policy \u2014 and the token only goes where it was issued");
+  {
+    const realFetch = globalThis.fetch;
+    const calls = [];
+    globalThis.fetch = (async (input) => {
+      calls.push(String(input));
+      throw new Error("the probe's fetch spy: no request should have been made");
+    });
+    try {
+      const refusals = [
+        ["a LAN address", "http://192.168.1.20:4000"],
+        ["an RFC1918 address", "http://10.0.0.5:9"],
+        ["cloud metadata", "http://169.254.169.254"],
+        ["a non-http scheme", "ftp://example.com"]
+      ];
+      for (const [label, url] of refusals) {
+        const sent2 = await sendFileToPeer({ baseUrl: url, token: "SECRET-TOKEN", name: "a.txt", bytes: Buffer.from("x") });
+        ok(!sent2.ok && /egress-refused/.test(sent2.reason), `sendFileToPeer refuses ${label}`, JSON.stringify(sent2));
+        const got = await fetchFileFromPeer({ baseUrl: url, token: "SECRET-TOKEN", id: "abc" });
+        ok(!got.ok && /egress-refused/.test(got.reason), `fetchFileFromPeer refuses ${label}`, JSON.stringify(got));
+      }
+      ok(calls.length === 0, "\u2026and NOT ONE request left the process for any of them \u2014 the token never moved", calls.join(","));
+      const mismatchSend = await sendFileToPeer({ baseUrl: "https://attacker.example", token: "SECRET-TOKEN", name: "a.txt", bytes: Buffer.from("x"), expectOrigin: "https://peer.example" });
+      ok(!mismatchSend.ok && /credential-origin-mismatch/.test(mismatchSend.reason), "sendFileToPeer refuses to send a token to a host that did not issue it");
+      const mismatchGet = await fetchFileFromPeer({ baseUrl: "https://attacker.example", token: "SECRET-TOKEN", id: "abc", expectOrigin: "https://peer.example" });
+      ok(!mismatchGet.ok && /credential-origin-mismatch/.test(mismatchGet.reason), "fetchFileFromPeer refuses to send a token to a host that did not issue it");
+      ok(calls.length === 0, "a credential-origin mismatch sends nothing at all");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    const hostOrigin = new URL(base).origin;
+    const bound = await sendFileToPeer({ baseUrl: base, token: goodToken, name: "origin-bound.txt", bytes: Buffer.from("bound"), expectOrigin: hostOrigin });
+    ok(bound.ok, "a loopback host with the matching expectOrigin is served", JSON.stringify(bound));
+    const sinkHits = [];
+    const sink = http.createServer((req, res) => {
+      sinkHits.push(String(req.headers.authorization ?? ""));
+      res.end("{}");
+    });
+    await new Promise((r) => sink.listen(0, "127.0.0.1", r));
+    const sinkPort = sink.address().port;
+    const bouncer = http.createServer((_req, res) => {
+      res.statusCode = 302;
+      res.setHeader("location", `http://127.0.0.1:${sinkPort}/x`);
+      res.end();
+    });
+    await new Promise((r) => bouncer.listen(0, "127.0.0.1", r));
+    const bouncerPort = bouncer.address().port;
+    const bounced = await fetchFileFromPeer({ baseUrl: `http://127.0.0.1:${bouncerPort}`, token: "SECRET-TOKEN", id: "abc" });
+    ok(!bounced.ok, "a peer that answers with a redirect is refused, not followed");
+    ok(sinkHits.length === 0, "the redirect target never received the bearer token", sinkHits.join(","));
+    sink.close();
+    bouncer.close();
+  }
   const bare = createA2AServer({
     card: CARD,
     onMessage: async () => ({ kind: "task", task: {} }),

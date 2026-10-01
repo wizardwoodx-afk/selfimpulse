@@ -62,7 +62,7 @@ var pkgTyped = pkg;
 ok("package.json carries the engine release in its engine field", pkgTyped.engine?.version === ENGINE_VERSION && pkgTyped.engine?.name === "MJ", JSON.stringify(pkgTyped.engine));
 var versionTxt = read("VERSION.txt");
 ok(`VERSION.txt states both numbers (product ${PRODUCT_VERSION} / engine ${ENGINE_VERSION})`, versionTxt.includes(`Product release: ${PRODUCT_VERSION}`) && versionTxt.includes("Engine release:") && versionTxt.includes(ENGINE_VERSION), versionTxt.split("\n").slice(0, 3).join(" | "));
-ok("Cargo.toml package name is the clean product name", /^name\s*=\s*"selfimpulse"/m.test(cargo) && /name = "elevenhandle_lib"/.test(cargo), "Cargo identity");
+ok("Cargo.toml package name is the clean product name", /^name\s*=\s*"selfimpulse"/m.test(cargo) && /name = "selfimpulse_lib"/.test(cargo), "Cargo identity");
 var buildInfoIdentity = read("verify/BUILD-INFO.txt");
 ok(
   `BUILD-INFO.txt opens as SelfImpulse ${PRODUCT_VERSION} naming the engine ${ENGINE_VERSION} (no stale release identity)`,

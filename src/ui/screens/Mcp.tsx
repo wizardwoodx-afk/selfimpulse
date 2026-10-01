@@ -64,7 +64,10 @@ export function Mcp(): React.ReactElement {
   const [args, setArgs] = useState("{}");
   const [result, setResult] = useState<{ tool: string; body: string } | null>(null);
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<McpServerSaveInput>({ name: "", command: "", args: [] });
+  const [draft, setDraft] = useState<McpServerSaveInput>({ name: "", command: "", args: [], network: true });
+  /* Registering or removing a program now opens a NATIVE confirmation. Declining it (or the allow-list
+     refusing the program) rejects the call — that is an answer to show, not an unhandled rejection. */
+  const [notice, setNotice] = useState<{ kind: "ok" | "bad"; text: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -115,22 +118,51 @@ export function Mcp(): React.ReactElement {
   const save = useCallback(async () => {
     if (!draft.name.trim() || !draft.command?.trim()) return;
     setBusy("save");
+    setNotice(null);
     try {
-      await ipc.mcpServerSave({ ...draft, name: draft.name.trim(), command: draft.command.trim() });
+      const r = await ipc.mcpServerSave({ ...draft, name: draft.name.trim(), command: draft.command.trim() });
       setAdding(false);
-      setDraft({ name: "", command: "", args: [] });
+      setDraft({ name: "", command: "", args: [], network: true });
+      setNotice(
+        native && r && (r as { approved?: boolean }).approved === false
+          ? { kind: "bad", text: "Saved, but NOT approved — it cannot run until a native confirmation approves this program." }
+          : { kind: "ok", text: native ? "Saved and approved — this exact program may now run." : "Saved." },
+      );
       await load();
+    } catch (e) {
+      setNotice({ kind: "bad", text: `Not saved — ${e instanceof Error ? e.message : String(e)}` });
     } finally {
       setBusy(null);
     }
-  }, [draft, load]);
+  }, [draft, load, native]);
+
+  /** Re-submit a stored server unchanged: the native side asks the human to approve exactly that program. */
+  const approve = useCallback(async (s: McpServerEntry) => {
+    setBusy(s.id);
+    setNotice(null);
+    try {
+      await ipc.mcpServerSave({
+        id: s.id, name: s.name, command: s.config?.command ?? "", args: s.config?.args ?? [],
+        enabled: s.config?.enabled, pinned: s.config?.pinned, network: s.config?.network,
+      });
+      setNotice({ kind: "ok", text: `"${s.name}" approved — this exact program may now run.` });
+      await load();
+    } catch (e) {
+      setNotice({ kind: "bad", text: `Not approved — ${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      setBusy(null);
+    }
+  }, [load]);
 
   const remove = useCallback(async (id: string) => {
     setBusy(id);
+    setNotice(null);
     try {
       await ipc.mcpServerRemove(id);
       setProbe((p) => { const n = { ...p }; delete n[id]; return n; });
       await load();
+    } catch (e) {
+      setNotice({ kind: "bad", text: `Not removed — ${e instanceof Error ? e.message : String(e)}` });
     } finally {
       setBusy(null);
     }
@@ -156,6 +188,7 @@ export function Mcp(): React.ReactElement {
           </div>
         )}
         {loadError && <div className="note bad">Could not read the server list: {loadError}</div>}
+        {notice && <div className={`note ${notice.kind === "ok" ? "ok" : "bad"}`}>{notice.text}</div>}
 
         {rows.length === 0 && !loadError && (
           <div className="empty">
@@ -197,7 +230,16 @@ export function Mcp(): React.ReactElement {
               </div>
               <div className="mono faint">
                 {s.config?.command} {(s.config?.args ?? []).join(" ")}
+                {native && <span className="hint"> · network {s.config?.network === false ? "denied" : "allowed"}</span>}
               </div>
+              {native && s.approved === false && !pinned && (
+                <div className="note warn" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ flex: 1 }}>
+                    Not approved — this program has not been confirmed in a native dialog, so it cannot run.
+                  </span>
+                  <button className="btn sm" disabled={busy === s.id} onClick={() => void approve(s)}>Approve…</button>
+                </div>
+              )}
               {r?.lastError && <div className="note bad">{String(r.lastError)}</div>}
               {r && !r.connected && !r.lastError && (
                 <div className="note warn">The host got no JSON-RPC reply.</div>
@@ -265,6 +307,11 @@ export function Mcp(): React.ReactElement {
             <label className="field"><span>Arguments (space separated)</span>
               <input className="input" value={(draft.args ?? []).join(" ")}
                      onChange={(e) => setDraft({ ...draft, args: e.target.value.split(/\s+/).filter(Boolean) })} />
+            </label>
+            <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={draft.network !== false}
+                     onChange={(e) => setDraft({ ...draft, network: e.target.checked })} />
+              <span>Allow this server to use the network <small className="hint" style={{ textTransform: "none", letterSpacing: 0 }}>(untick for a server that only works on local files)</small></span>
             </label>
             <div className="acts">
               <button className="btn" disabled={busy === "save" || !draft.name.trim() || !draft.command?.trim()}

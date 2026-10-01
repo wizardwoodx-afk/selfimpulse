@@ -12623,7 +12623,7 @@ var selfimpulsePeer = () => {
     peerId: SELFIMPULSE_PEER_ID,
     instanceOf: "selfimpulse",
     capabilities: ["routing", "attestation", "receipts", "gating"],
-    endpoint: "https://selfimpulse.elevenhandle.local"
+    endpoint: "https://selfimpulse.local"
   });
   if ("refused" in p) throw new Error(`selfimpulse peer registration refused: ${p.refused}`);
   return p;

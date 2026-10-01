@@ -421,7 +421,12 @@ test("identity strings are SelfImpulse (product) on the MJ engine", () => {
   assert.ok(/<title>\s*SelfImpulse/.test(html), "index.html title");
   const tauri = read("src-tauri/tauri.conf.json");
   const conf = JSON.parse(tauri);
-  assert.equal(conf.identifier, "com.elevenhandle.app");
+  assert.equal(conf.identifier, "com.selfimpulse.app", "the bundle identifier names the product");
+  const migrateRs = read("src-tauri/src/migrate.rs");
+  assert.ok(migrateRs.includes('LEGACY_IDENTIFIER: &str = "com.elevenhandle.app"') && /fn migrate_legacy_data/.test(migrateRs), "the identifier rename carries a data migration, so an existing install keeps its database");
+  assert.ok(/migrate::migrate_legacy_data\(&data/.test(read("src-tauri/src/lib.rs")), "the migration runs at startup, before the data directory is created");
+  assert.ok(!/elevenhandle/i.test(read("src-tauri/capabilities/desktop.json")) && !/\bVH 4\b/.test(read("src-tauri/capabilities/desktop.json")), "the capability description is the product's");
+  assert.ok(!/VH — agent workstation/.test(read("src-tauri/src/lib.rs")), "the tray tooltip names the product");
   assert.equal(conf.productName, "SelfImpulse");
   assert.ok(conf.bundle.longDescription.startsWith("SelfImpulse") && conf.bundle.longDescription.includes("MJ engine"), "native description");
   const brand = read("src/brand.ts");

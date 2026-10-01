@@ -7,7 +7,7 @@ use std::time::Duration;
 
 /// Spawn a vendored MCP server over stdio and issue initialize + tools/list.
 /// No HTTP. No 127.0.0.1 bind.
-pub fn connect_test(command: &str, args: &[String], cwd: &Path) -> Value {
+pub fn connect_test(command: &str, args: &[String], cwd: &Path, network: bool) -> Value {
     if command == "mj-control-mcp" {
         return json!({
             "connected": true,
@@ -31,7 +31,10 @@ pub fn connect_test(command: &str, args: &[String], cwd: &Path) -> Value {
     // to spawn, and the surface correctly reported the failure rather than
     // pretending the server was connected.
     let (program, argv) = crate::contain::spawn_target(command, args);
-    let (mut cmd, _containment) = crate::contain::wrap_command(&program, &argv, cwd, &[], &[cwd.to_path_buf()]);
+    let (mut cmd, _containment) = match crate::contain::wrap_command(&program, &argv, cwd, &[], &[cwd.to_path_buf()], network) {
+        Ok(x) => x,
+        Err(e) => return json!({ "connected": false, "lastError": e, "toolCount": 0 }),
+    };
     let mut child = match cmd
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -106,14 +109,17 @@ pub fn connect_test(command: &str, args: &[String], cwd: &Path) -> Value {
 }
 
 /// initialize + tools/call over stdio. Kills the child afterwards.
-pub fn call_tool(command: &str, args: &[String], cwd: &Path, tool: &str, arguments: &Value) -> Value {
+pub fn call_tool(command: &str, args: &[String], cwd: &Path, tool: &str, arguments: &Value, network: bool) -> Value {
     if command == "mj-control-mcp" {
         return json!({ "ok": false, "error": "use control_* commands for Control MCP" });
     }
     // See `connect_test`: a bare `npx` must resolve to `npx.cmd` and be run via
     // the command interpreter.
     let (program, argv) = crate::contain::spawn_target(command, args);
-    let (mut cmd, _containment) = crate::contain::wrap_command(&program, &argv, cwd, &[], &[cwd.to_path_buf()]);
+    let (mut cmd, _containment) = match crate::contain::wrap_command(&program, &argv, cwd, &[], &[cwd.to_path_buf()], network) {
+        Ok(x) => x,
+        Err(e) => return json!({ "ok": false, "error": e }),
+    };
     let mut child = match cmd
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "desktop-capability",
-  "description": "Main window desktop capability for VH 4",
+  "description": "SelfImpulse main-window desktop capability",
   "windows": [
     "main"
   ],

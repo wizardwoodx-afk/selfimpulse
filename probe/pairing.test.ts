@@ -154,6 +154,23 @@ async function modelTests(): Promise<void> {
     ok("a wrong code is refused, and the refusal names the cost of guessing", wrong.ok === false && /attempt/.test(wrong.reason), wrong.ok ? "" : wrong.reason);
 
     const claimed = await claimPairing({ hostRoot: base, code: String(liveCode), peerFp: "FP-PEER-1", peerName: "peer-laptop" });
+    // archive-6 audit: the claim helper obeys the SAME egress policy as the JSON-RPC client, and reports
+    // the origin that issued the credential so the AlterSend helpers can refuse to send it anywhere else.
+    {
+      const realFetch = globalThis.fetch;
+      const spied: string[] = [];
+      globalThis.fetch = (async (input: unknown) => { spied.push(String(input)); throw new Error("fetch spy"); }) as typeof fetch;
+      try {
+        for (const url of ["http://192.168.1.20:41234", "http://10.1.2.3:41234", "http://169.254.169.254", "ftp://host"]) {
+          const r = await claimPairing({ hostRoot: url, code: "AAAA-AAAA", peerFp: "FP", peerName: "n" });
+          ok(`claimPairing refuses ${url} before any request`, !r.ok && /egress-refused|http\(s\)/.test((r as { reason: string }).reason), JSON.stringify(r));
+        }
+        ok("…and no request left the process for any of them (the pairing code never moved)", spied.length === 0, spied.join(","));
+      } finally {
+        globalThis.fetch = realFetch;
+      }
+    }
+    ok("a successful claim reports the origin that issued the credential", claimed.ok === true && claimed.origin === new URL(base).origin, claimed.ok ? String(claimed.origin) : claimed.reason);
     ok("a peer redeems the code over the wire", claimed.ok === true, claimed.ok ? "" : claimed.reason);
     ok("it gets a credential, not the host token",
       claimed.ok && claimed.credential.token.startsWith("vhp_") && claimed.credential.token !== d.token);

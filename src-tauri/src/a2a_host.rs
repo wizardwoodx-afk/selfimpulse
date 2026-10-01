@@ -9,8 +9,10 @@
 //!
 //! So the host gets its own lifecycle, with the three states a supervisor needs:
 //!
-//!     start  →  starting  →  running(pid, port, card)  →  stopped
-//!                          ↘  failed(words)
+//! ```text
+//! start  →  starting  →  running(pid, port, card)  →  stopped
+//!                      ↘  failed(words)
+//! ```
 //!
 //! Three properties this has to keep, which is why it is written out rather than
 //! borrowed from the browser service (that one fires and forgets — correct for a

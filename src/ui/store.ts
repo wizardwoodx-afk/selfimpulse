@@ -40,6 +40,8 @@ import { createIngestRun, ingestFile, type IngestReceipt } from "../mission/file
 /* 19.8 — the local crash ledger. A throw on the live path is shown in the
  * transcript AND recorded, because the transcript does not survive a reload. */
 import { recordCrash } from "../security/crashLedger";
+import { persistNativeConfig, clearNativeConfig, loadNativeConfig } from "../engine/nativeProvider";
+import { ipc } from "../ipc/client";
 
 /* RSI evidence intake (19.4.2 discipline, now on the ONE live path): real gate
  * denials, failures and live-data misses become curriculum, and a canary that
@@ -329,13 +331,26 @@ export const useVh = create<UiState>((set, get) => ({
   setProvider: async (cfg, persist) => {
     if (!cfg) { get().forgetProvider(); return { ok: true, note: "provider removed" }; }
     set({ provider: cfg });
+    /* Desktop key holder: the page holds a REFERENCE and non-secret settings — there is no key to seal.
+       The settings are remembered in the clear (nothing in them to protect); the key lives in the OS keychain. */
+    if (cfg.secretRef) {
+      persistNativeConfig(cfg);
+      return { ok: true, note: "Connected — the key stays in your OS keychain and survives restarts." };
+    }
     if (!persist) return { ok: true, note: "key kept in memory for this session only" };
     const v = vaultStatus();
     if (v.status !== "unlocked") return { ok: true, note: "kept in memory — unlock or create the vault to persist it encrypted" };
     const r = await vaultSeal(PROVIDER_STORAGE_KEY, JSON.stringify(cfg));
     return r.ok ? { ok: true, note: "key sealed in the vault (AES-256-GCM)" } : { ok: false, note: r.error };
   },
-  forgetProvider: () => { vaultRemove(PROVIDER_STORAGE_KEY); set({ provider: null, securityNote: "the key was removed — nothing lingers in storage" }); },
+  forgetProvider: () => {
+    vaultRemove(PROVIDER_STORAGE_KEY); // the stored copy goes FIRST — before anything else can fail
+    const ref = get().provider?.secretRef;
+    clearNativeConfig();
+    // a native-held key is deleted from BOTH keychain namespaces, and its endpoint binding is dropped
+    if (ref) void ipc.secretDelete(ref).catch(() => undefined).then(() => ipc.providerUnbindEndpoint(ref)).catch(() => undefined);
+    set({ provider: null, securityNote: "the key was removed — nothing lingers in storage" });
+  },
 
   createVault: async (pass) => {
     const r = await setVaultPassphrase(pass);
@@ -480,6 +495,9 @@ export const useVh = create<UiState>((set, get) => ({
     if (opened.found && !opened.locked) { try { set({ provider: JSON.parse(opened.text) as ProviderConfig, securityNote: "the key was unsealed from the encrypted vault" }); } catch { /* ignore */ } }
     else if (opened.found && opened.locked) set({ securityNote: "a sealed provider key is in the vault — unlock it in Settings to use it" });
     else if (legacy) set({ provider: legacy, securityNote: "a plaintext key from 19.7.0 was found and removed — it lives in memory for this session only" });
+    // Desktop: the provider is a reference to a key in the OS keychain — restored only if that key is still there.
+    const nativeProvider = await loadNativeConfig();
+    if (nativeProvider) set({ provider: nativeProvider, securityNote: "the key is held by your OS keychain — this window cannot read it" });
     set({ vault: vaultStatus(), sessions: listSessions() });
     armHeartbeat(get);
   },

@@ -18,12 +18,12 @@
 use rusqlite::Connection;
 use serde_json::{json, Value};
 
-// The library crate is named `elevenhandle_lib` (see `[lib] name` in Cargo.toml).
+// The library crate is named `selfimpulse_lib` (see `[lib] name` in Cargo.toml).
 // This file previously referred to it as `handle_lib::`, which is not a valid
 // Rust path â€” an identifier cannot begin with a digit â€” so the integration test
 // target never compiled. Every reference below goes through this alias, so the
 // crate name lives in exactly one place and a rename cannot silently break it.
-use elevenhandle_lib as handle_lib;
+use selfimpulse_lib as handle_lib;
 
 /// Every table the shipped schema creates. If this list and `db::init` ever disagree,
 /// something was added to the store without a test noticing â€” that is the point.
@@ -222,6 +222,7 @@ fn approval_gate_opens_then_gates() {
         "n1",
         "run destructive command",
         &json!({"cmd": "rm -rf x", "risk": "CRITICAL"}),
+        "workflow:wf-1",
     )
     .expect("request");
     let id = a["id"].as_str().expect("approval id").to_string();
@@ -230,7 +231,16 @@ fn approval_gate_opens_then_gates() {
     let before = handle_lib::db::approval_get(&conn, "exec-1", "n1").unwrap();
     assert_eq!(before["decided"], json!(false), "an open approval is undecided, not auto-approved");
 
-    handle_lib::db::approval_decide(&conn, &id, "APPROVED").unwrap();
+    // C-2 (archive 4): a verdict needs the capability the native dialog mints. The dialog itself
+    // (tauri-plugin-dialog) is the human step; here the mint call stands in for "the human
+    // confirmed", and the decision must then present exactly that token.
+    let cap = handle_lib::db::approval_mint_capability(&conn, &id, "APPROVED", 300).expect("mint");
+    let token = cap["capability"].as_str().expect("capability token").to_string();
+    assert!(
+        handle_lib::db::approval_decide(&conn, &id, "APPROVED", "").is_err(),
+        "no capability, no verdict"
+    );
+    handle_lib::db::approval_decide(&conn, &id, "APPROVED", &token).unwrap();
     let after = handle_lib::db::approval_get(&conn, "exec-1", "n1").unwrap();
     assert_eq!(after["decided"], json!(true));
     assert_eq!(after["status"], json!("APPROVED"));

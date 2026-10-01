@@ -209,7 +209,7 @@ export async function exportIssuerPublicKeyDocument(mjVersion: string): Promise<
   const holder = await ensureIssuerIdentity();
   if (!holder) return null;
   return [
-    "VH — Issuer Public Key (Ed25519)",
+    "SelfImpulse — Issuer Public Key (Ed25519)",
     "================================",
     "",
     `VH version : ${mjVersion}`,

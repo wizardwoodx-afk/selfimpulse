@@ -342,3 +342,65 @@ presented to approval_decide) and closed the wrapper invariant (every
 privileged command crosses authorize()); archive-5's review confirmed C-1..C-4
 all fixed (nativeAuthz 118/118) and flagged THIS record's stale prose counts,
 which are eliminated above by construction.
+
+ARCHIVE-6 AUDIT (the full-source review of the company-chain build). Read this
+paragraph before trusting any earlier line about the native layer.
+
+THE RUST CRATE DID NOT COMPILE. Nothing in rounds 3-5 ever built or ran it: the
+probes pin source TEXT, and this sandbox had no Rust toolchain. When it was first
+compiled for this round it failed with 49 errors - 23 command names declared as a
+#[tauri::command] in BOTH commands.rs and guard.rs (E0428: the macro exports one
+name per crate), two type errors in the C-2 capability code, a bad string escape,
+and an integration test left on the pre-C-2 signatures - and one of the C-2 tests
+asserted a message that exists nowhere in the code. All fixed; the crate builds
+warning-free and its tests are now EXECUTED (npm run test:rust). probe/nativeAuthz
+now pins the duplicate-command class directly, checks the privileged wrapper set in
+BOTH directions (it used to count only wrappers already on its list), and fails if a
+registered command does not exist in the module it is registered from.
+
+THE NATIVE BOUNDARY NOW AUTHORIZES ON WHAT WAS GRANTED, NOT ON ARGUMENT SHAPE:
+- llm_chat could attach ANY stored secret to ANY public https host the page named,
+  and secret_get returned raw keys to the page. Now: provider keys are never
+  returned (the page learns "present" + a hint); llm_chat attaches provider keys
+  only, to the vendor's own origin or an origin a human bound at a native dialog,
+  over https, decided BEFORE the key is read. On the desktop the key goes to the OS
+  keychain once and the page keeps a reference (engine/nativeProvider.ts); a
+  provider failure (401, 429) now comes back in the provider's words with the key
+  scrubbed instead of as an empty reply.
+- shell_exec ran any allow-listed interpreter with any arguments and the network
+  open. Now it needs an execution grant (programs, folder, network - default OFF,
+  expiry) minted at a native dialog; a host that cannot isolate the network
+  refuses a network-denied run. The containment layer was also rebuilt after its
+  first live run: the unshare rung could not launch on Debian-family hosts
+  (chroot lives in /usr/sbin), bound /etc /proc /dev non-recursively and then ran
+  in a hollow root while reporting "contained", lost its workspace to env_clear,
+  hid a workspace under /tmp behind the /tmp tmpfs, and could not see a toolchain
+  installed outside /usr (~/.nvm, /opt) - the reviewer's shellContain failure. Rungs
+  are now PROVEN by launching a process in them; the TS reference and the Rust
+  runner share one mount script, compared byte for byte.
+- MCP registration (save / remove) needs a native confirmation, an approval is
+  written only by native code, what runs is what was approved (fingerprint checked
+  at every use). hermes_bridge speaks only the evolution service's three commands.
+  workflow mutation is data natively; the sinks it reaches are what is gated.
+- workspace_root_add (widening the filesystem boundary) needs a native confirmation.
+- A one-prompt-at-a-time throttle with a decline lockout sits in front of all of it.
+- The secret store deleted only the current keychain namespace, so a legacy entry
+  survived "delete" and came back; location() hid it while llm_chat could still use
+  it. Fixed behind a Vault seam with regression tests (mutation-checked).
+- claimPairing / sendFileToPeer / fetchFileFromPeer ran no egress policy and the
+  last two attach the peer's bearer token; they now run the shared policy, send a
+  credential only to the origin that issued it, and refuse redirects.
+- applySelfChangeGuarded hardcoded "human-approved": 1. The score is now measured
+  from the approvals store (APPROVED, by a human actor, for this exact candidate
+  digest); approval_get reports who decided and what was approved.
+- Identity: the bundle identifier is com.selfimpulse.app with a copy-only data
+  migration from com.elevenhandle.app; the lib crate, export format (still imports
+  "VH"), capability description, tray tooltip and labels are the product's.
+
+STATED RESIDUALS (also in SECURITY.md): the owner and issuer SIGNING keys are still
+readable by the page (provider keys are not) - moving signing native is the
+follow-up; a native dialog proves a human confirmed a request, not that it was
+wise; the web edition has no native boundary; LAN peers are refused until an
+explicit opt-in exists; the gate pins source patterns for the Rust crate, and only
+`npm run test:rust` executes it.
+

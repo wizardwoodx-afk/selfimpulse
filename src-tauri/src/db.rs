@@ -96,6 +96,14 @@ pub fn init(conn: &Connection) -> rusqlite::Result<()> {
             id TEXT PRIMARY KEY,
             payload_json TEXT NOT NULL
         );
+        -- Where a provider's KEY may be sent when that is not the vendor's own host.
+        -- A row exists only because a human confirmed a native dialog naming the origin.
+        CREATE TABLE IF NOT EXISTS provider_endpoints (
+            secret_ref TEXT PRIMARY KEY,
+            origin TEXT NOT NULL,
+            bound_by TEXT NOT NULL,
+            bound_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS approvals (
             id TEXT PRIMARY KEY,
             execution_id TEXT NOT NULL,
@@ -533,16 +541,83 @@ pub fn mcp_list(conn: &Connection) -> rusqlite::Result<Value> {
     let mut out = Vec::new();
     while let Some(r) = rows.next()? {
         let s: String = r.get(0)?;
-        if let Ok(v) = serde_json::from_str::<Value>(&s) {
+        if let Ok(mut v) = serde_json::from_str::<Value>(&s) {
+            // `approved` is COMPUTED here, from the stored approval and the program as it
+            // is now. A page that writes `"approved": true` into its own payload gets it
+            // overwritten; a row edited after approval reads as unapproved.
+            let approved = mcp_check_approved(&v).is_ok();
+            v["approved"] = json!(approved);
             out.push(v);
         }
     }
     Ok(Value::Array(out))
 }
 
-pub fn mcp_save(conn: &Connection, cfg: &Value) -> rusqlite::Result<Value> {
-    let id = cfg["id"].as_str().map(|s| s.to_string()).unwrap_or_else(|| nid("mcp"));
+/// What a human approving an MCP server is actually approving: the program and its
+/// arguments. Nothing else a page can edit later is part of it.
+pub fn mcp_fingerprint(payload: &Value) -> String {
+    use sha2::{Digest, Sha256};
+    let cmd = payload.pointer("/config/command").and_then(|v| v.as_str()).unwrap_or("");
+    let mut h = Sha256::new();
+    h.update(b"mcp-fp/2\0");
+    h.update(cmd.as_bytes());
+    if let Some(args) = payload.pointer("/config/args").and_then(|v| v.as_array()) {
+        for a in args.iter().filter_map(|x| x.as_str()) {
+            h.update(b"\0");
+            h.update(a.as_bytes());
+        }
+    }
+    // Whether the sandboxed program may reach the network is part of what a human approves.
+    let net = payload.pointer("/config/network").and_then(|v| v.as_bool()).unwrap_or(true);
+    h.update(if net { &b"\0net"[..] } else { &b"\0nonet"[..] });
+    format!("{:x}", h.finalize())
+}
+
+/// Err unless this stored server was approved at a native confirmation AND is still the
+/// program that was approved. Rows from before this check existed carry no approval and
+/// therefore read as unapproved: they are re-confirmed, never silently grandfathered.
+pub fn mcp_check_approved(payload: &Value) -> Result<(), String> {
+    let name = payload["name"].as_str().or_else(|| payload["id"].as_str()).unwrap_or("?");
+    let by = payload.pointer("/approval/by").and_then(|v| v.as_str()).unwrap_or("");
+    let fp = payload.pointer("/approval/fp").and_then(|v| v.as_str()).unwrap_or("");
+    if !by.starts_with("human:") || fp.is_empty() {
+        return Err(format!(
+            "MCP server \"{name}\" has not been approved at a native confirmation — re-save it and confirm the dialog. Nothing ran."
+        ));
+    }
+    if fp != mcp_fingerprint(payload) {
+        return Err(format!(
+            "MCP server \"{name}\" no longer matches the program that was approved — re-save it and confirm the dialog. Nothing ran."
+        ));
+    }
+    Ok(())
+}
+
+/// Would saving `cfg` change what gets executed, i.e. does it need a human to confirm?
+pub fn mcp_needs_confirmation(conn: &Connection, cfg: &Value) -> rusqlite::Result<bool> {
+    let normalized = mcp_normalize(cfg, None);
+    let id = normalized["id"].as_str().unwrap_or("").to_string();
+    let stored: Option<String> = conn
+        .query_row("SELECT payload_json FROM mcp WHERE id=?1", [&id], |r| r.get(0))
+        .optional()?;
+    let Some(stored) = stored else { return Ok(true) };
+    let Ok(existing) = serde_json::from_str::<Value>(&stored) else { return Ok(true) };
+    let approved_fp = existing.pointer("/approval/fp").and_then(|v| v.as_str()).unwrap_or("");
+    let approved_by = existing.pointer("/approval/by").and_then(|v| v.as_str()).unwrap_or("");
+    Ok(!(approved_by.starts_with("human:") && approved_fp == mcp_fingerprint(&normalized)))
+}
+
+fn mcp_normalize(cfg: &Value, id: Option<String>) -> Value {
+    let id = id
+        .or_else(|| cfg["id"].as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| nid("mcp"));
     let mut payload = cfg.clone();
+    // The page never gets to author an approval — it is stripped here and only ever
+    // set below, by native code, after a native dialog.
+    if let Some(o) = payload.as_object_mut() {
+        o.remove("approval");
+        o.remove("approved");
+    }
     payload["id"] = json!(id);
     payload["transport"] = json!(cfg["transport"].as_str().unwrap_or("stdio"));
     payload["state"] = json!("AVAILABLE");
@@ -556,14 +631,83 @@ pub fn mcp_save(conn: &Connection, cfg: &Value) -> rusqlite::Result<Value> {
             "command": cfg["command"],
             "args": cfg["args"],
             "enabled": cfg["enabled"],
-            "pinned": cfg["pinned"]
+            "pinned": cfg["pinned"],
+            "network": cfg["network"]
         });
+    }
+    payload
+}
+
+/// The program a save request would register — read from the NORMALISED payload, so the flat form
+/// the UI sends (`command` / `args` / `network` at the top level) and the nested form
+/// (`config.command`) are judged identically. (The command layer used to read only `/config/command`:
+/// a flat-form save looked like "no command", skipped the allow-list entirely and — once approval
+/// existed — would have been stored unapproved with no dialog, so no UI-saved server could ever run.)
+pub fn mcp_program_of(cfg: &Value) -> (String, Vec<String>, bool) {
+    let n = mcp_normalize(cfg, Some("x".to_string()));
+    let command = n.pointer("/config/command").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let args = n
+        .pointer("/config/args")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    let network = n.pointer("/config/network").and_then(|v| v.as_bool()).unwrap_or(true);
+    (command, args, network)
+}
+
+/// Persist an MCP server. `approved_by` is Some ONLY when native code has just seen a human
+/// confirm a dialog for this exact program; the page cannot supply it (any `approval` it sends
+/// is stripped). An unchanged program keeps its existing approval, so toggling `enabled` or
+/// `pinned` does not ask again; a changed program is stored UNAPPROVED until confirmed.
+pub fn mcp_save(conn: &Connection, cfg: &Value, approved_by: Option<&str>) -> rusqlite::Result<Value> {
+    let id = cfg["id"].as_str().map(|s| s.to_string()).unwrap_or_else(|| nid("mcp"));
+    let mut payload = mcp_normalize(cfg, Some(id.clone()));
+    let fp = mcp_fingerprint(&payload);
+    if let Some(actor) = approved_by {
+        payload["approval"] = json!({ "fp": fp, "by": actor, "at": now() });
+    } else {
+        let stored: Option<String> = conn
+            .query_row("SELECT payload_json FROM mcp WHERE id=?1", [&id], |r| r.get(0))
+            .optional()?;
+        if let Some(existing) = stored.and_then(|t| serde_json::from_str::<Value>(&t).ok()) {
+            let efp = existing.pointer("/approval/fp").and_then(|v| v.as_str()).unwrap_or("");
+            if efp == fp && !efp.is_empty() {
+                payload["approval"] = existing["approval"].clone();
+            }
+        }
     }
     conn.execute(
         "INSERT INTO mcp (id, payload_json) VALUES (?1,?2) ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json",
         params![id, payload.to_string()],
     )?;
-    Ok(json!({ "id": id }))
+    Ok(json!({ "id": id, "approved": payload.pointer("/approval/by").is_some() }))
+}
+
+/// Bind a provider key to the ONE non-canonical origin a human confirmed for it.
+pub fn provider_endpoint_bind(conn: &Connection, secret_ref: &str, origin: &str, bound_by: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO provider_endpoints (secret_ref, origin, bound_by, bound_at) VALUES (?1,?2,?3,?4) \
+         ON CONFLICT(secret_ref) DO UPDATE SET origin=excluded.origin, bound_by=excluded.bound_by, bound_at=excluded.bound_at",
+        params![secret_ref, origin, bound_by, now()],
+    )?;
+    Ok(())
+}
+
+pub fn provider_endpoint_get(conn: &Connection, secret_ref: &str) -> rusqlite::Result<Option<String>> {
+    conn.query_row("SELECT origin FROM provider_endpoints WHERE secret_ref=?1", [secret_ref], |r| r.get(0)).optional()
+}
+
+pub fn provider_endpoint_list(conn: &Connection) -> rusqlite::Result<Value> {
+    let mut stmt = conn.prepare("SELECT secret_ref, origin, bound_by, bound_at FROM provider_endpoints ORDER BY secret_ref")?;
+    let rows = stmt.query_map([], |r| {
+        Ok(json!({ "secretRef": r.get::<_, String>(0)?, "origin": r.get::<_, String>(1)?, "boundBy": r.get::<_, String>(2)?, "boundAt": r.get::<_, String>(3)? }))
+    })?;
+    Ok(Value::Array(rows.collect::<rusqlite::Result<Vec<_>>>()?))
+}
+
+/// Removing a binding only ever narrows what a key may reach, so it needs no confirmation.
+pub fn provider_endpoint_unbind(conn: &Connection, secret_ref: &str) -> rusqlite::Result<bool> {
+    Ok(conn.execute("DELETE FROM provider_endpoints WHERE secret_ref=?1", [secret_ref])? > 0)
 }
 
 pub fn mcp_remove(conn: &Connection, id: &str) -> rusqlite::Result<()> {
@@ -583,16 +727,30 @@ pub fn approval_request(conn: &Connection, execution_id: &str, node_key: &str, s
     Ok(json!({ "id": id, "requestedBy": requested_by, "authority": "human" }))
 }
 
+/// The latest DECIDED approval for (execution, node). It reports not just the verdict but WHO decided
+/// (`decidedBy` — `human:dialog` / `human:confirm` are the only actors the capability flow can write)
+/// and the payload the approval was requested for, so a caller can prove "a human approved THIS exact
+/// thing" instead of trusting a bare status. The payload is data the requester wrote itself.
 pub fn approval_get(conn: &Connection, execution_id: &str, node_key: &str) -> rusqlite::Result<Value> {
-    let row: Option<(String, String)> = conn
+    type Row = (String, String, Option<String>, Option<String>, String, Option<String>);
+    let row: Option<Row> = conn
         .query_row(
-            "SELECT status, id FROM approvals WHERE execution_id=?1 AND node_key=?2 AND status!='OPEN' ORDER BY created_at DESC LIMIT 1",
+            "SELECT status, id, decided_by, decided_at, payload_json, requested_by FROM approvals \
+             WHERE execution_id=?1 AND node_key=?2 AND status!='OPEN' ORDER BY created_at DESC LIMIT 1",
             params![execution_id, node_key],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)),
         )
         .optional()?;
     match row {
-        Some((status, _)) => Ok(json!({ "decided": true, "status": status })),
+        Some((status, id, by, at, payload, requested_by)) => Ok(json!({
+            "decided": true,
+            "status": status,
+            "id": id,
+            "decidedBy": by.unwrap_or_default(),
+            "decidedAt": at,
+            "requestedBy": requested_by.unwrap_or_default(),
+            "payload": serde_json::from_str::<Value>(&payload).unwrap_or(json!({})),
+        })),
         None => Ok(json!({ "decided": false })),
     }
 }
@@ -1031,9 +1189,34 @@ mod c2_decision_transition_tests {
     #[test]
     fn foreign_capability_is_a_confused_approver() {
         let conn = approvals_db();
-        let cap = mint(&conn, "ap2", "APPROVED"); // minted against ap2
-        let err = approval_decide(&conn, "ap1", "APPROVED", &cap).unwrap_err();
-        assert!(err.contains("does not belong"), "cross-approval use must be refused: {err}");
+        let _own = mint(&conn, "ap1", "APPROVED"); // ap1 HAS a live capability of its own…
+        let foreign = mint(&conn, "ap2", "APPROVED"); // …and a token minted for a different approval exists
+        let err = approval_decide(&conn, "ap1", "APPROVED", &foreign).unwrap_err();
+        assert!(err.contains("confused-approver refused"), "a token from another approval must be refused: {err}");
+        let st: String = conn.query_row("SELECT status FROM approvals WHERE id='ap1'", [], |r| r.get(0)).unwrap();
+        assert_eq!(st, "OPEN", "a refused token must not move the state");
+    }
+
+    #[test]
+    fn approval_get_reports_who_decided_and_what_was_approved() {
+        let conn = approvals_db();
+        conn.execute("UPDATE approvals SET payload_json='{\"candidateDigest\":\"abc\"}' WHERE id='ap1'", []).unwrap();
+        assert_eq!(super::approval_get(&conn, "ex1", "n1").unwrap(), serde_json::json!({ "decided": false }), "an OPEN approval is not a decision");
+        let cap = mint(&conn, "ap1", "APPROVED");
+        approval_decide(&conn, "ap1", "APPROVED", &cap).unwrap();
+        let g = super::approval_get(&conn, "ex1", "n1").unwrap();
+        assert_eq!(g["decided"], true);
+        assert_eq!(g["status"], "APPROVED");
+        assert_eq!(g["decidedBy"], "human:dialog", "the actor the capability flow recorded");
+        assert_eq!(g["payload"]["candidateDigest"], "abc", "the payload the approval was requested for rides with the verdict");
+    }
+
+    #[test]
+    fn a_token_cannot_decide_an_approval_nobody_authorized() {
+        let conn = approvals_db();
+        let foreign = mint(&conn, "ap2", "APPROVED"); // ap1 was never put in front of the human
+        let err = approval_decide(&conn, "ap1", "APPROVED", &foreign).unwrap_err();
+        assert!(err.contains("no live capability"), "an un-authorized approval has nothing to redeem: {err}");
         let st: String = conn.query_row("SELECT status FROM approvals WHERE id='ap1'", [], |r| r.get(0)).unwrap();
         assert_eq!(st, "OPEN");
     }
@@ -1123,5 +1306,167 @@ mod c2_decision_transition_tests {
         assert!(err.contains("not PROPOSED"), "must say why: {err}");
         assert!(evolution_decide(&conn, "ev1", "whenever").is_err());
         assert!(evolution_decide(&conn, "ghost", "ACCEPTED").is_err());
+    }
+}
+
+/* ── provider endpoint bindings + MCP approvals (archive-6 audit) ─────────────
+ * The page may not decide where a key goes or what program an MCP server runs.
+ * These pin the storage half of that: the binding is exact, an approval can only
+ * be written by native code, and a row edited after approval stops being approved. */
+#[cfg(test)]
+mod native_grant_tests {
+    use super::*;
+
+    fn db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        super::init(&conn).unwrap();
+        conn
+    }
+    fn server(id: &str, command: &str, args: &[&str]) -> Value {
+        json!({ "id": id, "name": id, "config": { "transport": "stdio", "command": command, "args": args, "enabled": true } })
+    }
+
+    #[test]
+    fn a_provider_key_is_bound_to_one_exact_origin_and_rebinding_replaces_it() {
+        let conn = db();
+        assert_eq!(provider_endpoint_get(&conn, "vh.providerkey.gw").unwrap(), None);
+        provider_endpoint_bind(&conn, "vh.providerkey.gw", "https://gateway.example", "human:dialog").unwrap();
+        assert_eq!(provider_endpoint_get(&conn, "vh.providerkey.gw").unwrap().as_deref(), Some("https://gateway.example"));
+        provider_endpoint_bind(&conn, "vh.providerkey.gw", "https://other.example", "human:dialog").unwrap();
+        assert_eq!(provider_endpoint_get(&conn, "vh.providerkey.gw").unwrap().as_deref(), Some("https://other.example"));
+        let list = provider_endpoint_list(&conn).unwrap();
+        assert_eq!(list.as_array().unwrap().len(), 1, "one row per secret, never an accumulating allow-list");
+        assert_eq!(list[0]["boundBy"], "human:dialog");
+        assert!(provider_endpoint_unbind(&conn, "vh.providerkey.gw").unwrap());
+        assert!(!provider_endpoint_unbind(&conn, "vh.providerkey.gw").unwrap(), "a second unbind finds nothing");
+        assert_eq!(provider_endpoint_get(&conn, "vh.providerkey.gw").unwrap(), None);
+    }
+
+    #[test]
+    fn the_fingerprint_covers_the_program_and_every_argument() {
+        let a = mcp_fingerprint(&server("s", "node", &["server.js"]));
+        assert_eq!(a, mcp_fingerprint(&server("s", "node", &["server.js"])), "deterministic");
+        assert_ne!(a, mcp_fingerprint(&server("s", "python3", &["server.js"])), "command is covered");
+        assert_ne!(a, mcp_fingerprint(&server("s", "node", &["server.js", "--net"])), "an added argument is covered");
+        assert_ne!(a, mcp_fingerprint(&server("s", "node", &["other.js"])), "a changed argument is covered");
+        assert_ne!(
+            mcp_fingerprint(&server("s", "node", &["a", "b"])),
+            mcp_fingerprint(&server("s", "node", &["a b"])),
+            "argument boundaries are covered (no concatenation ambiguity)"
+        );
+        assert_eq!(a, mcp_fingerprint(&server("renamed", "node", &["server.js"])), "a rename is not a change of program");
+    }
+
+    #[test]
+    fn the_flat_form_the_ui_sends_is_judged_exactly_like_the_nested_form() {
+        // McpPage sends `command` / `args` / `network` at the TOP level; the store lifts them into `config`.
+        let flat = json!({ "id": "f", "name": "f", "command": "node", "args": ["server.js"], "enabled": true });
+        let (cmd, args, net) = mcp_program_of(&flat);
+        assert_eq!((cmd.as_str(), args.as_slice(), net), ("node", &["server.js".to_string()][..], true), "the program is found in the flat form");
+        let nested = server("f", "node", &["server.js"]);
+        assert_eq!(mcp_program_of(&nested).0, "node");
+        let conn = db();
+        assert!(mcp_needs_confirmation(&conn, &flat).unwrap(), "a flat-form save of a new program needs a human");
+        assert_eq!(mcp_save(&conn, &flat, Some("human:dialog")).unwrap()["approved"], json!(true));
+        let list = mcp_list(&conn).unwrap();
+        assert_eq!(list[0]["approved"], json!(true), "the flat-form server runs after the human confirmed it");
+        assert!(!mcp_needs_confirmation(&conn, &flat).unwrap(), "and an unchanged flat re-save asks nothing");
+    }
+
+    #[test]
+    fn the_network_setting_is_part_of_what_a_human_approves() {
+        let conn = db();
+        let mut cfg = json!({ "id": "n", "name": "n", "command": "node", "args": ["s.js"] });
+        mcp_save(&conn, &cfg, Some("human:dialog")).unwrap();
+        assert_eq!(mcp_program_of(&cfg).2, true, "the default is a network client (MCP servers are)");
+        cfg["network"] = json!(false);
+        assert_eq!(mcp_program_of(&cfg).2, false);
+        assert!(mcp_needs_confirmation(&conn, &cfg).unwrap(), "flipping the network setting asks again, in BOTH directions");
+        mcp_save(&conn, &cfg, Some("human:dialog")).unwrap();
+        assert_eq!(mcp_list(&conn).unwrap()[0]["config"]["network"], json!(false));
+        cfg["network"] = json!(true);
+        assert!(mcp_needs_confirmation(&conn, &cfg).unwrap(), "re-opening the network is a new approval, not a free toggle");
+    }
+
+    #[test]
+    fn a_page_saved_server_is_unapproved_and_cannot_forge_its_own_approval() {
+        let conn = db();
+        let mut cfg = server("evil", "node", &["x.js"]);
+        cfg["approval"] = json!({ "fp": mcp_fingerprint(&cfg), "by": "human:dialog", "at": "now" }); // the forgery
+        cfg["approved"] = json!(true);
+        let saved = mcp_save(&conn, &cfg, None).unwrap();
+        assert_eq!(saved["approved"], json!(false));
+        let list = mcp_list(&conn).unwrap();
+        assert_eq!(list[0]["approved"], json!(false), "the forged flags are overwritten by the native computation");
+        assert!(list[0].get("approval").is_none(), "and the forged approval record never reaches storage");
+        assert!(mcp_check_approved(&list[0]).is_err());
+    }
+
+    #[test]
+    fn a_native_confirmation_approves_exactly_that_program() {
+        let conn = db();
+        let cfg = server("ok", "node", &["server.js"]);
+        assert!(mcp_needs_confirmation(&conn, &cfg).unwrap(), "a brand-new server needs a human");
+        assert_eq!(mcp_save(&conn, &cfg, Some("human:dialog")).unwrap()["approved"], json!(true));
+        let list = mcp_list(&conn).unwrap();
+        assert_eq!(list[0]["approved"], json!(true));
+        assert!(mcp_check_approved(&list[0]).is_ok());
+        assert!(!mcp_needs_confirmation(&conn, &cfg).unwrap(), "the same program does not ask again");
+    }
+
+    #[test]
+    fn toggling_a_non_executable_field_keeps_the_approval() {
+        let conn = db();
+        let cfg = server("t", "node", &["server.js"]);
+        mcp_save(&conn, &cfg, Some("human:dialog")).unwrap();
+        let mut toggled = cfg.clone();
+        toggled["config"]["enabled"] = json!(false);
+        assert!(!mcp_needs_confirmation(&conn, &toggled).unwrap());
+        mcp_save(&conn, &toggled, None).unwrap();
+        let list = mcp_list(&conn).unwrap();
+        assert_eq!(list[0]["approved"], json!(true), "disabling a server is not a new program");
+        assert_eq!(list[0]["config"]["enabled"], json!(false));
+    }
+
+    #[test]
+    fn changing_the_program_revokes_the_approval_until_a_human_confirms_again() {
+        let conn = db();
+        mcp_save(&conn, &server("c", "node", &["server.js"]), Some("human:dialog")).unwrap();
+        let changed = server("c", "node", &["-e", "require('child_process')"]);
+        assert!(mcp_needs_confirmation(&conn, &changed).unwrap());
+        mcp_save(&conn, &changed, None).unwrap(); // a page-initiated save, no dialog
+        let list = mcp_list(&conn).unwrap();
+        assert_eq!(list[0]["approved"], json!(false), "a different program must not inherit the old approval");
+        assert!(mcp_check_approved(&list[0]).unwrap_err().contains("not been approved"));
+    }
+
+    #[test]
+    fn a_row_edited_after_approval_stops_being_approved() {
+        let conn = db();
+        mcp_save(&conn, &server("tamper", "node", &["server.js"]), Some("human:dialog")).unwrap();
+        // someone edits the stored row directly (not via the guarded save) to swap the program
+        let stored: String = conn.query_row("SELECT payload_json FROM mcp WHERE id='tamper'", [], |r| r.get(0)).unwrap();
+        let mut v: Value = serde_json::from_str(&stored).unwrap();
+        v["config"]["args"] = json!(["evil.js"]);
+        conn.execute("UPDATE mcp SET payload_json=?1 WHERE id='tamper'", [v.to_string()]).unwrap();
+        let list = mcp_list(&conn).unwrap();
+        assert_eq!(list[0]["approved"], json!(false));
+        assert!(mcp_check_approved(&list[0]).unwrap_err().contains("no longer matches"));
+    }
+
+    #[test]
+    fn rows_from_before_this_check_read_as_unapproved_not_grandfathered() {
+        let conn = db();
+        let legacy = json!({ "id": "old", "name": "old", "config": { "command": "node", "args": ["a.js"] } });
+        conn.execute("INSERT INTO mcp (id, payload_json) VALUES ('old', ?1)", [legacy.to_string()]).unwrap();
+        assert_eq!(mcp_list(&conn).unwrap()[0]["approved"], json!(false));
+        assert!(mcp_needs_confirmation(&conn, &legacy).unwrap());
+    }
+
+    #[test]
+    fn only_a_human_actor_counts() {
+        let conn = db();
+        mcp_save(&conn, &server("bot", "node", &["s.js"]), Some("workflow:wf1")).unwrap();
+        assert_eq!(mcp_list(&conn).unwrap()[0]["approved"], json!(false), "approval must come from a human actor");
     }
 }

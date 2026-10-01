@@ -59,6 +59,8 @@ export type McpServerSaveInput = Partial<McpServerEntry> & {
   args?: string[] | null;
   enabled?: boolean;
   pinned?: boolean;
+  /** May the sandboxed server reach the network? Default true (MCP servers are network clients); false = none at all. Part of what a human approves. */
+  network?: boolean;
 };
 
 interface NativeCommands {
@@ -127,7 +129,7 @@ interface NativeCommands {
   mcp_connect_test: Json;
   mcp_server_list: McpServerEntry[];
   mcp_server_remove: null;
-  mcp_server_save: Json;
+  mcp_server_save: { id: string; approved: boolean };
   memory_add: Json;
   memory_delete: null;
   memory_search: MemoryRecord[];
@@ -138,7 +140,18 @@ interface NativeCommands {
   run_request_take: string[];
   secret_delete: null;
   secret_exists: Record<string, SecretStatus>;
-  secret_get: { ref: string; present: boolean; value: string | null };
+  /**
+   * Provider keys are NEVER returned (`value` is null, `redacted` true, `hint` is the last four
+   * characters of a long key). Only signing keys (owner / issuer) come back as a value — a stated
+   * residual until signing moves native. Any other reference is refused.
+   */
+  secret_get: { ref: string; present: boolean; value: string | null; redacted?: boolean; hint?: string | null };
+  exec_grant_request: { grant: string; workspace: string; network: boolean; programs: string[]; expiresAt: number };
+  exec_grants_status: Array<{ workspace: string; network: boolean; programs: string[]; expiresAt: number; secondsLeft: number }>;
+  exec_grants_revoke: { revoked: number };
+  provider_bind_endpoint: { bound: boolean; origin: string; secretRef: string; alreadyBound: boolean };
+  provider_endpoints_list: Array<{ secretRef: string; origin: string; boundBy: string; boundAt: string }>;
+  provider_unbind_endpoint: { unbound: boolean; secretRef: string };
   secret_set: { stored: boolean; location: "keychain" | "memory-only" | "browser-localStorage" | "absent"; survivesRestart: boolean; warning?: string };
   shell_exec: Json;
   skill_deactivate: null;
@@ -296,6 +309,31 @@ export interface FederationStatus {
   /** Whether AlterSend is actually mounted on the running host. */
   files: boolean;
   detail: string;
+}
+
+/* ── execution grants (module memory only; the native side holds the truth) ───────────────── */
+interface ExecGrantToken { token: string; workspace: string; network: boolean; programs: string[]; expiresAt: number }
+let execGrants: ExecGrantToken[] = [];
+
+const bareProgram = (p: string): string => (p.split(/[\\/]/).pop() ?? p).replace(/\.exe$/i, "");
+const norm = (p: string): string => p.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+const within = (child: string, root: string): boolean => norm(child) === norm(root) || norm(child).startsWith(norm(root) + "/");
+
+function pickExecGrant(program: string, cwd: string | undefined, needNetwork: boolean): ExecGrantToken | undefined {
+  const now = Date.now() / 1000;
+  execGrants = execGrants.filter((g) => g.expiresAt > now + 5);
+  const bare = bareProgram(program);
+  return execGrants.find((g) => (g.network || !needNetwork) && g.programs.includes(bare) && (cwd === undefined || within(cwd, g.workspace)));
+}
+function dropExecGrant(token: string): void {
+  execGrants = execGrants.filter((g) => g.token !== token);
+}
+async function requestExecGrant(workspace: string | undefined, network: boolean, programs: string[] = [], minutes?: number): Promise<ExecGrantToken> {
+  const ws = workspace ?? String(((await ipc.appInfo()) as { workspaceRoot?: unknown }).workspaceRoot ?? "");
+  const r = (await tauriInvoke("exec_grant_request", { programs, workspace: ws, network, minutes })) as NativeCommands["exec_grant_request"];
+  const g: ExecGrantToken = { token: r.grant, workspace: r.workspace, network: r.network, programs: r.programs, expiresAt: r.expiresAt };
+  execGrants.push(g);
+  return g;
 }
 
 export const ipc = {
@@ -658,7 +696,7 @@ export const ipc = {
     return null;
   },
 
-  secretGet: async (secretRef: string): Promise<{ ref: string; present: boolean; value: string | null }> => {
+  secretGet: async (secretRef: string): Promise<{ ref: string; present: boolean; value: string | null; redacted?: boolean; hint?: string | null }> => {
     if (useTauri()) return tauriInvoke("secret_get", { secretRef });
     const value = localDb.secretGet(secretRef) as string | null | undefined;
     return { ref: secretRef, present: value != null && value !== "", value: value ?? null };
@@ -765,9 +803,59 @@ export const ipc = {
   fsRemove: async (path: string, recursive: boolean) => {
     if (useTauri()) return tauriInvoke("fs_remove", { path, recursive });
   },
-  shellExec: async (program: string, args: string[], cwd?: string, timeoutSecs?: number) => {
-    if (useTauri()) return tauriInvoke("shell_exec", { program, args, cwd, timeoutSecs });
-    throw new Error("Terminal is available in the native desktop build.");
+  /**
+   * Run a dev tool inside the sandbox. The native side runs NOTHING without an execution grant a
+   * human minted at a native dialog (which tools, which workspace, network or not, for how long).
+   * The grant is requested on first need and kept in this module's memory — never persisted — and
+   * renewed transparently when it expires or is revoked. Network is OFF unless `opts.network` asks
+   * for it, in which case the dialog says so in capitals.
+   */
+  shellExec: async (program: string, args: string[], cwd?: string, timeoutSecs?: number, opts?: { network?: boolean }) => {
+    if (!useTauri()) throw new Error("Terminal is available in the native desktop build.");
+    const needNetwork = opts?.network === true;
+    let g = pickExecGrant(program, cwd, needNetwork);
+    if (!g) g = await requestExecGrant(cwd, needNetwork);
+    try {
+      return await tauriInvoke("shell_exec", { program, args, cwd, timeoutSecs, grant: g.token });
+    } catch (e) {
+      if (!/unknown or was revoked|has expired/i.test(String(e))) throw e;
+      dropExecGrant(g.token);
+      const fresh = await requestExecGrant(cwd, needNetwork);
+      return await tauriInvoke("shell_exec", { program, args, cwd, timeoutSecs, grant: fresh.token });
+    }
+  },
+  /** Ask (natively) for an execution grant. Resolves with its public shape — the token stays inside this module. */
+  execGrantRequest: async (o: { workspace?: string; programs?: string[]; network?: boolean; minutes?: number } = {}) => {
+    if (!useTauri()) throw new Error("Execution grants exist in the native desktop build only.");
+    const g = await requestExecGrant(o.workspace, o.network === true, o.programs, o.minutes);
+    return { workspace: g.workspace, network: g.network, programs: g.programs, expiresAt: g.expiresAt };
+  },
+  execGrantsStatus: async () => {
+    if (!useTauri()) return [] as NativeCommands["exec_grants_status"];
+    return tauriInvoke("exec_grants_status");
+  },
+  execGrantsRevoke: async () => {
+    if (!useTauri()) return { revoked: 0 };
+    execGrants = [];
+    return tauriInvoke("exec_grants_revoke");
+  },
+
+  /**
+   * Bind a provider key to ONE non-canonical https origin. The vendor's own host needs no binding;
+   * anything else (a self-hosted or BYOK gateway) needs a human at a native dialog, because the
+   * page cannot be trusted to say where a key may go.
+   */
+  providerBindEndpoint: async (secretRef: string, baseUrl: string) => {
+    if (!useTauri()) throw new Error("Endpoint binding exists in the native desktop build only — the web edition holds no cloud keys.");
+    return tauriInvoke("provider_bind_endpoint", { secretRef, baseUrl });
+  },
+  providerEndpointsList: async () => {
+    if (!useTauri()) return [] as NativeCommands["provider_endpoints_list"];
+    return tauriInvoke("provider_endpoints_list");
+  },
+  providerUnbindEndpoint: async (secretRef: string) => {
+    if (!useTauri()) return { unbound: false, secretRef };
+    return tauriInvoke("provider_unbind_endpoint", { secretRef });
   },
 
   // QA fix (audit C2): the native filesystem is sandboxed to the app data dir plus these
@@ -897,7 +985,7 @@ export const ipc = {
     return {
       packageFormat: 1,
       exportedAt: new Date().toISOString(),
-      application: "VH",
+      application: "SelfImpulse",
       version: ENGINE_VERSION,
       workflow: { name: wf.name, description: wf.description, graph: wf.graph },
       history: [],
@@ -907,7 +995,8 @@ export const ipc = {
   packageImport: async (pkg: unknown) => {
     if (useTauri()) return tauriInvoke("package_import", { pkg });
     const p = pkg as { application?: string; workflow?: { name: string; description?: string; graph: WorkflowGraph } };
-    if (p.application !== "VH" || !p.workflow) throw new Error("package rejected");
+    // The export names SelfImpulse; packages written before the rename say "VH" and still import.
+    if ((p.application !== "SelfImpulse" && p.application !== "VH") || !p.workflow) throw new Error("package rejected");
     const created = localDb.workflowCreate(`${p.workflow.name} (imported)`, p.workflow.description ?? "");
     localDb.workflowSave(created.id, `${p.workflow.name} (imported)`, p.workflow.description ?? "", p.workflow.graph);
     return { id: created.id, validated: true };

@@ -443,7 +443,9 @@ export const localDb = {
   },
   approvalGet(executionId: string, nodeKey: string) {
     const a = load().approvals.find((x) => x.executionId === executionId && x.nodeKey === nodeKey && x.status !== "OPEN");
-    return a ? { decided: true, status: a.status } : { decided: false };
+    return a
+      ? { decided: true, status: a.status, id: a.id, decidedBy: a.decidedBy ?? "", decidedAt: a.decidedAt ?? null, requestedBy: a.requestedBy ?? "", payload: a.payload ?? {} }
+      : { decided: false };
   },
 
   dlqList() {

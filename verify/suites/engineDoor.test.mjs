@@ -12473,6 +12473,11 @@ function checkEgressUrl(raw, opts = {}) {
 }
 var callRateGate = new RateGate(120, 6e4);
 
+// src/version.ts
+var ENGINE_SHORT = "19.7";
+var ENGINE_CODENAME = "SelfImpulse";
+var PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+
 // src/domain/artifact.ts
 function hashString(str) {
   let bytes;

@@ -86,8 +86,9 @@ section("1. the native handlers that could spawn an external agent are gone");
 section("2. no external agent binary is in any allowlist");
 {
   const rust = read("src-tauri/src/commands.rs");
-  const allow = rust.match(/SHELL_ALLOWED_PROGRAMS: &\[&str\] = &\[([\s\S]*?)\];/);
-  ok("SHELL_ALLOWED_PROGRAMS still exists", !!allow);
+  ok("SHELL_ALLOWED_PROGRAMS still exists, as an alias of the one shared list", /SHELL_ALLOWED_PROGRAMS: &\[&str\] = grants::DEV_TOOLS;/.test(rust));
+  const allow = read("src-tauri/src/grants.rs").match(/pub const DEV_TOOLS: &\[&str\] = &\[([\s\S]*?)\];/);
+  ok("the shared dev-tool list exists", !!allow);
   const list = allow ? allow[1] : "";
   for (const bin of EXTERNAL_BINS) {
     ok(`shell_exec does not allow ${bin}`, !new RegExp(`"${bin}"`).test(list), list.slice(0, 80));
@@ -122,7 +123,7 @@ section("3b. the Antigravity amendment holds to its own terms (19.8.0)");
     !/harness|seatArgv|agentLoop|autonomyArms/.test(agy)
   );
   const rust = read("src-tauri/src/commands.rs");
-  const allow = rust.match(/SHELL_ALLOWED_PROGRAMS: &\[&str\] = &\[([\s\S]*?)\];/);
+  const allow = read("src-tauri/src/grants.rs").match(/pub const DEV_TOOLS: &\[&str\] = &\[([\s\S]*?)\];/);
   const list = allow ? allow[1] : "";
   ok("shell_exec cannot launch the Antigravity runtime", !/"agy"/.test(list) && !/antigravity/i.test(list));
   ok(

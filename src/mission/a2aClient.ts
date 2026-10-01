@@ -46,6 +46,31 @@ function guardUrl(root: string): void {
   if (!g.ok) throw new A2AClientError(-32000, `policy:egress-refused — ${g.reason}`);
 }
 
+/**
+ * The SAME egress policy, for the helpers that return `{ ok:false, reason }` instead of throwing.
+ *
+ * `claimPairing`, `sendFileToPeer` and `fetchFileFromPeer` used to call `fetch()` on whatever
+ * host they were handed — no scheme check, no private-range / metadata refusal — while the
+ * JSON-RPC client in this same file guarded every call. The two file helpers also attach the
+ * peer's bearer token, so an attacker-chosen `baseUrl` was a credential-exfiltration primitive.
+ * (No production caller reaches them yet; the review was right that they must be safe BEFORE one does.)
+ *
+ * Returns the normalised base (no trailing slash) or the refusal. LAN hosts are refused exactly as
+ * they are for the JSON-RPC client — loopback and public hosts only — until an explicit,
+ * human-confirmed LAN opt-in exists; widening an SSRF guard quietly is not a fix.
+ */
+function guardedBase(raw: string, expectOrigin?: string): { ok: true; base: string; origin: string } | { ok: false; reason: string } {
+  const base = raw.replace(/\/+$/, "");
+  const g = checkEgressUrl(base);
+  if (!g.ok) return { ok: false, reason: `policy:egress-refused — ${g.reason}` };
+  let origin: string;
+  try { origin = new URL(base).origin; } catch { return { ok: false, reason: "policy:egress-refused — not a parseable URL" }; }
+  if (expectOrigin !== undefined && expectOrigin !== origin) {
+    return { ok: false, reason: `policy:credential-origin-mismatch — this credential was issued by ${expectOrigin}, not ${origin}; it was not sent` };
+  }
+  return { ok: true, base, origin };
+}
+
 async function post(root: string, body: unknown, authorization?: string): Promise<Record<string, unknown>> {
   guardUrl(root);
   const ctrl = new AbortController();
@@ -188,7 +213,7 @@ export async function streamMessage(root: string, message: MessageV10, onEvent: 
  * 4 attempts left" does.
  */
 export async function claimPairing(args: {
-  /** The host's interface root, e.g. http://192.168.1.20:41234 */
+  /** The host's interface root, e.g. https://peer.example or http://127.0.0.1:41234 (private/LAN addresses are refused, as for the JSON-RPC client). */
   hostRoot: string;
   code: string;
   /** This peer's identity fingerprint, so the host records who paired. */
@@ -196,24 +221,33 @@ export async function claimPairing(args: {
   peerName: string;
   timeoutMs?: number;
 }): Promise<
-  | { ok: true; credential: { token: string; selfimpulse: string; hostFp: string; peerFp: string; issuedAt: number; expiresAt: number; scope: string[] } }
+  | {
+      ok: true;
+      credential: { token: string; selfimpulse: string; hostFp: string; peerFp: string; issuedAt: number; expiresAt: number; scope: string[] };
+      /** The origin that issued this credential. Pass it as `expectOrigin` to the AlterSend helpers so the token can only ever be sent back where it came from. */
+      origin: string;
+    }
   | { ok: false; reason: string }
 > {
-  const base = args.hostRoot.replace(/\/+$/, "");
-  if (!/^https?:\/\//i.test(base)) return { ok: false, reason: "a pairing request needs an http(s) host root" };
+  const trimmed = args.hostRoot.replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(trimmed)) return { ok: false, reason: "a pairing request needs an http(s) host root" };
   if (args.code.trim() === "") return { ok: false, reason: "no pairing code was entered" };
+  const guarded = guardedBase(trimmed);
+  if (!guarded.ok) return guarded;
+  const base = guarded.base;
   try {
     const res = await fetch(`${base}/vh/pair`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ code: args.code.trim(), peer: { fp: args.peerFp, name: args.peerName } }),
       signal: AbortSignal.timeout(args.timeoutMs ?? 10_000),
+      redirect: "error", // a pairing host never redirects; a redirect is somebody else answering
     });
     const body = (await res.json().catch(() => ({}))) as {
       ok?: boolean; reason?: string;
       credential?: { token: string; selfimpulse: string; hostFp: string; peerFp: string; issuedAt: number; expiresAt: number; scope: string[] };
     };
-    if (res.ok && body.ok && body.credential) return { ok: true, credential: body.credential };
+    if (res.ok && body.ok && body.credential) return { ok: true, credential: body.credential, origin: guarded.origin };
     return { ok: false, reason: body.reason ?? `the host refused the pairing (HTTP ${res.status})` };
   } catch (e) {
     return { ok: false, reason: `could not reach the host to pair: ${e instanceof Error ? e.message : String(e)}` };
@@ -230,18 +264,23 @@ export async function sendFileToPeer(opts: {
   name: string;
   bytes: Buffer;
   timeoutMs?: number;
+  /** The origin that issued `token` (claimPairing returns it). When given, the token is sent ONLY there. */
+  expectOrigin?: string;
 }): Promise<
   { ok: true; offer: { id: string; name: string; size: number; digest: string } } |
   { ok: false; reason: string }
 > {
+  const guarded = guardedBase(opts.baseUrl, opts.expectOrigin);
+  if (!guarded.ok) return guarded;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 30_000);
   try {
-    const res = await fetch(`${opts.baseUrl.replace(/\/+$/, "")}/vh/altersend`, {
+    const res = await fetch(`${guarded.base}/vh/altersend`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${opts.token}` },
       body: JSON.stringify({ name: opts.name, data: opts.bytes.toString("base64") }),
       signal: ctl.signal,
+      redirect: "error", // never let a redirect carry the bearer token somewhere unvetted
     });
     const body = (await res.json()) as Record<string, unknown>;
     if (!res.ok) return { ok: false, reason: String(body.reason ?? body.error ?? res.status) };
@@ -258,13 +297,18 @@ export async function fetchFileFromPeer(opts: {
   token: string;
   id: string;
   timeoutMs?: number;
+  /** The origin that issued `token` (claimPairing returns it). When given, the token is sent ONLY there. */
+  expectOrigin?: string;
 }): Promise<{ ok: true; name: string; bytes: Buffer; digest: string } | { ok: false; reason: string }> {
+  const guarded = guardedBase(opts.baseUrl, opts.expectOrigin);
+  if (!guarded.ok) return guarded;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? 30_000);
   try {
-    const res = await fetch(`${opts.baseUrl.replace(/\/+$/, "")}/vh/altersend/${encodeURIComponent(opts.id)}`, {
+    const res = await fetch(`${guarded.base}/vh/altersend/${encodeURIComponent(opts.id)}`, {
       headers: { authorization: `Bearer ${opts.token}` },
       signal: ctl.signal,
+      redirect: "error", // never let a redirect carry the bearer token somewhere unvetted
     });
     const body = (await res.json()) as Record<string, unknown>;
     if (!res.ok) return { ok: false, reason: String(body.reason ?? body.error ?? res.status) };

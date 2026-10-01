@@ -21,6 +21,8 @@
  */
 import { checkEgressUrl } from "../security/guardrail";
 import { optimizeWirePair } from "./tokenOptim";
+import { callNativeProvider } from "./nativeProvider";
+import { useTauri } from "../ipc/client";
 import type { ProviderConfig, ProviderResult } from "./types";
 
 /** Documented provider endpoints (verified against provider docs, 2026-09). */
@@ -143,6 +145,14 @@ export async function complete(
   opts: { fetchImpl?: typeof fetch; timeoutMs?: number } = {},
 ): Promise<ProviderResult> {
   if (!cfg) return { ok: false, kind: "no-key", error: "no provider configured — supply an API key (env or the Providers door); nothing was executed" };
+  /* The desktop key holder: the key lives in the OS keychain and NEVER enters this window, so the call is
+     made by native code, which also decides where the key may go. A reference with no native side (the
+     browser) is an honest refusal — it is never "fixed" by sending an empty key somewhere. */
+  if (cfg.secretRef) {
+    if (!useTauri()) return { ok: false, kind: "no-key", error: "this provider's key is held by the desktop keychain — it cannot be used from the browser; nothing was executed" };
+    const nativeWire = optimizeWirePair(system, user, { model: cfg.model, kind: "provider-call" });
+    return callNativeProvider(cfg, nativeWire.system, nativeWire.user, { timeoutMs: opts.timeoutMs });
+  }
   if (!cfg.apiKey || !cfg.apiKey.trim()) return { ok: false, kind: "no-key", error: "provider key is empty — nothing was executed" };
 
   const egress = checkEgressUrl(cfg.baseUrl);

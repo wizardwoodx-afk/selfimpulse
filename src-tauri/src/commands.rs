@@ -1,4 +1,4 @@
-use crate::{contain, control_mcp, db, hermes, mcp, secrets::SecretStore};
+use crate::{contain, control_mcp, db, grants, hermes, mcp, secrets::SecretStore};
 use parking_lot::Mutex;
 use serde_json::{json, Value};
 use std::path::PathBuf;
@@ -12,10 +12,31 @@ pub struct AppState {
     pub data_dir: PathBuf,
     pub vendor_dir: PathBuf,
     pub secrets: SecretStore,
+    /// Scoped, expiring, human-minted execution grants (in memory only — see grants.rs).
+    pub grants: grants::ExecGrants,
+    /// One native confirmation at a time, with a fail-closed lockout after repeated declines.
+    pub prompts: grants::DialogThrottle,
 }
 
 fn lock_db(state: &AppState) -> Result<parking_lot::MutexGuard<'_, rusqlite::Connection>, String> {
     Ok(state.db.lock())
+}
+
+/// ONE native confirmation, throttled. Ok(true) only when the human pressed the confirm
+/// button; Ok(false) when they cancelled or closed it; Err only when the throttle refused to
+/// show a prompt at all (another is open, or too many were declined recently). Every dialog
+/// that authorizes something goes through here, so a hostile page can neither stack prompts
+/// nor machine-gun them until one is clicked by reflex.
+fn native_confirm(app: &AppHandle, state: &AppState, title: &str, body: String, ok_label: &str) -> Result<bool, String> {
+    let ticket = state.prompts.begin(grants::unix_now())?;
+    let confirmed = app
+        .dialog()
+        .message(body)
+        .title(title)
+        .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(ok_label.to_string(), "Cancel".to_string()))
+        .blocking_show();
+    ticket.finish(confirmed, grants::unix_now());
+    Ok(confirmed)
 }
 
 #[tauri::command]
@@ -233,11 +254,9 @@ pub fn evolution_propose_save(state: State<Arc<AppState>>, cand: Value) -> Resul
 pub fn evolution_list(state: State<Arc<AppState>>, node_key: Option<String>) -> Result<Value, String> {
     db::evolution_list(&*lock_db(&state)?, node_key.as_deref()).map_err(|e| e.to_string())
 }
-#[tauri::command]
 pub fn evolution_decide(state: State<Arc<AppState>>, candidate_id: String, decision: String) -> Result<Value, String> {
     db::evolution_decide(&*lock_db(&state)?, &candidate_id, &decision)
 }
-#[tauri::command]
 pub fn evolution_rollback(state: State<Arc<AppState>>, candidate_id: String, _restore_role_prompt: Option<Value>) -> Result<Value, String> {
     // C-2: ROLLED_BACK is only reachable from DECIDED, exactly once, and a
     // missing candidate is an error — not a silent UPDATE over any row.
@@ -285,7 +304,6 @@ pub fn approval_list(state: State<Arc<AppState>>) -> Result<Value, String> {
 ///
 /// Freshness is short by design (5 minutes): the capability exists to bind a
 /// decision made *now*, not to be a bearer token for later.
-#[tauri::command]
 pub fn approval_authorize(app: tauri::AppHandle, state: State<Arc<AppState>>, approval_id: String, decision: String) -> Result<Value, String> {
     if decision != "APPROVED" && decision != "REJECTED" {
         return Err(format!("approval_authorize: decision must be APPROVED or REJECTED (got {decision:?})"));
@@ -304,23 +322,23 @@ pub fn approval_authorize(app: tauri::AppHandle, state: State<Arc<AppState>>, ap
     }
     let verdict_word = if decision == "APPROVED" { "APPROVE this" } else { "REFUSE this" };
     let ok_label = if decision == "APPROVED" { "Approve" } else { "Refuse" };
-    let confirmed = app
-        .dialog()
-        .message(format!(
+    let confirmed = native_confirm(
+        &app,
+        &state,
+        "SelfImpulse — human approval gate",
+        format!(
             "{summary}\n\nRequester: {requested_by}\nRequired authority: {authority}\nVerdict if you confirm: {decision}\n\n{verdict_word}? Cancel mints nothing and decides nothing."
-        ))
-        .title("SelfImpulse — human approval gate")
-        .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(ok_label, "Cancel"))
-        .blocking_show();
+        ),
+        ok_label,
+    )?;
     if !confirmed {
         return Err(format!(
             "approval {approval_id}: declined at the native dialog — no capability was minted and no decision was recorded."
         ));
     }
     let ttl = 300; // seconds — the decision it binds should land immediately after the dialog
-    db::approval_mint_capability(&*lock_db(&state)?, &approval_id, decision, ttl)
+    db::approval_mint_capability(&*lock_db(&state)?, &approval_id, &decision, ttl)
 }
-#[tauri::command]
 pub fn approval_decide(state: State<Arc<AppState>>, approval_id: String, decision: String, capability: String) -> Result<(), String> {
     // C-2, archive 4: the state machine AND the actor both live in
     // db::approval_decide — capability ownership, freshness and verdict scope
@@ -409,22 +427,53 @@ pub fn evolution_service_health(state: State<Arc<AppState>>) -> Value {
 pub fn evolution_service_propose(state: State<Arc<AppState>>, args: Value) -> Result<Value, String> {
     hermes::call(&state.vendor_dir, &json!({"cmd":"score_fitness","task_input": args.get("task"), "expected_behavior": args.get("expected"), "agent_output": args.get("output"), "skill_text": args.get("skill")}))
 }
-#[tauri::command]
 pub fn hermes_bridge(state: State<Arc<AppState>>, msg: Value) -> Result<Value, String> {
+    // The bundled Python service implements exactly these commands (stdio_server.py). This used
+    // to forward ANY JSON from the page to an interpreter that is not network-contained; the
+    // page now chooses among the commands the service actually has, with a bounded payload.
+    const HERMES_COMMANDS: &[&str] = &["ping", "score_fitness", "propose"];
+    let cmd = msg.get("cmd").and_then(|c| c.as_str()).unwrap_or("");
+    if !HERMES_COMMANDS.contains(&cmd) {
+        return Err(format!(
+            "hermes_bridge: {cmd:?} is not a command the evolution service implements ({}) — refused before it reached the interpreter.",
+            HERMES_COMMANDS.join(", ")
+        ));
+    }
+    if msg.to_string().len() > 64 * 1024 {
+        return Err("hermes_bridge: the message exceeds 64 KiB — refused.".into());
+    }
     hermes::call(&state.vendor_dir, &msg)
 }
 
-#[tauri::command]
 pub fn secret_get(state: State<Arc<AppState>>, secret_ref: String) -> Result<Value, String> {
-    // Read path for SI-stored secrets (provider keys, the receipt-issuer key). The value
-    // only ever returns to VH's own webview — keychain first, degraded in-memory second.
-    match state.secrets.get(&secret_ref) {
-        Some(value) => Ok(json!({ "ref": secret_ref, "present": true, "value": value })),
-        None => Ok(json!({ "ref": secret_ref, "present": false, "value": null })),
+    // The WebView is untrusted content, so what it may READ BACK depends on what the secret is:
+    //   • a provider API key → NEVER the value. The page learns "present" and a short hint;
+    //     the key is attached to a request natively, by `llm_chat`, and only ever sent to the
+    //     vendor's own origin or one a human bound (see grants.rs). A page that is compromised
+    //     can use the provider through the app, it cannot walk away with the key.
+    //   • a signing key (owner / issuer) → readable, because signing still happens page-side.
+    //     That is a stated residual (moving signing native is the follow-up), not a hidden one.
+    //   • anything else → refused.
+    match grants::classify_secret(&secret_ref) {
+        grants::SecretClass::Provider => {
+            let value = state.secrets.get(&secret_ref);
+            Ok(json!({
+                "ref": secret_ref,
+                "present": value.is_some(),
+                "value": null,
+                "redacted": true,
+                "hint": value.as_deref().and_then(grants::secret_hint),
+            }))
+        }
+        grants::SecretClass::Signing => match state.secrets.get(&secret_ref) {
+            Some(value) => Ok(json!({ "ref": secret_ref, "present": true, "value": value })),
+            None => Ok(json!({ "ref": secret_ref, "present": false, "value": null })),
+        },
+        grants::SecretClass::Other => Err(format!(
+            "secret_get: {secret_ref:?} is not a readable reference class — only signing keys can be read back, and provider keys never can. Refused."
+        )),
     }
 }
-
-#[tauri::command]
 pub fn secret_set(state: State<Arc<AppState>>, secret_ref: String, value: String) -> Result<Value, String> {
     // V7 fix (bug W): report where the secret really went, so the UI can warn when a key is only
     // in memory instead of implying it is safely in the OS keychain.
@@ -438,7 +487,6 @@ pub fn secret_set(state: State<Arc<AppState>>, secret_ref: String, value: String
         })),
     }
 }
-#[tauri::command]
 pub fn secret_delete(state: State<Arc<AppState>>, secret_ref: String) -> Result<(), String> {
     state.secrets.delete(&secret_ref)
 }
@@ -456,6 +504,115 @@ pub fn secret_exists(state: State<Arc<AppState>>, secret_refs: Vec<String>) -> V
         out.insert(r.clone(), json!({ "exists": loc != "absent", "location": loc, "survivesRestart": loc == "keychain" }));
     }
     json!(out)
+}
+
+/// Bind a provider key to ONE non-canonical origin, with a native confirmation naming both.
+///
+/// A vendor's own host needs no binding (it is built in). Anything else — a self-hosted or BYOK
+/// gateway — has to be authorised by a human, because the page cannot be trusted to say where a
+/// key is allowed to go. The origin must be https (or loopback), and must clear the SSRF guard.
+/// Re-binding to the origin already bound asks nothing.
+pub fn provider_bind_endpoint(app: AppHandle, state: State<Arc<AppState>>, secret_ref: String, base_url: String) -> Result<Value, String> {
+    if grants::classify_secret(&secret_ref) != grants::SecretClass::Provider {
+        return Err(format!("provider_bind_endpoint: {secret_ref:?} is not a provider key reference — nothing was bound."));
+    }
+    let origin = grants::origin_of(&base_url)?;
+    let u = reqwest::Url::parse(&base_url).map_err(|e| e.to_string())?;
+    let loopback = u.host_str().map(grants::is_loopback_host).unwrap_or(false);
+    if u.scheme() != "https" && !loopback {
+        return Err(format!("provider_bind_endpoint: a key may only be bound to an https endpoint (or a loopback address) — {origin} refused."));
+    }
+    egress_guard(&base_url).map_err(|e| format!("provider_bind_endpoint: {e} — nothing was bound."))?;
+    let current = db::provider_endpoint_get(&*lock_db(&state)?, &secret_ref).map_err(|e| e.to_string())?;
+    if current.as_deref() == Some(origin.as_str()) {
+        return Ok(json!({ "bound": true, "origin": origin, "secretRef": secret_ref, "alreadyBound": true }));
+    }
+    let confirmed = native_confirm(
+        &app,
+        &state,
+        "SelfImpulse — send an API key to this server?",
+        format!(
+            "SelfImpulse is asking to send the API key stored as\n    {secret_ref}\nto\n    {origin}\n\nThat server will receive the key with every request. Allow this only for a gateway you run or trust. Cancel binds nothing."
+        ),
+        "Allow",
+    )?;
+    if !confirmed {
+        return Err(format!("{secret_ref}: declined at the native dialog — no endpoint was bound and no key can be sent there."));
+    }
+    db::provider_endpoint_bind(&*lock_db(&state)?, &secret_ref, &origin, "human:dialog").map_err(|e| e.to_string())?;
+    Ok(json!({ "bound": true, "origin": origin, "secretRef": secret_ref, "alreadyBound": false }))
+}
+
+#[tauri::command]
+pub fn provider_endpoints_list(state: State<Arc<AppState>>) -> Result<Value, String> {
+    db::provider_endpoint_list(&*lock_db(&state)?).map_err(|e| e.to_string())
+}
+
+/// Removing a binding only narrows what a key can reach, so it needs no confirmation.
+#[tauri::command]
+pub fn provider_unbind_endpoint(state: State<Arc<AppState>>, secret_ref: String) -> Result<Value, String> {
+    let removed = db::provider_endpoint_unbind(&*lock_db(&state)?, &secret_ref).map_err(|e| e.to_string())?;
+    Ok(json!({ "unbound": removed, "secretRef": secret_ref }))
+}
+
+/// Mint an execution grant: which dev tools, in which registered workspace, with or without the
+/// network, for how long. The native dialog prints exactly that; the token goes back ONCE and is
+/// stored only as a hash. `shell_exec` runs nothing without one. Default network: OFF.
+pub fn exec_grant_request(
+    app: AppHandle,
+    state: State<Arc<AppState>>,
+    programs: Vec<String>,
+    workspace: String,
+    network: bool,
+    minutes: Option<u64>,
+) -> Result<Value, String> {
+    // The workspace must already be a registered root (or the app data dir): a grant cannot
+    // widen the filesystem boundary, only spend it.
+    let ws = ensure_allowed(&state, &workspace)?;
+    let progs: Vec<String> = if programs.is_empty() { grants::DEV_TOOLS.iter().map(|p| p.to_string()).collect() } else { programs };
+    let ttl = minutes.unwrap_or(30).clamp(1, 60) * 60;
+    // Validate the scope BEFORE a human is asked to approve it: the dialog must never describe
+    // something that would then be refused, or silently trimmed.
+    let progs = grants::ExecGrants::validate_scope(&progs, &ws)?;
+    let list = progs.join(", ");
+    let confirmed = native_confirm(
+        &app,
+        &state,
+        "SelfImpulse — allow programs to run?",
+        format!(
+            "SelfImpulse is asking to run these programs:\n    {list}\n\nonly inside this workspace:\n    {ws}\n\nNetwork access: {}\nValid for: {} minute(s)\n\nThey run in a sandbox that cannot see the rest of your files. Cancel runs nothing.",
+            if network { "ALLOWED — the programs can reach the internet" } else { "DENIED — the programs cannot reach any network" },
+            ttl / 60
+        ),
+        if network { "Allow (with network)" } else { "Allow" },
+    )?;
+    if !confirmed {
+        return Err("exec_grant_request: declined at the native dialog — no grant was minted and nothing may run.".into());
+    }
+    let (token, view) = state.grants.mint(&progs, &ws, network, ttl, grants::unix_now())?;
+    Ok(json!({
+        "grant": token,
+        "workspace": view.workspace,
+        "network": view.network,
+        "programs": view.programs,
+        "expiresAt": view.expires_at,
+    }))
+}
+
+/// What is currently granted. Never the tokens.
+#[tauri::command]
+pub fn exec_grants_status(state: State<Arc<AppState>>) -> Value {
+    let now = grants::unix_now();
+    json!(state.grants.status(now).iter().map(|g| json!({
+        "workspace": g.workspace, "network": g.network, "programs": g.programs, "expiresAt": g.expires_at,
+        "secondsLeft": g.expires_at.saturating_sub(now),
+    })).collect::<Vec<_>>())
+}
+
+/// Revoke every grant. Only ever narrows authority, so it needs no confirmation.
+#[tauri::command]
+pub fn exec_grants_revoke(state: State<Arc<AppState>>) -> Value {
+    json!({ "revoked": state.grants.revoke_all() })
 }
 
 /// Egress policy for the provider call boundary — the native mirror of
@@ -623,7 +780,6 @@ fn classify_socket(addr: std::net::SocketAddr, allow_loopback: bool) -> Result<(
     }
 }
 
-#[tauri::command]
 pub async fn llm_chat(state: State<'_, Arc<AppState>>, req: Value) -> Result<Value, String> {
     let provider = req["provider"].as_str().unwrap_or("openai");
     let model = req["model"].as_str().unwrap_or("gpt-4.1").to_string();
@@ -664,13 +820,27 @@ pub async fn llm_chat(state: State<'_, Arc<AppState>>, req: Value) -> Result<Val
         let r = client.post(&target).json(&body).send().await;
         return match r {
             Ok(resp) => {
+                if !resp.status().is_success() {
+                    return Err(format!("ollama returned HTTP {} — is the model pulled?", resp.status().as_u16()));
+                }
                 let j: Value = resp.json().await.unwrap_or(json!({}));
                 Ok(json!({ "content": j.pointer("/message/content").cloned().unwrap_or(json!("")), "model": model, "usage": {"input_tokens": 0, "output_tokens": 0}, "duration_ms": 0 }))
             }
             Err(e) => Err(format!("ollama: {e}")),
         };
     }
-    let key = state.secrets.get(secret_ref).ok_or_else(|| format!("secret not found: {secret_ref}"))?;
+    // THE BOUNDARY (archive-6 audit, finding 1). The page used to name BOTH the secret and the
+    // destination: `secret_ref` + `base_url` made the stored key ride an Authorization header to
+    // any public https host it chose, and `secret_get` handed the raw key back besides. Now:
+    //   (1) only a PROVIDER key can be attached at all — never an owner/issuer key or any other secret;
+    //   (2) that key may only go to the vendor's own origin, or an origin a HUMAN bound through a
+    //       native dialog, over https (plain http only to loopback);
+    //   (3) both are decided BEFORE the secret is read, so a refused call never touches the key.
+    if grants::classify_secret(secret_ref) != grants::SecretClass::Provider {
+        return Err(format!(
+            "llm_chat attaches provider keys only (vh.providerkey.* / provider.*); {secret_ref:?} is not one — nothing was sent and no key left this machine."
+        ));
+    }
     // 16.10.1 (external review — the "universal providers" gap, closed): each
     // kind now has its REAL default endpoint — groq was falling through to the
     // OpenAI URL — and base_url is honored for EVERY cloud kind (BYOK gateways
@@ -687,6 +857,13 @@ pub async fn llm_chat(state: State<'_, Arc<AppState>>, req: Value) -> Result<Val
     let base_override = req["base_url"].as_str().unwrap_or("").trim().to_string();
     let url = if base_override.is_empty() { default_url.to_string() } else { base_override };
     egress_guard(&url).map_err(|e| format!("base URL refused by the egress guard: {e} — nothing was sent and no key left this machine."))?;
+    let bound = {
+        let conn = lock_db(&state)?;
+        db::provider_endpoint_get(&conn, secret_ref).map_err(|e| e.to_string())?
+    }; // the lock is released before any await
+    grants::key_destination_allowed(provider, &url, bound.as_deref())
+        .map_err(|e| format!("{e} — nothing was sent and no key left this machine."))?;
+    let key = state.secrets.get(secret_ref).ok_or_else(|| format!("secret not found: {secret_ref}"))?;
     // Second gate: resolve once, classify every answer, and PIN the address so
     // the transport cannot be handed a different one by a rebinding resolver.
     // Redirects are not auto-followed — each hop would otherwise be an
@@ -721,9 +898,19 @@ pub async fn llm_chat(state: State<'_, Arc<AppState>>, req: Value) -> Result<Val
         json!({"model": model, "messages": msgs, "max_tokens": req["max_tokens"]})
     };
     let mut reqb = client.post(&url).json(&body);
-    reqb = if header == "Authorization" { reqb.bearer_auth(&key) } else { reqb.header(header, key).header("anthropic-version", "2023-06-01") };
+    reqb = if header == "Authorization" { reqb.bearer_auth(&key) } else { reqb.header(header, key.as_str()).header("anthropic-version", "2023-06-01") };
     let resp = reqb.send().await.map_err(|e| e.to_string())?;
-    let j: Value = resp.json().await.map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let text = resp.text().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        // A 401 / 429 / 5xx used to come back as an EMPTY reply ("ok", no content) — the owner saw a
+        // silent nothing instead of "invalid key". The provider's own words go back, with the key
+        // scrubbed first: some providers echo part of it in the error body.
+        let scrubbed = if key.len() >= 8 { text.replace(&key, "[key redacted]") } else { text };
+        let snippet: String = scrubbed.chars().take(400).collect();
+        return Err(format!("provider returned HTTP {}: {}", status.as_u16(), snippet));
+    }
+    let j: Value = serde_json::from_str(&text).map_err(|e| format!("provider returned a non-JSON body: {e}"))?;
     let content = j.pointer("/choices/0/message/content").or_else(|| j.pointer("/content/0/text")).cloned().unwrap_or(json!(""));
     Ok(json!({ "content": content, "model": model, "usage": j.get("usage").cloned().unwrap_or(json!({})), "duration_ms": 0 }))
 }
@@ -946,8 +1133,7 @@ fn path_components_lower(s: &str) -> Vec<String> {
         .collect()
 }
 
-#[tauri::command]
-pub fn workspace_root_add(state: State<'_, Arc<AppState>>, root: String) -> Result<Value, String> {
+pub fn workspace_root_add(app: AppHandle, state: State<'_, Arc<AppState>>, root: String) -> Result<Value, String> {
     let normalized = normalize_path_str(&root);
     if normalized.is_empty() || !PathBuf::from(&root).is_dir() {
         return Err(format!("sandbox: '{root}' is not an existing directory"));
@@ -956,10 +1142,30 @@ pub fn workspace_root_add(state: State<'_, Arc<AppState>>, root: String) -> Resu
     if let Some(why) = refuse_uncontainable_root(&normalized) {
         return Err(format!("sandbox: {why} Nothing was registered; the existing roots are unchanged."));
     }
+    // Archive-6 audit: the check above refuses system and credential roots, but it left EVERY other
+    // folder one script call away — a page could register ~/Documents and then read, write and request
+    // execution grants inside it, and this comment's own promise ("may not be widened by the WebView")
+    // was only true for the dangerous half of the disk. Widening the boundary now needs a human at a
+    // native dialog. A folder that is already a root asks nothing (idempotent), so a run that
+    // re-registers its repo does not nag.
+    if allowed_roots(&state).iter().any(|r| normalize_path_str(r) == normalized) {
+        return db::workspace_root_add(&*lock_db(&state)?, &normalized).map_err(|e| e.to_string());
+    }
+    let confirmed = native_confirm(
+        &app,
+        &state,
+        "SelfImpulse — open a folder to the crew?",
+        format!(
+            "SelfImpulse is asking to read and write files inside:\n    {normalized}\n\nPrograms you allow later run inside this folder in a sandbox that cannot see the rest of your files. Cancel registers nothing."
+        ),
+        "Allow",
+    )?;
+    if !confirmed {
+        return Err(format!("{normalized}: declined at the native dialog — the folder was not registered and the existing roots are unchanged."));
+    }
     db::workspace_root_add(&*lock_db(&state)?, &normalized).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
 pub fn workspace_root_remove(state: State<Arc<AppState>>, root: String) -> Result<Value, String> {
     db::workspace_root_remove(&*lock_db(&state)?, &root).map_err(|e| e.to_string())
 }
@@ -969,12 +1175,10 @@ pub fn workspace_root_list(state: State<Arc<AppState>>) -> Result<Value, String>
     db::workspace_root_list(&*lock_db(&state)?).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
 pub fn fs_read(state: State<Arc<AppState>>, path: String) -> Result<String, String> {
     let path = ensure_allowed(&state, &path)?;
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
-#[tauri::command]
 pub fn fs_write(state: State<Arc<AppState>>, path: String, content: String) -> Result<(), String> {
     let path = ensure_allowed(&state, &path)?;
     if let Some(parent) = std::path::Path::new(&path).parent() {
@@ -982,7 +1186,6 @@ pub fn fs_write(state: State<Arc<AppState>>, path: String, content: String) -> R
     }
     std::fs::write(&path, content).map_err(|e| e.to_string())
 }
-#[tauri::command]
 pub fn fs_list(state: State<Arc<AppState>>, path: String) -> Result<Value, String> {
     let path = ensure_allowed(&state, &path)?;
     let rd = std::fs::read_dir(&path).map_err(|e| e.to_string())?;
@@ -992,12 +1195,10 @@ pub fn fs_list(state: State<Arc<AppState>>, path: String) -> Result<Value, Strin
     }
     Ok(Value::Array(out))
 }
-#[tauri::command]
 pub fn fs_mkdir(state: State<Arc<AppState>>, path: String) -> Result<(), String> {
     let path = ensure_allowed(&state, &path)?;
     std::fs::create_dir_all(&path).map_err(|e| e.to_string())
 }
-#[tauri::command]
 pub fn fs_remove(state: State<Arc<AppState>>, path: String, recursive: bool) -> Result<(), String> {
     let path = ensure_allowed(&state, &path)?;
     if recursive { std::fs::remove_dir_all(&path).or_else(|_| std::fs::remove_file(&path)).map_err(|e| e.to_string()) }
@@ -1014,10 +1215,8 @@ pub fn fs_remove(state: State<Arc<AppState>>, path: String, recursive: bool) -> 
 /// harness could drive them. They are removed by product decision: every agent
 /// runs natively in-process on the owner's own provider key. The dev-tool seat
 /// below stays, because missions legitimately need to build and test.
-const SHELL_ALLOWED_PROGRAMS: &[&str] = &[
-    // the dev-tool seat missions legitimately need:
-    "node", "npm", "npx", "python", "python3", "pip", "pip3", "pytest", "cargo", "git", "go",
-];
+// One list, shared with the grants (a grant can only ever cover programs from this set).
+const SHELL_ALLOWED_PROGRAMS: &[&str] = grants::DEV_TOOLS;
 
 /// The one program-allowlist rule, shared by every spawn path.
 ///
@@ -1047,8 +1246,14 @@ fn ensure_program_allowed(state: &AppState, program: &str) -> Result<(), String>
     ))
 }
 
-#[tauri::command]
-pub fn shell_exec(state: State<Arc<AppState>>, program: String, args: Vec<String>, cwd: Option<String>, timeout_secs: Option<u64>) -> Result<Value, String> {
+pub fn shell_exec(
+    state: State<Arc<AppState>>,
+    program: String,
+    args: Vec<String>,
+    cwd: Option<String>,
+    timeout_secs: Option<u64>,
+    grant: Option<String>,
+) -> Result<Value, String> {
     // 11.14.4 — the rule moved into ensure_program_allowed so the MCP spawn
     // paths cannot drift away from it again.
     ensure_program_allowed(&state, &program)?;
@@ -1058,55 +1263,105 @@ pub fn shell_exec(state: State<Arc<AppState>>, program: String, args: Vec<String
         Some(c) => ensure_allowed(&state, &c)?,
         None => normalize_path_str(&state.data_dir.display().to_string()),
     };
+    // THE GRANT (archive-6 audit, finding 3). An allow-listed interpreter with arbitrary arguments
+    // is arbitrary code: `node -e …`, `python3 -c …`. The program allow-list and the cwd sandbox
+    // limited WHERE it ran, not WHAT it did, and the network was wide open. Running a program now
+    // needs a grant a human minted at a native dialog: which tools, which workspace, whether the
+    // network is reachable (default: it is not), for how long. Without one nothing starts.
+    let bare = grants::bare_name(&program);
+    let is_workspace_binary = !grants::DEV_TOOLS.contains(&bare.as_str()) && ensure_allowed(&state, &program).is_ok();
+    let view = state.grants.check(grant.as_deref().unwrap_or(""), &program, is_workspace_binary, grants::unix_now())?;
+    if !is_within(&cwd, &view.workspace) {
+        return Err(format!(
+            "the working directory '{cwd}' is outside this execution grant's workspace '{}'. Nothing ran.",
+            view.workspace
+        ));
+    }
     // Host-escape containment: the process runs INSIDE the workspace filesystem
     // boundary (unshare/bwrap/seatbelt when available), with an env scrub and a
     // redirected HOME. `containment` reports the rung actually achieved — a
-    // policy-only run is a different fact from a sandboxed one and says so.
+    // policy-only run is a different fact from a sandboxed one and says so. With the
+    // network denied, a host that cannot isolate it REFUSES rather than runs open.
     let write_paths: Vec<std::path::PathBuf> = vec![std::path::PathBuf::from(&cwd)];
-    let (cmd, rung) = contain::wrap_command(&program, &args, std::path::Path::new(&cwd), &[], &write_paths);
+    let (cmd, rung) = contain::wrap_command(&program, &args, std::path::Path::new(&cwd), &[], &write_paths, view.network)?;
     let (stdout, stderr, code) = run_timeout(cmd, timeout_secs.unwrap_or(60))?;
-    Ok(json!({ "stdout": stdout, "stderr": stderr, "code": code, "containment": rung.label() }))
+    Ok(json!({ "stdout": stdout, "stderr": stderr, "code": code, "containment": rung.label(), "network": view.network }))
 }
 
 #[tauri::command]
 pub fn mcp_server_list(state: State<Arc<AppState>>) -> Result<Value, String> {
     db::mcp_list(&*lock_db(&state)?).map_err(|e| e.to_string())
 }
-#[tauri::command]
-pub fn mcp_server_save(state: State<Arc<AppState>>, cfg: Value) -> Result<Value, String> {
+pub fn mcp_server_save(app: AppHandle, state: State<Arc<AppState>>, cfg: Value) -> Result<Value, String> {
     // 11.14.4 — saving a server is a REQUEST TO SPAWN IT, so the program is
-    // checked here and not only when it is later called. Previously the command
-    // string was persisted verbatim and `mcp_call` handed it straight to
-    // `contain::spawn_target`, which returns the string unchanged when PATH
-    // lookup misses — so `SHELL_ALLOWED_PROGRAMS` (the only allowlist in the
-    // shell) was never consulted on the MCP path at all. A WebView script could
-    // save `{command: "calc.exe"}` and then call it: full execution, allowlist
-    // bypassed. Refuse at the moment of registration, with the same rule the
-    // shell uses, so a hostile config never reaches the database.
-    let command = cfg.pointer("/config/command").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
-    if !command.is_empty() {
-        ensure_program_allowed(&state, &command)?;
+    // checked here and not only when it is later called (see `ensure_program_allowed`).
+    //
+    // Archive-6 audit: the allow-list is not an authorization. `node` is on it, and a server
+    // whose arguments are `-e "…"` is arbitrary code the page can register and later call. So a
+    // server whose PROGRAM (command + arguments) is new or changed is registered only after a
+    // native dialog prints that exact program and its network setting and a human confirms it.
+    // An unchanged program (toggling `enabled`/`pinned`) keeps its approval and asks nothing.
+    let (command, arg_list, network) = db::mcp_program_of(&cfg);
+    if command.is_empty() {
+        // Nothing to spawn: stored UNAPPROVED, and it can never run until a program is confirmed.
+        return db::mcp_save(&*lock_db(&state)?, &cfg, None).map_err(|e| e.to_string());
     }
-    db::mcp_save(&*lock_db(&state)?, &cfg).map_err(|e| e.to_string())
+    ensure_program_allowed(&state, &command)?;
+    let needs = db::mcp_needs_confirmation(&*lock_db(&state)?, &cfg).map_err(|e| e.to_string())?;
+    if !needs {
+        return db::mcp_save(&*lock_db(&state)?, &cfg, None).map_err(|e| e.to_string());
+    }
+    let name = cfg["name"].as_str().or_else(|| cfg["id"].as_str()).unwrap_or("(unnamed)").to_string();
+    let argline = arg_list.join(" ");
+    let confirmed = native_confirm(
+        &app,
+        &state,
+        "SelfImpulse — run a new program?",
+        format!(
+            "Register the MCP server \"{name}\"?\n\nSelfImpulse will RUN this program whenever the server is used:\n    {command} {argline}\n\nNetwork access: {}\n\nOnly allow a program you recognise. Cancel saves nothing.",
+            if network { "ALLOWED" } else { "DENIED (it runs without any network)" }
+        ),
+        "Allow",
+    )?;
+    if !confirmed {
+        return Err(format!("MCP server \"{name}\": declined at the native dialog — nothing was saved and the program cannot run."));
+    }
+    db::mcp_save(&*lock_db(&state)?, &cfg, Some("human:dialog")).map_err(|e| e.to_string())
 }
-#[tauri::command]
-pub fn mcp_server_remove(state: State<Arc<AppState>>, server_id: String) -> Result<(), String> {
+pub fn mcp_server_remove(app: AppHandle, state: State<Arc<AppState>>, server_id: String) -> Result<(), String> {
+    let list = db::mcp_list(&*lock_db(&state)?).map_err(|e| e.to_string())?;
+    let found = list.as_array().and_then(|a| a.iter().find(|s| s["id"] == server_id)).cloned();
+    let Some(s) = found else { return Ok(()) }; // already gone: nothing to confirm
+    let name = s["name"].as_str().unwrap_or(&server_id).to_string();
+    let confirmed = native_confirm(
+        &app,
+        &state,
+        "SelfImpulse — remove an MCP server?",
+        format!("Remove the MCP server \"{name}\"?\n\nIts program will no longer be available to SelfImpulse. Cancel keeps it."),
+        "Remove",
+    )?;
+    if !confirmed {
+        return Err(format!("MCP server \"{name}\": removal declined at the native dialog — it was kept."));
+    }
     db::mcp_remove(&*lock_db(&state)?, &server_id).map_err(|e| e.to_string())
 }
-#[tauri::command]
 pub fn mcp_connect_test(state: State<Arc<AppState>>, server_id: String) -> Result<Value, String> {
     let list = db::mcp_list(&*lock_db(&state)?).map_err(|e| e.to_string())?;
     let found = list.as_array().and_then(|a| a.iter().find(|s| s["id"] == server_id)).cloned();
     let Some(s) = found else { return Ok(json!({"connected": false, "lastError": "unknown server", "toolCount": 0})); };
+    // The program that runs must be the program a human approved (see mcp_server_save).
+    if let Err(e) = db::mcp_check_approved(&s) {
+        return Ok(json!({"connected": false, "lastError": e, "toolCount": 0}));
+    }
     let cmd = s.pointer("/config/command").and_then(|v| v.as_str()).unwrap_or("").to_string();
     // 11.14.4 — re-checked at use, not only at save. A row written by an older
     // build, or edited directly in the database, is still covered.
     ensure_program_allowed(&state, &cmd)?;
     let args: Vec<String> = s.pointer("/config/args").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect()).unwrap_or_default();
+    let network = s.pointer("/config/network").and_then(|v| v.as_bool()).unwrap_or(true);
     let cwd = state.vendor_dir.parent().unwrap_or(&state.vendor_dir).to_path_buf();
-    Ok(mcp::connect_test(&cmd, &args, &cwd))
+    Ok(mcp::connect_test(&cmd, &args, &cwd, network))
 }
-#[tauri::command]
 pub fn mcp_call(state: State<Arc<AppState>>, server_id: String, tool: String, arguments: Value) -> Result<Value, String> {
     // V7 fix (bug Q): this used to match `tool.starts_with("control")`, which hijacked any real
     // MCP server that happened to expose a tool named control* and answered it from the stub.
@@ -1119,13 +1374,16 @@ pub fn mcp_call(state: State<Arc<AppState>>, server_id: String, tool: String, ar
     let list = db::mcp_list(&*lock_db(&state)?).map_err(|e| e.to_string())?;
     let found = list.as_array().and_then(|a| a.iter().find(|s| s["id"] == server_id)).cloned();
     let Some(s) = found else { return Err(format!("unknown MCP server {server_id}")); };
+    // The program that runs must be the program a human approved (see mcp_server_save).
+    db::mcp_check_approved(&s)?;
     let cmd = s.pointer("/config/command").and_then(|v| v.as_str()).unwrap_or("").to_string();
     // 11.14.4 — the guard that was missing entirely on this path. Without it the
     // stored command was spawned verbatim; see mcp_server_save.
     ensure_program_allowed(&state, &cmd)?;
     let args: Vec<String> = s.pointer("/config/args").and_then(|v| v.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect()).unwrap_or_default();
+    let network = s.pointer("/config/network").and_then(|v| v.as_bool()).unwrap_or(true);
     let cwd = state.vendor_dir.parent().unwrap_or(&state.vendor_dir).to_path_buf();
-    Ok(mcp::call_tool(&cmd, &args, &cwd, &tool, &arguments))
+    Ok(mcp::call_tool(&cmd, &args, &cwd, &tool, &arguments, network))
 }
 
 /* ------------------------------------------------------------------ browser
@@ -1401,7 +1659,6 @@ async fn ensure_browser() -> Result<(), String> {
     ))
 }
 
-#[tauri::command]
 pub async fn browser_session_create(key: Option<String>) -> Value {
     if let Err(e) = ensure_browser().await {
         return json!({ "ok": false, "notAttached": true, "engine": null, "sessionId": null, "reason": e });
@@ -1445,7 +1702,6 @@ pub async fn browser_sessions() -> Value {
     browser_get("/sessions").await.unwrap_or_else(|| json!([]))
 }
 
-#[tauri::command]
 pub async fn browser_navigate(session_id: String, url: String, timeout_ms: Option<u64>) -> Value {
     if let Err(e) = ensure_browser().await {
         return json!({ "ok": false, "notAttached": true, "url": url, "title": null, "engine": null, "reason": e });
@@ -1475,7 +1731,6 @@ pub async fn browser_navigate(session_id: String, url: String, timeout_ms: Optio
 /// The frontend calls this with a flat object (`invoke("browser_act", {...})`), so the fields arrive
 /// as individually named arguments rather than one `args` value. `args` is still accepted for
 /// callers that wrap their payload, and explicit fields win when both are present.
-#[tauri::command]
 #[allow(clippy::too_many_arguments)] // the flat invoke(...) surface is 10 named fields by design.
 pub async fn browser_act(
     args: Option<Value>,
@@ -1528,7 +1783,6 @@ pub async fn browser_act(
     browser_call("/act", body).await
 }
 
-#[tauri::command]
 pub async fn browser_screenshot(session_id: String, full_page: Option<bool>) -> Value {
     if let Err(e) = ensure_browser().await {
         return json!({ "ok": false, "notAttached": true, "path": null, "reason": e });
@@ -1784,22 +2038,21 @@ fn probe_version(program: &str) -> Option<String> {
     text.lines().next().map(|l| l.trim().chars().take(120).collect())
 }
 
-#[tauri::command]
 pub fn package_export(state: State<Arc<AppState>>, workflow_id: String, _include_history: bool) -> Result<Value, String> {
     let wf = db::workflow_get(&*lock_db(&state)?, &workflow_id).map_err(|e| e.to_string())?;
     Ok(json!({
         "packageFormat": 1,
         "exportedAt": chrono::Utc::now().to_rfc3339(),
-        "application": "VH",
+        "application": "SelfImpulse",
         "version": env!("CARGO_PKG_VERSION"),
         "workflow": { "name": wf["name"], "description": wf["description"], "graph": wf["graph"] },
         "history": [],
         "secretsIncluded": false
     }))
 }
-#[tauri::command]
 pub fn package_import(state: State<Arc<AppState>>, pkg: Value) -> Result<Value, String> {
-    if pkg["application"] != "VH" { return Err("package rejected".into()); }
+    // The export names SelfImpulse; packages written before the rename say "VH" and still import.
+    if pkg["application"] != "SelfImpulse" && pkg["application"] != "VH" { return Err("package rejected".into()); }
     let name = pkg.pointer("/workflow/name").and_then(|v| v.as_str()).unwrap_or("Imported");
     let desc = pkg.pointer("/workflow/description").and_then(|v| v.as_str()).unwrap_or("");
     let created = db::workflow_create(&*lock_db(&state)?, &format!("{name} (imported)"), desc).map_err(|e| e.to_string())?;
@@ -1831,7 +2084,6 @@ pub fn control_disconnect_ports(state: State<Arc<AppState>>, workflow_id: String
 pub fn control_list_nodes(state: State<Arc<AppState>>, workflow_id: String) -> Value {
     control_mcp::dispatch_with_db("list_nodes", &json!({ "workflowId": workflow_id }), &lock_db(&state).expect("db lock"))
 }
-#[tauri::command]
 pub fn control_run_workflow(state: State<Arc<AppState>>, workflow_id: String) -> Value {
     control_mcp::dispatch_with_db("run_workflow", &json!({ "workflowId": workflow_id }), &lock_db(&state).expect("db lock"))
 }
@@ -1873,7 +2125,7 @@ mod c3_credential_path_tests {
         assert!(refused(r"C:\Users\me\.docker"), ".docker must be refused");
         assert!(refused(r"C:\Users\me\.gnupg"), ".gnupg must be refused");
         assert!(refused(r"C:\Users\me\.azure"), ".azure must be refused");
-        assert!(refused(r"C:\Users\me\.config\gcloud"), ".config\gcloud must be refused");
+        assert!(refused(r"C:\Users\me\.config\gcloud"), ".config\\gcloud must be refused");
     }
 
     #[test]

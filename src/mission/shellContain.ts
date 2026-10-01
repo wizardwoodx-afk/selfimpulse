@@ -30,7 +30,8 @@
  *                  "policy-only"`). Honest, not silent.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 export type ContainmentMode = "unshare" | "bwrap" | "seatbelt" | "node-permission" | "policy-only";
@@ -45,6 +46,21 @@ export interface ContainSpec {
   writePaths: string[];
   env?: Record<string, string | undefined>;
   timeoutMs?: number;
+  /**
+   * May the process reach the network? DEFAULT TRUE here (the reference keeps its historical
+   * behaviour for existing callers). `false` is a REQUIREMENT: the run gets a fresh, empty network
+   * namespace, and on a host with no rung PROVEN to isolate it, the run is REFUSED rather than
+   * started open under a "contained" label. The native runner takes it from the human-minted grant.
+   */
+  network?: boolean;
+  /** PATH the program sees inside the sandbox (set by runContained from the program's own bin dir). */
+  innerPath?: string;
+  /**
+   * TEST SEAM: run on this rung instead of the preferred one — honoured ONLY if the rung is proven
+   * to launch a process here (otherwise the normal detection applies and `containment` says which
+   * rung actually ran). The probe uses it to exercise every proven rung, not just the first.
+   */
+  forceRung?: "unshare" | "bwrap";
 }
 
 export interface ContainResult {
@@ -59,23 +75,53 @@ const systemReadPrefixes = (): string[] =>
     ? []
     : ["/usr", "/bin", "/sbin", "/lib", "/lib64", "/lib32", "/etc/ssl", "/etc/resolv.conf", "/etc/hosts", "/etc/nsswitch.conf", "/etc/ld.so.cache", "/etc/ld.so.conf", "/proc", "/dev", "/opt/homebrew", "/opt/local"].filter((p) => existsSync(p));
 
-/** Chroot-mount script run INSIDE the user+ mount namespace. Positional: R CWD HOME + program argv. */
+/**
+ * Chroot-mount script run INSIDE the user+mount namespace. Positional: R CWD HOME + program argv.
+ * Environment: CONTAIN_READS / CONTAIN_WRITES (colon lists bound read-only / read-write) and
+ * CONTAIN_PATH (the PATH the program sees).
+ *
+ * BYTE-IDENTICAL to `UNSHARE_MOUNT_SCRIPT` in src-tauri/src/contain.rs — the probe compares the
+ * two strings, so the reference and the native runner cannot drift apart. The system prefixes are
+ * bound RECURSIVELY: inside a container or an unprivileged user namespace `/etc`, `/proc` and
+ * `/dev` are locked mounts, a plain `--bind` of them fails, and the old script ignored that and
+ * ran in a root with no `/dev/null` and no `/proc` while still reporting "contained". It now
+ * refuses to run in a hollow root. The `/tmp` tmpfs is mounted BEFORE the bind loops, so a
+ * workspace that lives under `/tmp` is not hidden by it.
+ */
 export const UNSHARE_MOUNT_SCRIPT = [
-  'R="$1"; CWD="$2"; H="$3"; shift 3',
+  "R=\"$1\"; CWD=\"$2\"; H=\"$3\"; shift 3",
   "mount --make-rprivate / 2>/dev/null || true",
-  "for p in /usr /bin /sbin /lib /lib64 /lib32 /etc /opt /proc /dev; do",
-  '  if [ -e "$p" ]; then mkdir -p "$R$p"; mount --bind "$p" "$R$p"; mount -o remount,ro,bind "$R$p" 2>/dev/null || true; fi',
+  "for p in /usr /bin /sbin /lib /lib64 /lib32 /etc /proc /dev; do",
+  "  if [ -e \"$p\" ]; then",
+  "    if ! { mkdir -p \"$R$p\" && mount --rbind \"$p\" \"$R$p\"; }; then",
+  "      case \"$p\" in",
+  "        /usr|/dev) echo \"contain-run: could not bind $p into the sandbox — refusing to run in a hollow root\" >&2; exit 97 ;;",
+  "      esac",
+  "    fi",
+  "    mount -o remount,ro,bind \"$R$p\" 2>/dev/null || true",
+  "  fi",
   "done",
+  "mkdir -p \"$R/tmp\"",
+  "mount -t tmpfs -o size=512m tmpfs \"$R/tmp\"",
   "IFS=':'",
+  "for r in $CONTAIN_READS; do",
+  "  [ -n \"$r\" ] || continue",
+  "  [ -e \"$r\" ] || continue",
+  "  mkdir -p \"$R$r\"; mount --bind \"$r\" \"$R$r\"; mount -o remount,ro,bind \"$R$r\" 2>/dev/null || true",
+  "done",
   "for w in $CONTAIN_WRITES; do",
-  '  [ -n "$w" ] || continue',
-  '  mkdir -p "$R$w"; mount --bind "$w" "$R$w"',
+  "  [ -n \"$w\" ] || continue",
+  "  mkdir -p \"$R$w\"; mount --bind \"$w\" \"$R$w\"",
   "done",
   "unset IFS",
-  'mkdir -p "$R/tmp"',
-  "mount -t tmpfs -o size=512m tmpfs \"$R/tmp\"",
-  'exec chroot "$R" /usr/bin/env -i -C "$CWD" HOME="$H" TMPDIR=/tmp PATH=/usr/bin:/bin:/usr/local/bin "$@"',
+  "exec chroot \"$R\" /usr/bin/env -i -C \"$CWD\" HOME=\"$H\" TMPDIR=/tmp PATH=\"${CONTAIN_PATH:-/usr/bin:/bin:/usr/local/bin}\" \"$@\"",
+  "",
 ].join("\n");
+
+/** PATH inside the sandbox unless the program brings its own bin dir. */
+export const DEFAULT_INNER_PATH = "/usr/bin:/bin:/usr/local/bin";
+/** PATH the mount script itself runs under (OUTSIDE the chroot): `chroot` is in /usr/sbin on Debian. */
+export const OUTER_PATH = "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin";
 
 function which(bin: string): string | null {
   for (const dir of (process.env.PATH ?? "").split(path.delimiter)) {
@@ -85,21 +131,140 @@ function which(bin: string): string | null {
   return null;
 }
 
-function unshareWorks(): boolean {
-  if (process.platform !== "linux" || !which("unshare") || !which("chroot") || !which("mount")) return false;
+/** `which`, falling back to the sbin directories a normal user's PATH does not list. */
+function whichSystem(bin: string): string | null {
+  const found = which(bin);
+  if (found) return found;
+  for (const d of ["/usr/sbin", "/sbin", "/usr/bin", "/bin"]) {
+    const p = path.join(d, bin);
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
+/** The `unshare` argument vector. `network === false` adds a fresh network namespace (`-n`). */
+export function unshareArgs(network: boolean, scratch: string, cwd: string, home: string, program: string, args: string[]): string[] {
+  return ["-Urm", ...(network ? [] : ["-n"]), "--map-root-user", "/bin/sh", "-c", UNSHARE_MOUNT_SCRIPT, "contain-run", scratch, cwd, home, program, ...args];
+}
+
+/* A rung is not "detected" by `which` — it is PROVEN by launching a process in it. The old check
+   ran `unshare -Urm true`, which exercises neither the mount-and-chroot script nor bubblewrap's
+   own setup, so hosts with restricted user namespaces passed it and then ran nothing, silently,
+   labelled "contained". */
+function canaryUnshare(isolateNet: boolean): boolean {
+  let dir = "";
   try {
-    const r = spawnSync("unshare", ["-Urm", "--map-root-user", "true"], { stdio: "ignore", timeout: 5000 });
+    dir = realpathSync(mkdtempSync(path.join(os.tmpdir(), "si-canary-")));
+    const r = spawnSync("unshare", unshareArgs(!isolateNet, `${dir}/.contain-root`, dir, dir, "true", []), {
+      stdio: "ignore",
+      timeout: 10_000,
+      env: { PATH: OUTER_PATH, CONTAIN_WRITES: dir, CONTAIN_READS: "", CONTAIN_PATH: DEFAULT_INNER_PATH },
+    });
+    return r.status === 0;
+  } catch {
+    return false;
+  } finally {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function canaryBwrap(isolateNet: boolean): boolean {
+  try {
+    const r = spawnSync("bwrap", ["--ro-bind", "/", "/", "--proc", "/proc", "--dev", "/dev", ...(isolateNet ? ["--unshare-net"] : []), "--", "true"], {
+      stdio: "ignore",
+      timeout: 10_000,
+      env: { PATH: "/usr/bin:/bin" },
+    });
     return r.status === 0;
   } catch {
     return false;
   }
 }
 
-export function detectContainment(): ContainmentMode {
-  if (unshareWorks()) return "unshare";
-  if (process.platform === "linux" && which("bwrap")) return "bwrap";
+export interface ContainCaps { unshare: boolean; unshareNet: boolean; bwrap: boolean; bwrapNet: boolean }
+let capsCache: ContainCaps | null = null;
+
+/** What this host can ACTUALLY do, found by running each rung once (cached). */
+export function containCaps(): ContainCaps {
+  if (capsCache) return capsCache;
+  const c: ContainCaps = { unshare: false, unshareNet: false, bwrap: false, bwrapNet: false };
+  if (process.platform === "linux") {
+    if (whichSystem("unshare") && whichSystem("chroot") && whichSystem("mount")) {
+      c.unshare = canaryUnshare(false);
+      c.unshareNet = c.unshare && canaryUnshare(true);
+    }
+    if (which("bwrap")) {
+      c.bwrap = canaryBwrap(false);
+      c.bwrapNet = c.bwrap && canaryBwrap(true);
+    }
+  }
+  capsCache = c;
+  return c;
+}
+
+/** The strongest rung PROVEN to launch a process here; `needNetIsolation` asks for one that can also deny the network. */
+export function detectContainment(needNetIsolation = false): ContainmentMode {
+  const c = containCaps();
+  if (needNetIsolation) {
+    if (c.unshareNet) return "unshare";
+    if (c.bwrapNet) return "bwrap";
+  } else {
+    if (c.unshare) return "unshare";
+    if (c.bwrap) return "bwrap";
+  }
   if (process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec")) return "seatbelt";
   return "policy-only";
+}
+
+/* ───────────── the program must EXIST inside the sandbox ─────────────
+   A contained process sees only the system prefixes and the workspace. A toolchain installed
+   anywhere else (`~/.nvm`, `~/.local/…`, `/opt/node`, a pyenv version) does not exist in there:
+   the launch fails, stdout is empty, and a battery asserting "the secret did not leak" PASSES
+   because nothing ran. The program's install prefix is therefore bound read-only and its bin dir
+   goes on the inner PATH (so an `npm` finds its sibling `node`). Mirrors `program_support`. */
+const ALWAYS_VISIBLE = ["/usr", "/bin", "/sbin", "/lib", "/lib64", "/lib32"];
+const CREDENTIAL_COMPONENTS = [".ssh", ".aws", ".gnupg", ".kube", ".docker", ".azure", "gcloud", "keyrings", ".password-store", ".git-credentials", ".netrc"];
+
+const isUnder = (child: string, root: string): boolean => child === root || child.startsWith(root.endsWith("/") ? root : root + "/");
+
+export interface ProgramSupport { read: string[]; binDir: string | null }
+
+function installPrefix(p: string): string {
+  const parent = path.dirname(p);
+  return path.basename(parent) === "bin" ? path.dirname(parent) : parent;
+}
+
+/** May this directory be exposed read-only to a sandboxed process? Never `/`, a top-level directory, HOME or an ancestor of it, a direct child of HOME, or a credential store. */
+export function prefixIsBindable(x: string, home?: string): boolean {
+  const comps = x.split("/").filter((c) => c.length > 0).map((c) => c.toLowerCase());
+  if (comps.length < 2) return false;
+  if (comps.some((c) => CREDENTIAL_COMPONENTS.includes(c))) return false;
+  if (home) {
+    if (isUnder(home, x)) return false; // x is HOME or an ancestor of it
+    if (path.dirname(x) === home) return false; // a direct child of HOME holds app data and tokens
+  }
+  return true;
+}
+
+export function programSupport(resolved: string, home?: string): ProgramSupport {
+  const none: ProgramSupport = { read: [], binDir: null };
+  if (process.platform === "win32" || !path.isAbsolute(resolved)) return none;
+  let real = resolved;
+  try { real = realpathSync(resolved); } catch { /* keep as given */ }
+  const visible = (x: string): boolean => ALWAYS_VISIBLE.some((v) => isUnder(x, v));
+  if (visible(resolved) && visible(real)) return none;
+  const read: string[] = [];
+  for (const candidate of [resolved, real]) {
+    if (visible(candidate)) continue;
+    const pk = [installPrefix(candidate), path.dirname(candidate)].find((c) => prefixIsBindable(c, home));
+    if (pk && !read.some((r) => isUnder(pk, r))) {
+      for (let i = read.length - 1; i >= 0; i--) if (isUnder(read[i], pk)) read.splice(i, 1);
+      read.push(pk);
+    }
+  }
+  const bin = path.dirname(resolved);
+  const binDir = read.some((r) => isUnder(bin, r)) && !visible(bin) ? bin : null;
+  return { read, binDir };
 }
 
 /**
@@ -118,8 +283,12 @@ export function nodePermissionArgs(nodeMajor: number | undefined, writePaths: st
 
 /** The bwrap builder — mirrored by contain.rs and pinned by the probe. */
 export function bwrapArgv(spec: ContainSpec): string[] {
+  const network = spec.network ?? true;
   const binds: string[] = [];
   for (const p of systemReadPrefixes()) binds.push("--ro-bind", p, p);
+  // The /tmp tmpfs goes FIRST: bwrap applies arguments in order, so a tmpfs mounted after the
+  // workspace bind hides a workspace that lives under /tmp ("Can't chdir to …").
+  binds.push("--tmpfs", "/tmp");
   for (const p of spec.readPaths) {
     const abs = path.resolve(p);
     if (existsSync(abs) && !spec.writePaths.some((w) => path.resolve(w) === abs)) binds.push("--ro-bind", abs, abs);
@@ -133,10 +302,10 @@ export function bwrapArgv(spec: ContainSpec): string[] {
     ...binds,
     "--dev", "/dev",
     "--proc", "/proc",
-    "--tmpfs", "/tmp",
+    ...(network ? [] : ["--unshare-net"]),
     "--setenv", "HOME", path.resolve(spec.writePaths[0] ?? spec.cwd),
     "--setenv", "TMPDIR", "/tmp",
-    "--setenv", "PATH", "/usr/bin:/bin:/usr/local/bin",
+    "--setenv", "PATH", spec.innerPath ?? DEFAULT_INNER_PATH,
     "--die-with-parent",
     "--new-session",
     "--chdir", path.resolve(spec.cwd),
@@ -149,18 +318,28 @@ export function bwrapArgv(spec: ContainSpec): string[] {
 /** The unshare builder — mirrored by contain.rs and pinned by the probe. */
 export function unshareArgv(spec: ContainSpec): { program: string; args: string[]; extraEnv: Record<string, string> } {
   const writes = spec.writePaths.map((p) => path.resolve(p));
+  const reads = spec.readPaths.map((p) => path.resolve(p)).filter((r) => existsSync(r));
+  const home = writes[0] ?? path.resolve(spec.cwd);
   const scratch = path.resolve(spec.writePaths[0] ?? spec.cwd, ".contain-root");
   return {
     program: "unshare",
-    args: ["-Urm", "--map-root-user", "/bin/sh", "-c", UNSHARE_MOUNT_SCRIPT, "contain-run", scratch, path.resolve(spec.cwd), writes[0] ?? path.resolve(spec.cwd), spec.program, ...spec.args],
-    extraEnv: { CONTAIN_WRITES: writes.join(":") },
+    args: unshareArgs(spec.network ?? true, scratch, path.resolve(spec.cwd), home, spec.program, spec.args),
+    // The scrub clears the environment, so these are applied AFTER it (the native side once lost
+    // CONTAIN_WRITES to exactly that ordering and never mounted the workspace).
+    extraEnv: {
+      PATH: OUTER_PATH,
+      CONTAIN_WRITES: writes.join(":"),
+      CONTAIN_READS: reads.join(":"),
+      CONTAIN_PATH: spec.innerPath ?? DEFAULT_INNER_PATH,
+    },
   };
 }
 
-/** The seatbelt builder — macOS. Read-everything, write-only-inside. */
+/** The seatbelt builder — macOS. Read-everything, write-only-inside, network denied unless granted. */
 export function seatbeltArgv(spec: ContainSpec): string[] {
   const writes = spec.writePaths.map((p) => `(subpath "${path.resolve(p)}")`).join(" ");
-  const profile = `(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* ${writes} (subpath "/private/tmp") (subpath "/tmp"))\n`;
+  const net = (spec.network ?? true) ? "" : "(deny network*)\n";
+  const profile = `(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* ${writes} (subpath "/private/tmp") (subpath "/tmp"))\n${net}`;
   return ["sandbox-exec", "-p", profile, spec.program, ...spec.args];
 }
 
@@ -242,24 +421,49 @@ export function spawnTarget(command: string, args: string[]): { program: string;
 /**
  * Run the command under the strongest containment available and report which
  * rung was actually achieved — a caller can never mistake
- * policy-only for an OS sandbox.
+ * policy-only for an OS sandbox. With `network: false` a host that cannot isolate the network
+ * REFUSES the run (containment "refused") instead of starting it open.
  */
 export async function runContained(spec: ContainSpec): Promise<ContainResult> {
-  const mode = detectContainment();
+  const network = spec.network ?? true;
+  const c = containCaps();
+  const forcedOk =
+    spec.forceRung === "unshare" ? (network ? c.unshare : c.unshareNet) : spec.forceRung === "bwrap" ? (network ? c.bwrap : c.bwrapNet) : false;
+  const mode: ContainmentMode = spec.forceRung && forcedOk ? spec.forceRung : detectContainment(!network);
+  if (!network && !["unshare", "bwrap", "seatbelt"].includes(mode)) {
+    return {
+      stdout: "",
+      stderr: `network access is DENIED for this run, but this host has no containment that can enforce that (best available: ${mode}). Nothing ran.`,
+      code: null,
+      containment: "refused",
+    };
+  }
   let program = spec.program;
   let args = spec.args;
   let containment: ContainResult["containment"] = mode;
   let env = scrubbedEnv(spec);
 
-  if (mode === "unshare") {
-    const u = unshareArgv(spec);
-    program = u.program;
-    args = u.args;
-    env = scrubbedEnv(spec, u.extraEnv);
-  } else if (mode === "bwrap") {
-    const argv = bwrapArgv(spec);
-    program = argv[0];
-    args = argv.slice(1);
+  if (mode === "unshare" || mode === "bwrap") {
+    // The program must exist INSIDE the sandbox: resolve it on the host, bind its install prefix
+    // read-only, and put its bin dir on the inner PATH.
+    const resolved = spawnTarget(spec.program, []).program;
+    const support = programSupport(resolved, process.env.HOME ?? os.homedir());
+    const eff: ContainSpec = {
+      ...spec,
+      program: path.isAbsolute(resolved) ? resolved : spec.program,
+      readPaths: [...spec.readPaths, ...support.read],
+      innerPath: support.binDir ? `${support.binDir}:${DEFAULT_INNER_PATH}` : DEFAULT_INNER_PATH,
+    };
+    if (mode === "unshare") {
+      const u = unshareArgv(eff);
+      program = u.program;
+      args = u.args;
+      env = scrubbedEnv(spec, u.extraEnv);
+    } else {
+      const argv = bwrapArgv(eff);
+      program = argv[0];
+      args = argv.slice(1);
+    }
   } else if (mode === "seatbelt") {
     const argv = seatbeltArgv(spec);
     program = argv[0];
@@ -313,12 +517,18 @@ export async function runContained(spec: ContainSpec): Promise<ContainResult> {
  * restricted to a workspace would try (directly, or via node/python/npm/git/
  * cargo/MCP). `marker` is the secret planted outside the workspace — it must
  * never appear in any output.
+ *
+ * LIVENESS: a contained process that never started cannot leak anything, so "the marker did not
+ * appear" proves nothing on its own. The node and python fixtures print `RAN:<id>` BEFORE they
+ * attempt the escape — the probe requires it — and the probe additionally runs every fixture's
+ * interpreter with `--version` inside the same sandbox first and counts a fixture as PROVED only
+ * if that came back.
  */
 export const ESCAPE_FIXTURES: { id: string; program: string; buildArgs: (outsideFile: string) => string[] }[] = [
-  { id: "node-fs-read", program: "node", buildArgs: (f) => ["-e", `process.stdout.write("LEAK:"+require("fs").readFileSync(${JSON.stringify(f)},"utf8"))`] },
-  { id: "node-fs-write", program: "node", buildArgs: (f) => ["-e", `require("fs").writeFileSync(${JSON.stringify(f+".w")},"pwned");process.stdout.write("WROTE")`] },
-  { id: "python-open", program: process.platform === "win32" ? "python" : "python3", buildArgs: (f) => ["-c", `print("LEAK:"+open(${JSON.stringify(f)}).read())`] },
-  { id: "python-write", program: process.platform === "win32" ? "python" : "python3", buildArgs: (f) => ["-c", `open(${JSON.stringify(f+".w")},"w").write("pwned");print("WROTE")`] },
+  { id: "node-fs-read", program: "node", buildArgs: (f) => ["-e", `process.stdout.write("RAN:node-fs-read\\n");process.stdout.write("LEAK:"+require("fs").readFileSync(${JSON.stringify(f)},"utf8"))`] },
+  { id: "node-fs-write", program: "node", buildArgs: (f) => ["-e", `process.stdout.write("RAN:node-fs-write\\n");require("fs").writeFileSync(${JSON.stringify(f+".w")},"pwned");process.stdout.write("WROTE")`] },
+  { id: "python-open", program: process.platform === "win32" ? "python" : "python3", buildArgs: (f) => ["-c", `print("RAN:python-open");print("LEAK:"+open(${JSON.stringify(f)}).read())`] },
+  { id: "python-write", program: process.platform === "win32" ? "python" : "python3", buildArgs: (f) => ["-c", `print("RAN:python-write");open(${JSON.stringify(f+".w")},"w").write("pwned");print("WROTE")`] },
   { id: "npm-home-leak", program: "npm", buildArgs: () => ["config", "get", "userconfig"] },
   { id: "git-status-outside", program: "git", buildArgs: (f) => ["-C", path.dirname(f), "status"] },
   { id: "git-config-read", program: "git", buildArgs: () => ["config", "--global", "--list", "--show-origin"] },

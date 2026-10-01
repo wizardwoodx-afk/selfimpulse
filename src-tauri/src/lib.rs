@@ -1,6 +1,8 @@
 mod a2a_host;
 mod commands;
-mod guard;  /* C-1: the privileged IPC surface is registered from here, not from commands. */
+mod grants;
+mod guard;
+mod migrate;  /* C-1: the privileged IPC surface is registered from here, not from commands. */
 pub mod db;
 mod control_mcp;
 mod git;
@@ -37,7 +39,15 @@ pub fn run() {
         // line goes; updates remain "download the new zip and reinstall".
         // Re-add ONLY together with a real `plugins.updater` config section.
         .setup(|app| {
-            let data = app.path().app_data_dir().unwrap_or_else(|_| std::env::temp_dir().join("elevenhandle"));
+            let data = app.path().app_data_dir().unwrap_or_else(|_| std::env::temp_dir().join("selfimpulse"));
+            /* The bundle identifier was renamed (com.elevenhandle.app → com.selfimpulse.app) and the
+               data directory is derived from it: copy an existing install's data across ONCE, before
+               anything creates the new directory. Copy-only — the old directory is never touched. */
+            match migrate::migrate_legacy_data(&data, &["vh.sqlite", "mj.sqlite"]) {
+                migrate::Migration::Copied { files } => eprintln!("SelfImpulse: carried {files} file(s) over from the pre-rename data directory"),
+                migrate::Migration::Failed(e) => eprintln!("SelfImpulse: the legacy data migration failed ({e}); starting fresh — the old directory was not touched and the migration will be retried"),
+                migrate::Migration::NotNeeded => {}
+            }
             let _ = std::fs::create_dir_all(data.join("artifacts"));
             let _ = std::fs::create_dir_all(data.join("skills"));
             /* 19.5.1 identity migration — the active store is vh.sqlite; a
@@ -59,6 +69,8 @@ pub fn run() {
                 data_dir: data,
                 vendor_dir: vendor,
                 secrets: secrets::SecretStore::new(),
+                grants: grants::ExecGrants::new(),
+                prompts: grants::DialogThrottle::new(),
             }));
             /* The window-state plugin restores the size the user last had, which
                is correct — but a size saved on a larger display can exceed the
@@ -104,7 +116,7 @@ pub fn run() {
             let _tray = tauri::tray::TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
-                .tooltip("VH — agent workstation")
+                .tooltip("SelfImpulse")
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => app.exit(0),
                     "show" => {
@@ -192,12 +204,18 @@ pub fn run() {
             commands::run_request_take,
             commands::evolution_service_health,
             commands::evolution_service_propose,
-            commands::hermes_bridge,
+            guard::hermes_bridge,
             guard::secret_set,
             guard::secret_delete,
             commands::secret_exists,
             guard::secret_get,
-            commands::llm_chat,
+            guard::provider_bind_endpoint,
+            commands::provider_endpoints_list,
+            commands::provider_unbind_endpoint,
+            guard::exec_grant_request,
+            commands::exec_grants_status,
+            commands::exec_grants_revoke,
+            guard::llm_chat,
             guard::fs_read,
             guard::fs_write,
             guard::fs_list,
@@ -208,9 +226,9 @@ pub fn run() {
             guard::workspace_root_remove,
             commands::workspace_root_list,
             commands::mcp_server_list,
-            commands::mcp_server_save,
-            commands::mcp_server_remove,
-            commands::mcp_connect_test,
+            guard::mcp_server_save,
+            guard::mcp_server_remove,
+            guard::mcp_connect_test,
             guard::mcp_call,
             guard::browser_session_create,
             commands::browser_session_close,

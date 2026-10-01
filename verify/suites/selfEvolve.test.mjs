@@ -12469,6 +12469,34 @@ var V6_CONSTITUTION = Object.freeze([
 ]);
 var DRIFT_WINDOW_MS = 24 * 60 * 60 * 1e3;
 
+// src/security/guardrail.ts
+var RateGate = class {
+  constructor(limit, windowMs, now = () => Date.now()) {
+    this.limit = limit;
+    this.windowMs = windowMs;
+    this.now = now;
+  }
+  hits = /* @__PURE__ */ new Map();
+  /** Returns true when the action is within budget (and records it). */
+  check(key) {
+    const t = this.now();
+    const arr = (this.hits.get(key) ?? []).filter((x) => t - x < this.windowMs);
+    if (arr.length >= this.limit) {
+      this.hits.set(key, arr);
+      return false;
+    }
+    arr.push(t);
+    this.hits.set(key, arr);
+    return true;
+  }
+};
+var callRateGate = new RateGate(120, 6e4);
+
+// src/version.ts
+var ENGINE_SHORT = "19.7";
+var ENGINE_CODENAME = "SelfImpulse";
+var PRODUCT_TITLE = `SelfImpulse (engine MJ ${ENGINE_SHORT} "${ENGINE_CODENAME}")`;
+
 // src/engine/verifierTrust.ts
 var TRUST_ROOT = Object.freeze({
   protocol: "si-verifier/3",

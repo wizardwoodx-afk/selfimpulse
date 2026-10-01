@@ -18,7 +18,8 @@
  * bounded version is shippable.
  */
 import { uid } from "../app/id";
-import { governChange, promoteToFleet, type GovernCandidate } from "./rsiralsV6";
+import { governChange, promoteToFleet, digestOfCandidate, type GovernCandidate } from "./rsiralsV6";
+import { ipc } from "../ipc/client";
 import { verifyExternal } from "./canaryClient";
 import { rsiralsOnApply, rsiralsOnFirewallBlock, rsiralsOnRevert } from "./rsirals";
 export { loadSelfOverrides } from "./selfOverrides";
@@ -247,6 +248,60 @@ function governCandidateFor(p: SelfProposal): GovernCandidate {
   };
 }
 
+/* ── the human decision ───────────────────────────────────────────────────────────────
+ * `applySelfChangeGuarded` used to hardcode `"human-approved": 1` — "the click IS the human
+ * promotion decision" — but NOTHING in the function consumed a click. Any caller (any script in the
+ * page) promoted a self-change as if a human had approved it. The score is now MEASURED: it is 1
+ * only if the approvals store holds a decision that was
+ *   (a) APPROVED,
+ *   (b) made by a human actor — `human:dialog` (native capability) or `human:confirm` (web mirror),
+ *       the only actors the capability flow can write, and
+ *   (c) requested for THIS exact change — the approval's payload carries the candidate digest, so an
+ *       approval for one change cannot promote another, or the same change after it was edited.
+ * Otherwise the score is 0 and RSIRALS' own fail-closed regression gate refuses the promotion.
+ * A change applies at most once (its state leaves "pending"), so an approval cannot be replayed. */
+export const SELF_EVOLUTION_APPROVAL_EXECUTION = "self-evolution";
+
+export type SelfChangeApprovalRequest =
+  | { ok: true; approvalId: string; digest: string; summary: string }
+  | { ok: false; error: string };
+
+/**
+ * Open the approval a human must decide before this proposal can promote. The caller then runs the
+ * native flow: `ipc.approvalAuthorize(id, "APPROVED")` (a dialog) → `ipc.approvalDecide(id, "APPROVED", capability)`.
+ */
+export async function requestSelfChangeApproval(proposalId: string): Promise<SelfChangeApprovalRequest> {
+  const p = selfProposals().find((x) => x.id === proposalId);
+  if (!p) return { ok: false, error: `unknown proposal ${proposalId}` };
+  if (p.state !== "pending") return { ok: false, error: `proposal already ${p.state}` };
+  const digest = digestOfCandidate(governCandidateFor(p));
+  const summary = `Self-change · ${p.kind} → ${p.target}: ${p.rationale}`;
+  const r = (await ipc.approvalRequest(
+    SELF_EVOLUTION_APPROVAL_EXECUTION,
+    p.id,
+    summary,
+    { proposalId: p.id, candidateDigest: digest, kind: p.kind, target: p.target },
+    "engine:self-evolution",
+  )) as { id: string };
+  return { ok: true, approvalId: r.id, digest, summary };
+}
+
+async function humanApprovalEarned(p: SelfProposal, candidate: GovernCandidate): Promise<{ earned: boolean; why: string }> {
+  let rec: { decided?: boolean; status?: string; decidedBy?: string; payload?: { candidateDigest?: string } };
+  try {
+    rec = (await ipc.approvalGet(SELF_EVOLUTION_APPROVAL_EXECUTION, p.id)) as typeof rec;
+  } catch (e) {
+    return { earned: false, why: `the approvals store could not be read (${e instanceof Error ? e.message : String(e)})` };
+  }
+  if (!rec?.decided) return { earned: false, why: "no human decision exists for this change — request approval first (requestSelfChangeApproval)" };
+  if (rec.status !== "APPROVED") return { earned: false, why: `the human decision for this change is ${rec.status}, not APPROVED` };
+  if (!String(rec.decidedBy ?? "").startsWith("human:")) return { earned: false, why: "the decision was not made by a human at a native/confirm dialog" };
+  if (rec.payload?.candidateDigest !== digestOfCandidate(candidate)) {
+    return { earned: false, why: "the approval was requested for a different change (candidate digest mismatch) — request approval again" };
+  }
+  return { earned: true, why: "approved by a human for exactly this change" };
+}
+
 /**
  * The ONE live apply path, guarded by RSIRALS v6 end to end:
  *
@@ -256,6 +311,8 @@ function governCandidateFor(p: SelfProposal): GovernCandidate {
  *   (fail-closed on tighten-only + human-approved) → the real override
  *   lands → v5's archive records it. The unguarded applySelfChange stays
  *   exported for history, but no surface uses it anymore.
+ *
+ *   "human-approved" is MEASURED from the approvals store (see above), never assumed.
  */
 export async function applySelfChangeGuarded(proposalId: string, now: () => Date = () => new Date()): Promise<GuardedApply> {
   const list = selfProposals();
@@ -272,15 +329,16 @@ export async function applySelfChangeGuarded(proposalId: string, now: () => Date
     return { ok: false, error: `refused by RSIRALS v6 — ${verdict.reasons.join("; ")}` };
   }
 
-  /* the click IS the human promotion decision; the regression gate is
-     fail-closed on two REAL, measured dimensions of this path */
+  /* the regression gate is fail-closed on two REAL, measured dimensions of this path:
+     tighten-only is a property of the change; human-approved is read from the approvals store */
+  const human = await humanApprovalEarned(p, candidate);
   const promo = promoteToFleet(
     candidate,
-    { scores: { "tighten-only": 1, "human-approved": 1 } },
+    { scores: { "tighten-only": 1, "human-approved": human.earned ? 1 : 0 } },
     { floors: { "tighten-only": 1, "human-approved": 1 } },
     now().getTime(),
   );
-  if (!promo.ok) return { ok: false, error: promo.line };
+  if (!promo.ok) return { ok: false, error: human.earned ? promo.line : `${promo.line} — ${human.why}` };
 
   const res = applySelfChange(proposalId, now);
   if (!res.ok) return { ok: false, error: res.error };

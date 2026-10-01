@@ -376,7 +376,7 @@ function makeRepo(sc: DrillScenario): { repo: string; canonicalTest: string | nu
     fs.writeFileSync(p, content);
   }
   sh(["git", "init", "-q", "-b", "main", "."], repo);
-  sh(["git", "config", "user.email", "drill@elevenhandle.local"], repo);
+  sh(["git", "config", "user.email", "drill@selfimpulse.local"], repo);
   sh(["git", "config", "user.name", "SelfImpulse Drill"], repo);
   sh(["git", "add", "-A"], repo);
   sh(["git", "commit", "-qm", "drill baseline"], repo);

@@ -92,8 +92,14 @@ export interface ProviderConfig {
   kind: ProviderKind;
   /** Full base URL — overridable for proxies/gateways/local servers. */
   baseUrl: string;
+  /** The key — held HERE only on the web edition. On the desktop it is empty: the key lives in the OS keychain. */
   apiKey: string;
   model: string;
+  /**
+   * Desktop only: a REFERENCE to the key in the native store (`vh.providerkey.<kind>`). When set, the
+   * call goes through the native `llm_chat` and the key never enters this window (see nativeProvider.ts).
+   */
+  secretRef?: string;
 }
 
 export type ProviderResult =

@@ -222,7 +222,16 @@ var PRIVILEGED = [
   "fs_write",
   "fs_list",
   "fs_mkdir",
-  "fs_remove"
+  "fs_remove",
+  /* archive-6 audit: the provider call, the endpoint binding, execution grants, MCP registration and the
+     evolution bridge all moved behind the gate */
+  "llm_chat",
+  "provider_bind_endpoint",
+  "exec_grant_request",
+  "mcp_server_save",
+  "mcp_server_remove",
+  "mcp_connect_test",
+  "hermes_bridge"
 ];
 section("C-1 \u2014 centralized native authorization boundary");
 ok("lib.rs declares `mod guard;`", /\bmod guard;/.test(libRs));
@@ -243,7 +252,13 @@ for (const name of PRIVILEGED) {
 ok("guard wrappers call authorize() before commands::", /authorize\(/.test(guardRs));
 {
   const segs = guardRs.split("#[tauri::command]").slice(1);
-  const wrapperNames = segs.map((s) => (/(?:pub\s+)?(?:async\s+)?fn\s+([a-z0-9_]+)/.exec(s) ?? [null, ""])[1] ?? "").filter((n) => PRIVILEGED.includes(n));
+  const allWrapperNames = segs.map((s) => (/(?:pub\s+)?(?:async\s+)?fn\s+([a-z0-9_]+)/.exec(s) ?? [null, ""])[1] ?? "");
+  const wrapperNames = allWrapperNames.filter((n) => PRIVILEGED.includes(n));
+  ok(
+    "EVERY #[tauri::command] wrapper in guard.rs is in the privileged set, and vice versa (no unlisted wrapper)",
+    allWrapperNames.length === PRIVILEGED.length && allWrapperNames.every((n) => PRIVILEGED.includes(n)) && PRIVILEGED.every((n) => allWrapperNames.includes(n)),
+    `wrappers=${allWrapperNames.length} privileged=${PRIVILEGED.length}; unlisted=${allWrapperNames.filter((n) => !PRIVILEGED.includes(n)).join(",")}`
+  );
   ok(
     `every privileged wrapper body crosses authorize() (${wrapperNames.length}/${PRIVILEGED.length} found)`,
     wrapperNames.length === PRIVILEGED.length
@@ -375,6 +390,75 @@ ok(
   "C-2 regression tests ship, covering the capability flow (cargo test c2_)",
   dbRs.includes("mod c2_decision_transition_tests") && dbRs.includes("foreign_capability_is_a_confused_approver") && dbRs.includes("capability_cannot_cast_the_other_verdict") && dbRs.includes("expired_capability_is_refused") && dbRs.includes("decide_without_capability_is_refused") && dbRs.includes("existing_databases_gain_the_authority_columns")
 );
+section("archive-6 \u2014 the boundary decides what leaves native code (secrets, destinations, execution, programs)");
+var grantsRs = read("src-tauri/src/grants.rs");
+var secretsRs = read("src-tauri/src/secrets.rs");
+var containRs6 = read("src-tauri/src/contain.rs");
+var mcpRs6 = read("src-tauri/src/mcp.rs");
+var a2aClientTs = read("src/mission/a2aClient.ts");
+var selfEvolveTs = read("src/engine/selfEvolve.ts");
+{
+  const names = (src) => [...src.matchAll(/#\[tauri::command\]\s*\n(?:[ \t]*(?:\/\/\/[^\n]*|\/\/[^\n]*|#\[[^\n]*)\n)*[ \t]*pub (?:async )?fn (\w+)/g)].map((m) => m[1]);
+  const inCommands = names(commandsRs);
+  const inGuard = names(guardRs);
+  const both = inCommands.filter((n) => inGuard.includes(n));
+  ok("no command is a #[tauri::command] in BOTH commands.rs and guard.rs (E0428 \u2014 the crate would not compile)", both.length === 0, both.join(","));
+  ok("every command lib.rs registers exists as a #[tauri::command] in the module it is registered from", (() => {
+    const regs = [...libRs.matchAll(/\b(commands|guard|git|a2a_host)::(\w+),/g)].map((m) => [m[1], m[2]]);
+    const gitRs = read("src-tauri/src/git.rs");
+    const a2aRs = read("src-tauri/src/a2a_host.rs");
+    const bag = { commands: inCommands, guard: inGuard, git: names(gitRs), a2a_host: names(a2aRs) };
+    const missing = regs.filter(([m, n]) => !(bag[m] ?? []).includes(n)).map(([m, n]) => `${m}::${n}`);
+    return missing.length === 0 || (console.log("   unresolved registrations:", missing.join(", ")), false);
+  })());
+}
+ok("secret classes exist: provider keys, signing keys, everything else", /pub enum SecretClass \{[\s\S]*Provider[\s\S]*Signing[\s\S]*Other/.test(grantsRs) && /pub fn classify_secret/.test(grantsRs));
+ok(
+  "secret_get NEVER returns a provider key (value is null + redacted) and refuses unlisted refs",
+  /SecretClass::Provider => \{[\s\S]{0,400}"value": null[\s\S]{0,80}"redacted": true/.test(commandsRs) && /SecretClass::Other => Err\(/.test(commandsRs)
+);
+ok("guard::authorize classifies secret_get (Other is denied before it reaches the command)", /"secret_get" => \{[\s\S]{0,200}classify_secret\(arg\)/.test(guardRs));
+ok("SecretStore::delete clears BOTH keychain namespaces and proves nothing readable remains", /for svc in \[SERVICE, LEGACY_SERVICE\] \{\s*if let Err\(e\) = self\.vault\.delete/.test(secretsRs) && /STILL readable/.test(secretsRs));
+ok("the first read migrates a legacy secret forward and retires the legacy copy", /fn get[\s\S]{0,700}vault\.set\(SERVICE[\s\S]{0,120}vault\.delete\(LEGACY_SERVICE/.test(secretsRs));
+ok("location() sees the legacy namespace (no 'absent' for a key llm_chat can still use)", /fn location[\s\S]{0,500}for svc in \[SERVICE, LEGACY_SERVICE\]/.test(secretsRs));
+ok("the keychain sits behind a Vault seam so the logic is tested (delete / migrate / degrade)", /pub trait Vault/.test(secretsRs) && /delete_removes_the_legacy_namespace_too/.test(secretsRs));
+ok("llm_chat is registered from guard:: (async wrapper that authorizes the provider slug)", /pub async fn llm_chat\(state: State<'_, Arc<AppState>>, req: Value\)[\s\S]{0,400}authorize\("llm_chat"/.test(guardRs));
+ok("llm_chat attaches PROVIDER keys only (an owner/issuer/other secret_ref is refused)", /classify_secret\(secret_ref\) != grants::SecretClass::Provider/.test(commandsRs));
+{
+  const i = commandsRs.indexOf("pub async fn llm_chat");
+  const body = commandsRs.slice(i, i + 9e3);
+  const dest = body.indexOf("key_destination_allowed(");
+  const keyRead = body.indexOf("state.secrets.get(secret_ref)");
+  ok("the destination is decided BEFORE the secret is read (a refused call never touches the key)", dest > 0 && keyRead > 0 && dest < keyRead, `dest=${dest} keyRead=${keyRead}`);
+  ok("the destination rule is the vendor's origin or a HUMAN-bound one, over https (or loopback)", /pub fn key_destination_allowed/.test(grantsRs) && /canonical_origin\(kind\) == Some\(origin\.as_str\(\)\)/.test(grantsRs) && /bound_origin == Some\(origin\.as_str\(\)\)/.test(grantsRs) && /plain http is allowed to a loopback address only/.test(grantsRs));
+  ok("the SSRF egress guard still runs on top of the destination rule", /egress_guard\(&url\)\.map_err\(\|e\| format!\("base URL refused by the egress guard/.test(body));
+}
+ok("endpoint binding is a NATIVE dialog (throttled), stored with the human actor, never by the page alone", /pub fn provider_bind_endpoint\(app: AppHandle/.test(commandsRs) && /native_confirm\(/.test(commandsRs.slice(commandsRs.indexOf("pub fn provider_bind_endpoint"))) && /provider_endpoint_bind\(&\*lock_db\(&state\)\?, &secret_ref, &origin, "human:dialog"\)/.test(commandsRs));
+ok("an endpoint can only be bound to a PROVIDER key (guard + command)", /"provider_bind_endpoint" => \{[\s\S]{0,200}SecretClass::Provider/.test(guardRs) && /is not a provider key reference/.test(commandsRs));
+ok("shell_exec takes a grant and the guard refuses a call without one before any path is touched", /pub fn shell_exec\([\s\S]{0,260}grant: Option<String>/.test(guardRs) && /requires an execution grant/.test(guardRs));
+ok("shell_exec checks the grant (program, expiry, workspace) and hands ITS network setting to the containment layer", /state\.grants\.check\(grant\.as_deref\(\)/.test(commandsRs) && /is_within\(&cwd, &view\.workspace\)/.test(commandsRs) && /wrap_command\([^;]{0,220}view\.network\)/.test(commandsRs.replace(/\s+/g, " ")));
+ok("a grant is minted ONLY after a native dialog that printed the scope; its token is stored hashed", /pub fn exec_grant_request\(/.test(commandsRs) && /native_confirm\(/.test(commandsRs.slice(commandsRs.indexOf("pub fn exec_grant_request"))) && /token_hash\(&token\)/.test(grantsRs) && /validate_scope/.test(commandsRs));
+ok("the dialog throttle is in the path of EVERY confirmation (one at a time, lockout after declines)", /state\.prompts\.begin\(/.test(commandsRs) && /DECLINE_LIMIT/.test(grantsRs) && !/\.blocking_show\(\)/.test(commandsRs.replace(/fn native_confirm[\s\S]*?\n}\n/, "")));
+ok("the containment layer REFUSES a network-denied run on a host that cannot isolate it", /network access is DENIED for this run, but this host has no containment/.test(containRs6));
+ok("unshare/bwrap/seatbelt each carry the network switch (-n / --unshare-net / (deny network*))", /"-n"/.test(containRs6) && /--unshare-net/.test(containRs6) && /\(deny network\*\)/.test(containRs6));
+ok("a rung is PROVEN by launching a process in it (canary), and the mount script is hardened (rbind, fail closed, /tmp first, CONTAIN_READS)", /fn canary_unshare/.test(containRs6) && /--rbind/.test(containRs6) && /exit 97/.test(containRs6) && /CONTAIN_READS/.test(containRs6));
+ok("the wrapper's own environment is applied AFTER the scrub (the unshare rung once lost CONTAIN_WRITES to env_clear)", /post_scrub_env/.test(containRs6) && /scrub\(&mut cmd, &home\);\s*for \(k, v\) in post_scrub_env/.test(containRs6));
+ok("MCP spawns carry the server's network setting through the containment layer", /wrap_command\(&program, &argv, cwd, &\[\], &\[cwd\.to_path_buf\(\)\], network\)/.test(mcpRs6));
+ok("live containment tests start real sandboxed processes (network isolation proven against a host listener)", /live_the_network_is_unreachable_when_not_granted_and_reachable_when_granted/.test(containRs6) && /live_a_toolchain_outside_the_system_prefixes_actually_runs/.test(containRs6));
+ok("mcp_server_save / _remove are behind the gate AND a native confirmation", /pub fn mcp_server_save\(app: tauri::AppHandle/.test(guardRs) && /pub fn mcp_server_remove\(app: tauri::AppHandle/.test(guardRs) && /native_confirm\(/.test(commandsRs.slice(commandsRs.indexOf("pub fn mcp_server_save"), commandsRs.indexOf("pub fn mcp_connect_test"))));
+ok('an approval is written ONLY by native code (`Some("human:dialog")`); the page\'s own `approval` field is stripped', /mcp_save\(&\*lock_db\(&state\)\?, &cfg, Some\("human:dialog"\)\)/.test(commandsRs) && /o\.remove\("approval"\)/.test(dbRs));
+ok("mcp_call and mcp_connect_test run only a program whose approval still matches (fingerprint)", (commandsRs.match(/db::mcp_check_approved\(&s\)/g) ?? []).length >= 2 && /pub fn mcp_check_approved/.test(dbRs));
+ok("the flat shape the UI sends is judged like the nested one (mcp_program_of), in the command AND the guard", /db::mcp_program_of\(&cfg\)/.test(commandsRs) && /crate::db::mcp_program_of\(&cfg\)/.test(guardRs));
+ok("hermes_bridge speaks only the three commands the evolution service implements", /const HERMES_COMMANDS: &\[&str\] = &\["ping", "score_fitness", "propose"\]/.test(commandsRs) && /"hermes_bridge" => \{[\s\S]{0,160}"ping" \| "score_fitness" \| "propose"/.test(guardRs));
+ok("workflow mutation stays data-only: native workflow code spawns nothing (the sinks are gated instead)", !/Command::new|std::process|reqwest/.test(read("src-tauri/src/control_mcp.rs")));
+ok(
+  "widening the filesystem boundary (workspace_root_add) needs a native confirmation \u2014 idempotent for a folder already registered",
+  /pub fn workspace_root_add\(app: AppHandle/.test(commandsRs) && /native_confirm\([\s\S]{0,200}open a folder to the crew/.test(commandsRs) && /pub fn workspace_root_add\(app: tauri::AppHandle/.test(guardRs)
+);
+ok("claimPairing / sendFileToPeer / fetchFileFromPeer all run the shared egress policy before any fetch", (a2aClientTs.match(/guardedBase\(/g) ?? []).length >= 4 && /redirect: "error"/.test(a2aClientTs));
+ok("self-evolution's human approval is MEASURED from the approvals store, never hardcoded", !/"human-approved": 1 \}/.test(selfEvolveTs.replace(/\{ floors: \{[^}]*\} \}/g, "")) && /human\.earned \? 1 : 0/.test(selfEvolveTs) && /candidateDigest !== digestOfCandidate/.test(selfEvolveTs));
+ok("approval_get reports who decided and what was approved (decidedBy + payload), natively and in the mirror", /"decidedBy": by\.unwrap_or_default\(\)/.test(dbRs) && /decidedBy: a\.decidedBy/.test(localDbTs));
+ok("the Rust suites ship and cover this round (grants, secrets, contain, migrate)", ["mod tests", "fn secret_classes_separate", "fn delete_removes_the_legacy_namespace_too", "fn live_every_proven_rung_launches_a_process", "fn an_existing_install_follows_the_rename"].every((t) => [grantsRs, secretsRs, containRs6, read("src-tauri/src/migrate.rs")].some((src) => src.includes(t))));
 section("C-3 \u2014 credential/system root refusal");
 ok("commands.rs matches on path components (path_components_lower)", /fn path_components_lower\(/.test(commandsRs));
 ok(

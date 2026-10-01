@@ -3197,7 +3197,7 @@ ${word.toUpperCase()} this? Cancel mints nothing and decides nothing.`
       },
       approvalGet(executionId, nodeKey) {
         const a = load().approvals.find((x) => x.executionId === executionId && x.nodeKey === nodeKey && x.status !== "OPEN");
-        return a ? { decided: true, status: a.status } : { decided: false };
+        return a ? { decided: true, status: a.status, id: a.id, decidedBy: a.decidedBy ?? "", decidedAt: a.decidedAt ?? null, requestedBy: a.requestedBy ?? "", payload: a.payload ?? {} } : { decided: false };
       },
       dlqList() {
         return load().dlq.filter((d) => d.status === "OPEN");
@@ -3251,10 +3251,26 @@ async function tauriInvoke(cmd, args) {
   const { invoke: invoke2 } = await Promise.resolve().then(() => (init_core(), core_exports));
   return invoke2(cmd, args ?? {});
 }
+function pickExecGrant(program, cwd, needNetwork) {
+  const now = Date.now() / 1e3;
+  execGrants = execGrants.filter((g) => g.expiresAt > now + 5);
+  const bare = bareProgram(program);
+  return execGrants.find((g) => (g.network || !needNetwork) && g.programs.includes(bare) && (cwd === void 0 || within(cwd, g.workspace)));
+}
+function dropExecGrant(token) {
+  execGrants = execGrants.filter((g) => g.token !== token);
+}
+async function requestExecGrant(workspace, network, programs = [], minutes) {
+  const ws = workspace ?? String((await ipc.appInfo()).workspaceRoot ?? "");
+  const r = await tauriInvoke("exec_grant_request", { programs, workspace: ws, network, minutes });
+  const g = { token: r.grant, workspace: r.workspace, network: r.network, programs: r.programs, expiresAt: r.expiresAt };
+  execGrants.push(g);
+  return g;
+}
 function nodeKeyOf(workflowId, nodeId) {
   return `${workflowId}:${nodeId}`;
 }
-var useTauri, browserReason, ipc;
+var useTauri, browserReason, execGrants, bareProgram, norm, within, ipc;
 var init_client = __esm({
   "src/ipc/client.ts"() {
     "use strict";
@@ -3265,6 +3281,10 @@ var init_client = __esm({
     init_localDb();
     useTauri = () => detectHost() === "tauri";
     browserReason = "No browser is attached in this build: the app does not bundle or launch Chromium, so there is no session, no page and no DOM. Nothing was fetched.";
+    execGrants = [];
+    bareProgram = (p2) => (p2.split(/[\\/]/).pop() ?? p2).replace(/\.exe$/i, "");
+    norm = (p2) => p2.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+    within = (child, root) => norm(child) === norm(root) || norm(child).startsWith(norm(root) + "/");
     ipc = {
       appInfo: async () => {
         if (useTauri()) return tauriInvoke("app_info");
@@ -3688,9 +3708,58 @@ var init_client = __esm({
       fsRemove: async (path3, recursive) => {
         if (useTauri()) return tauriInvoke("fs_remove", { path: path3, recursive });
       },
-      shellExec: async (program, args, cwd, timeoutSecs) => {
-        if (useTauri()) return tauriInvoke("shell_exec", { program, args, cwd, timeoutSecs });
-        throw new Error("Terminal is available in the native desktop build.");
+      /**
+       * Run a dev tool inside the sandbox. The native side runs NOTHING without an execution grant a
+       * human minted at a native dialog (which tools, which workspace, network or not, for how long).
+       * The grant is requested on first need and kept in this module's memory — never persisted — and
+       * renewed transparently when it expires or is revoked. Network is OFF unless `opts.network` asks
+       * for it, in which case the dialog says so in capitals.
+       */
+      shellExec: async (program, args, cwd, timeoutSecs, opts) => {
+        if (!useTauri()) throw new Error("Terminal is available in the native desktop build.");
+        const needNetwork = opts?.network === true;
+        let g = pickExecGrant(program, cwd, needNetwork);
+        if (!g) g = await requestExecGrant(cwd, needNetwork);
+        try {
+          return await tauriInvoke("shell_exec", { program, args, cwd, timeoutSecs, grant: g.token });
+        } catch (e) {
+          if (!/unknown or was revoked|has expired/i.test(String(e))) throw e;
+          dropExecGrant(g.token);
+          const fresh = await requestExecGrant(cwd, needNetwork);
+          return await tauriInvoke("shell_exec", { program, args, cwd, timeoutSecs, grant: fresh.token });
+        }
+      },
+      /** Ask (natively) for an execution grant. Resolves with its public shape — the token stays inside this module. */
+      execGrantRequest: async (o = {}) => {
+        if (!useTauri()) throw new Error("Execution grants exist in the native desktop build only.");
+        const g = await requestExecGrant(o.workspace, o.network === true, o.programs, o.minutes);
+        return { workspace: g.workspace, network: g.network, programs: g.programs, expiresAt: g.expiresAt };
+      },
+      execGrantsStatus: async () => {
+        if (!useTauri()) return [];
+        return tauriInvoke("exec_grants_status");
+      },
+      execGrantsRevoke: async () => {
+        if (!useTauri()) return { revoked: 0 };
+        execGrants = [];
+        return tauriInvoke("exec_grants_revoke");
+      },
+      /**
+       * Bind a provider key to ONE non-canonical https origin. The vendor's own host needs no binding;
+       * anything else (a self-hosted or BYOK gateway) needs a human at a native dialog, because the
+       * page cannot be trusted to say where a key may go.
+       */
+      providerBindEndpoint: async (secretRef, baseUrl) => {
+        if (!useTauri()) throw new Error("Endpoint binding exists in the native desktop build only \u2014 the web edition holds no cloud keys.");
+        return tauriInvoke("provider_bind_endpoint", { secretRef, baseUrl });
+      },
+      providerEndpointsList: async () => {
+        if (!useTauri()) return [];
+        return tauriInvoke("provider_endpoints_list");
+      },
+      providerUnbindEndpoint: async (secretRef) => {
+        if (!useTauri()) return { unbound: false, secretRef };
+        return tauriInvoke("provider_unbind_endpoint", { secretRef });
       },
       // QA fix (audit C2): the native filesystem is sandboxed to the app data dir plus these
       // user-registered workspace roots. Teams registers the runner repo when a run starts.
@@ -3814,7 +3883,7 @@ var init_client = __esm({
         return {
           packageFormat: 1,
           exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          application: "VH",
+          application: "SelfImpulse",
           version: ENGINE_VERSION,
           workflow: { name: wf.name, description: wf.description, graph: wf.graph },
           history: [],
@@ -3824,7 +3893,7 @@ var init_client = __esm({
       packageImport: async (pkg) => {
         if (useTauri()) return tauriInvoke("package_import", { pkg });
         const p2 = pkg;
-        if (p2.application !== "VH" || !p2.workflow) throw new Error("package rejected");
+        if (p2.application !== "SelfImpulse" && p2.application !== "VH" || !p2.workflow) throw new Error("package rejected");
         const created = localDb.workflowCreate(`${p2.workflow.name} (imported)`, p2.workflow.description ?? "");
         localDb.workflowSave(created.id, `${p2.workflow.name} (imported)`, p2.workflow.description ?? "", p2.workflow.graph);
         return { id: created.id, validated: true };

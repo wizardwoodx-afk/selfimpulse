@@ -129,6 +129,135 @@ function describeInvitation(inv, now = Date.now()) {
   return `waiting for a peer \u2014 ${left}s left, ${inv.maxAttempts - inv.attempts} attempt(s) left`;
 }
 
+// src/security/ipClassify.ts
+function expandIpv6(input) {
+  let s = input;
+  const zone = s.indexOf("%");
+  if (zone !== -1) s = s.slice(0, zone);
+  if (!s.includes(":")) return null;
+  const lastColon = s.lastIndexOf(":");
+  const tail = s.slice(lastColon + 1);
+  if (tail.includes(".")) {
+    const v4 = parseIpv4(tail);
+    if (!v4) return null;
+    s = `${s.slice(0, lastColon + 1)}${(v4[0] << 8 | v4[1]).toString(16)}:${(v4[2] << 8 | v4[3]).toString(16)}`;
+  }
+  const halves = s.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const rest = halves.length === 2 ? halves[1] ? halves[1].split(":") : [] : [];
+  const missing = 8 - head.length - rest.length;
+  if (halves.length === 1) {
+    if (head.length !== 8) return null;
+  } else if (missing < 0) {
+    return null;
+  }
+  const groups = [];
+  for (const g of head) groups.push(parseInt(g, 16));
+  for (let i = 0; i < missing; i += 1) groups.push(0);
+  for (const g of rest) groups.push(parseInt(g, 16));
+  if (groups.length !== 8 || groups.some((g) => !Number.isInteger(g) || g < 0 || g > 65535)) return null;
+  return groups;
+}
+function parseIpv4(input) {
+  const parts = input.split(".");
+  if (parts.length !== 4) return null;
+  const octets = [];
+  for (const p of parts) {
+    if (!/^\d{1,3}$/.test(p)) return null;
+    const n = Number(p);
+    if (n > 255) return null;
+    octets.push(n);
+  }
+  return octets;
+}
+function isObfuscatedIpv4Literal(host) {
+  if (/^\d{1,3}(\.\d{1,3}){0,2}$/.test(host)) return true;
+  if (/^0[xX][0-9a-fA-F]{1,8}$/.test(host)) return true;
+  return false;
+}
+function normalizeHost(rawHost) {
+  const host = rawHost.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  if (!host) return { kind: "unknown", ip: "" };
+  const v4 = parseIpv4(host);
+  if (v4) return { kind: "ipv4", ip: v4.join("."), octets: v4 };
+  if (host.includes(":")) {
+    const groups = expandIpv6(host);
+    if (groups) {
+      const isMapped = groups.slice(0, 5).every((g) => g === 0) && (groups[5] === 65535 || groups[5] === 0);
+      if (isMapped) {
+        const octets = [groups[6] >> 8, groups[6] & 255, groups[7] >> 8, groups[7] & 255];
+        return { kind: "ipv4", ip: octets.join("."), octets };
+      }
+      return { kind: "ipv6", ip: groups.map((g) => g.toString(16).padStart(4, "0")).join(":"), groups };
+    }
+  }
+  if (isObfuscatedIpv4Literal(host)) return { kind: "unknown", ip: "" };
+  return { kind: "unknown", ip: "" };
+}
+function classifyV4(o, allowLoopback) {
+  const [a, b] = o;
+  const inCidr = (base, bits) => {
+    let acc = 0;
+    for (let i = 0; i < 4; i += 1) {
+      const rem = bits - i * 8;
+      const mask = rem <= 0 ? 0 : rem >= 8 ? 255 : 255 << 8 - rem & 255;
+      if ((o[i] & mask) !== (base[i] & mask)) return false;
+      acc += 1;
+      if (acc > 4) break;
+    }
+    return true;
+  };
+  const C = (scope, reason) => ({ ok: false, reason, scope });
+  if (a === 127) return allowLoopback ? { ok: true, reason: "", scope: "loopback" } : C("loopback", "loopback address refused (SSRF guard)");
+  if (a === 169 && b === 254) {
+    if (o[2] === 169 && o[3] === 254) return C("metadata", "cloud metadata endpoint refused (SSRF guard)");
+    return C("link-local", "link-local address refused (SSRF guard)");
+  }
+  if (inCidr([0, 0, 0, 0], 8)) return C("reserved", "this-network address refused (SSRF guard)");
+  if (inCidr([10, 0, 0, 0], 8)) return C("private", "private network address refused (SSRF guard)");
+  if (inCidr([100, 64, 0, 0], 10)) return C("special", "carrier-grade NAT address refused (SSRF guard)");
+  if (inCidr([172, 16, 0, 0], 12)) return C("private", "private network address refused (SSRF guard)");
+  if (inCidr([192, 0, 0, 0], 24)) return C("special", "IETF protocol assignment refused (SSRF guard)");
+  if (inCidr([192, 0, 2, 0], 24)) return C("special", "documentation range refused (SSRF guard)");
+  if (inCidr([192, 88, 99, 0], 24)) return C("special", "6to4 relay anycast refused (SSRF guard)");
+  if (inCidr([192, 168, 0, 0], 16)) return C("private", "private network address refused (SSRF guard)");
+  if (inCidr([198, 18, 0, 0], 15)) return C("special", "benchmarking range refused (SSRF guard)");
+  if (inCidr([198, 51, 100, 0], 24)) return C("special", "documentation range refused (SSRF guard)");
+  if (inCidr([203, 0, 113, 0], 24)) return C("special", "documentation range refused (SSRF guard)");
+  if (a >= 224 && a <= 239) return C("multicast", "multicast address refused (SSRF guard)");
+  if (a >= 240) return C("reserved", "reserved address refused (SSRF guard)");
+  return { ok: true, reason: "", scope: "public" };
+}
+function classifyV6(g, allowLoopback) {
+  const hex = g.map((x) => x.toString(16).padStart(4, "0")).join(":");
+  const C = (scope, reason) => ({ ok: false, reason, scope });
+  if (g.slice(0, 7).every((x) => x === 0) && g[7] === 1) {
+    return allowLoopback ? { ok: true, reason: "", scope: "loopback" } : C("loopback", "IPv6 loopback refused (SSRF guard)");
+  }
+  if (g.slice(0, 7).every((x) => x === 0) && g[7] === 0) return C("reserved", "unspecified address refused (SSRF guard)");
+  if ((g[0] & 65024) === 64512) return C("private", "IPv6 unique-local refused (SSRF guard)");
+  if ((g[0] & 65472) === 65152) return C("link-local", "IPv6 link-local refused (SSRF guard)");
+  if ((g[0] & 65280) === 65280) return C("multicast", "IPv6 multicast refused (SSRF guard)");
+  if (g[0] === 8193 && g[1] === 3512) return C("special", "IPv6 documentation range refused (SSRF guard)");
+  if (g[0] === 100 && g[1] === 65435) {
+    const octets = [g[6] >> 8, g[6] & 255, g[7] >> 8, g[7] & 255];
+    const inner = classifyV4(octets, allowLoopback);
+    return inner.ok ? inner : C(inner.scope, `NAT64-embedded address refused (SSRF guard): ${inner.reason}`);
+  }
+  if (g[0] === 8194) return C("special", `6to4 address refused (SSRF guard): ${hex}`);
+  if (g[0] === 8193 && g[1] === 0) return C("special", `Teredo address refused (SSRF guard): ${hex}`);
+  return { ok: true, reason: "", scope: "public" };
+}
+function classifyIp(n, allowLoopback) {
+  if (n.kind === "ipv4" && n.octets) return classifyV4(n.octets, allowLoopback);
+  if (n.kind === "ipv6" && n.groups) return classifyV6(n.groups, allowLoopback);
+  return { ok: false, reason: "address could not be classified", scope: "unknown" };
+}
+function classifyHost(rawHost, allowLoopback = false) {
+  return classifyIp(normalizeHost(rawHost), allowLoopback);
+}
+
 // src/security/guardrail.ts
 var RateGate = class {
   constructor(limit, windowMs, now = () => Date.now()) {
@@ -150,25 +279,67 @@ var RateGate = class {
     return true;
   }
 };
+var BLOCKED_HOST_SUFFIXES = [".internal", ".local", ".localhost"];
+function checkEgressUrl(raw, opts = {}) {
+  let u;
+  try {
+    u = new URL(raw);
+  } catch {
+    return { ok: false, reason: "not a parseable URL" };
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    return { ok: false, reason: `scheme "${u.protocol}" refused \u2014 only http(s) egress is allowed` };
+  }
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "metadata.google.internal") {
+    return { ok: false, reason: "cloud metadata endpoint refused (SSRF guard)" };
+  }
+  for (const sfx of BLOCKED_HOST_SUFFIXES) {
+    if (host.endsWith(sfx)) return { ok: false, reason: `host suffix "${sfx}" refused` };
+  }
+  const verdict = classifyHost(host, opts.allowLoopback ?? true);
+  if (verdict.ok || verdict.scope === "unknown") return { ok: true, reason: "" };
+  return { ok: false, reason: verdict.reason };
+}
 var callRateGate = new RateGate(120, 6e4);
 
 // src/mission/a2aV10.ts
 var enc2 = new TextEncoder();
 
 // src/mission/a2aClient.ts
+function guardedBase(raw, expectOrigin) {
+  const base = raw.replace(/\/+$/, "");
+  const g = checkEgressUrl(base);
+  if (!g.ok) return { ok: false, reason: `policy:egress-refused \u2014 ${g.reason}` };
+  let origin;
+  try {
+    origin = new URL(base).origin;
+  } catch {
+    return { ok: false, reason: "policy:egress-refused \u2014 not a parseable URL" };
+  }
+  if (expectOrigin !== void 0 && expectOrigin !== origin) {
+    return { ok: false, reason: `policy:credential-origin-mismatch \u2014 this credential was issued by ${expectOrigin}, not ${origin}; it was not sent` };
+  }
+  return { ok: true, base, origin };
+}
 async function claimPairing(args) {
-  const base = args.hostRoot.replace(/\/+$/, "");
-  if (!/^https?:\/\//i.test(base)) return { ok: false, reason: "a pairing request needs an http(s) host root" };
+  const trimmed = args.hostRoot.replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(trimmed)) return { ok: false, reason: "a pairing request needs an http(s) host root" };
   if (args.code.trim() === "") return { ok: false, reason: "no pairing code was entered" };
+  const guarded = guardedBase(trimmed);
+  if (!guarded.ok) return guarded;
+  const base = guarded.base;
   try {
     const res = await fetch(`${base}/vh/pair`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ code: args.code.trim(), peer: { fp: args.peerFp, name: args.peerName } }),
-      signal: AbortSignal.timeout(args.timeoutMs ?? 1e4)
+      signal: AbortSignal.timeout(args.timeoutMs ?? 1e4),
+      redirect: "error"
+      // a pairing host never redirects; a redirect is somebody else answering
     });
     const body = await res.json().catch(() => ({}));
-    if (res.ok && body.ok && body.credential) return { ok: true, credential: body.credential };
+    if (res.ok && body.ok && body.credential) return { ok: true, credential: body.credential, origin: guarded.origin };
     return { ok: false, reason: body.reason ?? `the host refused the pairing (HTTP ${res.status})` };
   } catch (e) {
     return { ok: false, reason: `could not reach the host to pair: ${e instanceof Error ? e.message : String(e)}` };
@@ -314,6 +485,24 @@ async function modelTests() {
     const wrong = await claimPairing({ hostRoot: base, code: "QQQQ-QQQQ", peerFp: "FP-PEER-3", peerName: "guess" });
     ok("a wrong code is refused, and the refusal names the cost of guessing", wrong.ok === false && /attempt/.test(wrong.reason), wrong.ok ? "" : wrong.reason);
     const claimed = await claimPairing({ hostRoot: base, code: String(liveCode), peerFp: "FP-PEER-1", peerName: "peer-laptop" });
+    {
+      const realFetch = globalThis.fetch;
+      const spied = [];
+      globalThis.fetch = (async (input) => {
+        spied.push(String(input));
+        throw new Error("fetch spy");
+      });
+      try {
+        for (const url of ["http://192.168.1.20:41234", "http://10.1.2.3:41234", "http://169.254.169.254", "ftp://host"]) {
+          const r = await claimPairing({ hostRoot: url, code: "AAAA-AAAA", peerFp: "FP", peerName: "n" });
+          ok(`claimPairing refuses ${url} before any request`, !r.ok && /egress-refused|http\(s\)/.test(r.reason), JSON.stringify(r));
+        }
+        ok("\u2026and no request left the process for any of them (the pairing code never moved)", spied.length === 0, spied.join(","));
+      } finally {
+        globalThis.fetch = realFetch;
+      }
+    }
+    ok("a successful claim reports the origin that issued the credential", claimed.ok === true && claimed.origin === new URL(base).origin, claimed.ok ? String(claimed.origin) : claimed.reason);
     ok("a peer redeems the code over the wire", claimed.ok === true, claimed.ok ? "" : claimed.reason);
     ok(
       "it gets a credential, not the host token",

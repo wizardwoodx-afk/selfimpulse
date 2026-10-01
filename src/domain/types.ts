@@ -294,8 +294,19 @@ export interface McpServerEntry {
     headerKeys?: string[] | null;
     enabled?: boolean;
     pinned?: boolean;
+    /**
+     * Whether the sandboxed server may reach the network. DEFAULT TRUE (MCP servers are network
+     * clients by nature); `false` runs it with no network at all. It is part of what a human
+     * approves at the native dialog, so changing it asks again.
+     */
+    network?: boolean;
   };
   state: "AVAILABLE" | "INSTALLED" | "ENABLED" | "AUTHORIZED" | "ERROR";
+  /**
+   * COMPUTED NATIVELY on every list: true only if a human approved exactly this program at a
+   * native dialog and it has not changed since. Never taken from what the page stored.
+   */
+  approved?: boolean;
   createdAt: string;
   updatedAt: string;
 }

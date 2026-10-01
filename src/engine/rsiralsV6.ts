@@ -346,7 +346,7 @@ export function governChange(c: GovernCandidate, canary: CanaryReport = { ran: 0
 
 /** The human door: promote a canary-stage candidate to FLEET, with scores. */
 export function promoteToFleet(c: GovernCandidate, scores: DimensionScores, baseline: RegressionBaseline, at = Date.now()): { ok: boolean; line: string } {
-  const candidateDigest = pureSha256(JSON.stringify({ name: c.name, target: c.target, body: c.body, declares: c.declares }));
+  const candidateDigest = digestOfCandidate(c);
   const reg = regressionGate(scores, baseline);
   if (!reg.ok) {
     const event = ledgerAppend("blocked", "human", c.target, `regression fail-closed: ${reg.dropped.join("; ")}`, candidateDigest, at);
@@ -355,6 +355,11 @@ export function promoteToFleet(c: GovernCandidate, scores: DimensionScores, base
   lastKnownGood.set(c.target, { body: c.currentText ?? "", digest: pureSha256(c.currentText ?? ""), at });
   const event = ledgerAppend("promoted", "human", c.target, `${c.name} promoted shadow→canary→fleet; last-known-good snapshot kept`, candidateDigest, at);
   return { ok: true, line: `promoted to FLEET (ledger seq ${event.seq}); rollback point kept for ${c.target}` };
+}
+
+/** The digest of exactly what a promotion would change — the same bytes the ledger records. A human approval binds to THIS. */
+export function digestOfCandidate(c: { name: string; target: string; body: string; declares: string }): string {
+  return pureSha256(JSON.stringify({ name: c.name, target: c.target, body: c.body, declares: c.declares }));
 }
 
 /** One-step restore from the last-known-good snapshot, on the ledger. */

@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useVh } from "../store";
+import { ipc, useTauri } from "../../ipc/client";
+import { saveNativeProvider } from "../../engine/nativeProvider";
 import { Mcp } from "./Mcp";
 import { PROVIDER_DEFAULTS } from "../../engine/providers";
 import { AUTONOMY_LEVEL_NAMES, HEARTBEAT_DEFAULT_MS, type AutonomyLevel } from "../../engine/initiative";
@@ -22,7 +24,7 @@ import { setOwnerDisplay, dataClass, setDataClass, identityProvider, type DataCl
 import { readCrashes, verifyCrashChain, lastCrash, exportCrashReport, clearCrashes, chainAssurance } from "../../security/crashLedger";
 import { toast } from "../../panels/Toast";
 
-type Sect = "provider" | "vault" | "autonomy" | "mcp" | "federation" | "appearance" | "identity" | "about";
+type Sect = "provider" | "vault" | "autonomy" | "mcp" | "permissions" | "federation" | "appearance" | "identity" | "about";
 /* Each sub-page carries a one-line PLAIN description under its label — the
  * whole point of the sub-page nav is that a first-time reader can see where
  * they are going before they click. Labels are the product's own words; the
@@ -32,6 +34,7 @@ const SECTS: Array<[Sect, string, string]> = [
   ["vault", "Key vault", "seal keys at rest"],
   ["autonomy", "Independence", "how far the Captain may act"],
   ["mcp", "Tools (MCP)", "governed external tools"],
+  ["permissions", "Permissions", "what may run & where keys go"],
   ["federation", "Federation", "work across owners"],
   ["appearance", "Appearance", "finish & handle"],
   ["identity", "Identity", "subject, data class, crashes"],
@@ -62,6 +65,7 @@ export function Settings(): React.ReactElement {
           {sect === "vault" && <Vault />}
           {sect === "autonomy" && <Autonomy />}
           {sect === "mcp" && <Mcp />}
+          {sect === "permissions" && <Permissions />}
           {sect === "federation" && <Federation />}
           {sect === "appearance" && <Appearance />}
           {sect === "identity" && <Identity />}
@@ -82,25 +86,117 @@ function Provider() {
   const [persist, setPersist] = useState(vault.status === "unlocked");
   const [note, setNote] = useState<string | null>(securityNote);
   const pick = (k: ProviderKind) => { setKind(k); setBase(PROVIDER_DEFAULTS[k]); };
-  const save = async () => { const r = await setProvider({ kind, baseUrl: baseUrl.trim(), apiKey: key.trim(), model: model.trim() || MODEL_HINT[kind] }, persist); setNote(r.note); setKey(""); };
+  /* Desktop: the key is handed to the OS keychain ONCE and this window forgets it — it keeps a reference.
+     The page can use the provider through the app but can never read the key back (see nativeProvider.ts). */
+  const native = useTauri();
+  const [hint, setHint] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    if (native && provider?.secretRef) void ipc.secretGet(provider.secretRef).then((r) => { if (live) setHint(r.present ? (r.hint ?? "") : null); }).catch(() => undefined);
+    else setHint(null);
+    return () => { live = false; };
+  }, [native, provider?.secretRef]);
+  const save = async () => {
+    const cfg = { kind, baseUrl: baseUrl.trim(), model: model.trim() || MODEL_HINT[kind] };
+    if (native) {
+      const r = await saveNativeProvider(cfg, key.trim());
+      if (!r.ok) { setNote(r.note); return; }
+      const done = await setProvider({ ...cfg, apiKey: "", secretRef: r.secretRef }, true);
+      setNote(`${r.note} ${done.note}`);
+      setKey("");
+      void ipc.secretGet(r.secretRef).then((g) => setHint(g.present ? (g.hint ?? "") : null)).catch(() => undefined);
+      return;
+    }
+    // A blank key field means "keep the saved key" (that is what the placeholder promises) — it used to
+    // REPLACE the saved key with an empty one.
+    const r = await setProvider({ kind, baseUrl: cfg.baseUrl, apiKey: key.trim() || provider?.apiKey || "", model: cfg.model }, persist);
+    setNote(r.note);
+    setKey("");
+  };
   return (
     <section className="sgroup">
-      <h3>AI connection</h3><p className="lead">This is the brain your crew thinks with. Without it the Captain can only plan; with it, every step is gated and receipted. Your key never leaves this device.</p>
-      {provider && <div className="row"><span className="led ok" /><b>{KINDS.find((k) => k[0] === provider.kind)?.[1]}</b><span className="faint mono">{provider.model}</span><button className="btn sm ghost danger" style={{ marginLeft: "auto" }} onClick={forgetProvider}>Remove key</button></div>}
+      <h3>AI connection</h3><p className="lead">This is the brain your crew thinks with. Without it the Captain can only plan; with it, every step is gated and receipted. Your key never leaves this device.{native && " On the desktop it lives in your OS keychain: this window can use it, but can never read it back."}</p>
+      {provider && <div className="row"><span className="led ok" /><b>{KINDS.find((k) => k[0] === provider.kind)?.[1]}</b><span className="faint mono">{provider.model}</span>{native && provider.secretRef && <span className="hint" title="held by the OS keychain">· key {hint ? hint : "held by the OS keychain"}</span>}<button className="btn sm ghost danger" style={{ marginLeft: "auto" }} onClick={forgetProvider}>Remove key</button></div>}
       <div className="seg">{KINDS.map(([k, l]) => <button key={k} aria-pressed={kind === k} onClick={() => pick(k)}>{l}</button>)}</div>
       <label className="field"><span>Base URL</span><input className="input" value={baseUrl} onChange={(e) => setBase(e.target.value)} /></label>
       <label className="field"><span>Model</span><input className="input" placeholder={MODEL_HINT[kind]} value={model} onChange={(e) => setModel(e.target.value)} /></label>
       <label className="field"><span>API key</span>
         <div className="keyrow">
-          <input className="input keyinput" type={showKey ? "text" : "password"} autoComplete="off" spellCheck={false} placeholder={provider ? "••••••••••••  (leave blank to keep the saved key)" : "paste your key here"} value={key} onChange={(e) => setKey(e.target.value)} />
+          <input className="input keyinput" type={showKey ? "text" : "password"} autoComplete="off" spellCheck={false} placeholder={provider ? (native && provider.secretRef ? "••••••••••••  (stored in your OS keychain — leave blank to keep it)" : "••••••••••••  (leave blank to keep the saved key)") : "paste your key here"} value={key} onChange={(e) => setKey(e.target.value)} />
           <button type="button" className="btn sm ghost" onClick={() => setShowKey(!showKey)}>{showKey ? "Hide" : "Show"}</button>
         </div>
         <small className="hint">{KEY_HINT[kind]}</small>
       </label>
-      <label className="check"><input type="checkbox" checked={persist} onChange={(e) => setPersist(e.target.checked)} /><span>Remember on this device <small>{vault.status === "unlocked" ? "Encrypted in your vault (AES-256-GCM). Nothing is ever uploaded." : "Needs an unlocked Key vault — otherwise the key stays in memory for this session only and is forgotten when you close the app."}</small></span></label>
+      {native ? <p className="hint">The key is held by your OS keychain, so it survives restarts. A custom endpoint is approved at a native dialog before the key can be sent there.</p> : <label className="check"><input type="checkbox" checked={persist} onChange={(e) => setPersist(e.target.checked)} /><span>Remember on this device <small>{vault.status === "unlocked" ? "Encrypted in your vault (AES-256-GCM). Nothing is ever uploaded." : "Needs an unlocked Key vault — otherwise the key stays in memory for this session only and is forgotten when you close the app."}</small></span></label>}
       <p className="hint">Prefer the terminal? Set <code>HANDLE_OPENAI_API_KEY</code>, <code>HANDLE_ANTHROPIC_API_KEY</code> or <code>HANDLE_GEMINI_API_KEY</code> in your environment and the app picks it up — no paste needed.</p>
       <div className="acts"><button className="btn primary" disabled={!key.trim() && !provider} onClick={() => void save()}>{provider ? "Update" : "Connect"}</button>{note && <span className="hint">{note}</span>}</div>
     </section>
+  );
+}
+
+function Permissions() {
+  const native = useTauri();
+  const [grants, setGrants] = useState<Array<{ workspace: string; network: boolean; programs: string[]; secondsLeft: number }>>([]);
+  const [bindings, setBindings] = useState<Array<{ secretRef: string; origin: string }>>([]);
+  const [note, setNote] = useState<string | null>(null);
+  const refresh = async () => {
+    if (!native) return;
+    try {
+      setGrants(await ipc.execGrantsStatus());
+      setBindings(await ipc.providerEndpointsList());
+    } catch { /* the lists stay as they were */ }
+  };
+  useEffect(() => {
+    void refresh();
+    const t = setInterval(() => void refresh(), 15_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [native]);
+  const askNetwork = async () => {
+    try {
+      const g = await ipc.execGrantRequest({ network: true, minutes: 30 });
+      setNote(`Allowed for 30 minutes in ${g.workspace} — network ON.`);
+      await refresh();
+    } catch (e) { setNote(e instanceof Error ? e.message : String(e)); }
+  };
+  const revoke = async () => { await ipc.execGrantsRevoke(); setNote("Every grant was revoked — nothing may run until you allow it again."); await refresh(); };
+  const unbind = async (ref: string) => { await ipc.providerUnbindEndpoint(ref); await refresh(); };
+  return (
+    <>
+      <section className="sgroup">
+        <h3>Programs</h3>
+        <p className="lead">Nothing the crew runs starts without your say-so. The first time a mission needs a tool, a native dialog names the programs, the folder and whether the network is reachable — a dialog this window cannot click for you. The default is no network.</p>
+        {!native && <div className="note warn">Running programs and approving key destinations exist in the desktop build. Nothing here is active in the browser.</div>}
+        {native && grants.length === 0 && <p className="hint">Nothing is allowed to run right now.</p>}
+        {grants.map((g, i) => (
+          <div key={i} className="row" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <span className={`led ${g.network ? "warn" : "ok"}`} />
+              <b>{g.network ? "Network ON" : "No network"}</b>
+              <span className="faint mono">{g.workspace}</span>
+              <span className="hint" style={{ marginLeft: "auto" }}>{Math.max(1, Math.round(g.secondsLeft / 60))} min left</span>
+            </div>
+            <div className="mono faint">{g.programs.join(", ")}</div>
+          </div>
+        ))}
+        <div className="acts">
+          <button className="btn" disabled={!native} onClick={() => void askNetwork()}>Allow network for 30 min…</button>
+          <button className="btn ghost danger" disabled={!native || grants.length === 0} onClick={() => void revoke()}>Revoke all</button>
+          {note && <span className="hint">{note}</span>}
+        </div>
+      </section>
+      <section className="sgroup">
+        <h3>Where your keys may go</h3>
+        <p className="lead">A key is only ever sent to its own vendor's address. A gateway or self-hosted endpoint is added only after you approve it in a native dialog; remove it here at any time.</p>
+        {native && bindings.length === 0 && <p className="hint">Every key can reach only its own vendor.</p>}
+        {bindings.map((b) => (
+          <div key={b.secretRef} className="row">
+            <b className="mono">{b.origin}</b><span className="faint mono">{b.secretRef}</span>
+            <button className="btn sm ghost danger" style={{ marginLeft: "auto" }} onClick={() => void unbind(b.secretRef)}>Remove</button>
+          </div>
+        ))}
+      </section>
+    </>
   );
 }
 

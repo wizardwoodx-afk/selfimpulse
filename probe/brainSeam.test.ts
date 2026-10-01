@@ -166,7 +166,11 @@ test("brainSeam — 19.7.15: the native boundary has no spawn to get wrong", asy
   // which_bin SURVIVES — it is how the dev-tool shell (node/npm/cargo/git)
   // resolves a program, and that seat is real and still contained. What must not
   // survive is an AGENT binary being resolved by name.
-  const allow = /SHELL_ALLOWED_PROGRAMS: &\[&str\] = &\[([\s\S]*?)\];/.exec(rustSrc);
+  // The list lives in grants.rs (DEV_TOOLS) — ONE source shared by the shell allow-list and by execution
+  // grants — and commands.rs's SHELL_ALLOWED_PROGRAMS is an alias of it.
+  assert.ok(/SHELL_ALLOWED_PROGRAMS: &\[&str\] = grants::DEV_TOOLS;/.test(rustSrc), "SHELL_ALLOWED_PROGRAMS aliases the one shared dev-tool list");
+  const grantsSrc = fs.readFileSync(path.join(root, "src-tauri", "src", "grants.rs"), "utf8");
+  const allow = /pub const DEV_TOOLS: &\[&str\] = &\[([\s\S]*?)\];/.exec(grantsSrc);
   assert.ok(allow !== null, "the dev-tool allowlist is locatable");
   if (allow) {
     for (const gone of ["claude", "codex", "opencode", "cursor-agent", "cline", "aider", "gemini"]) {

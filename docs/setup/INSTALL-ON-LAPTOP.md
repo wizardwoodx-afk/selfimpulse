@@ -22,7 +22,7 @@ Windows only; the bundle target is nsis).
 ## 2. Unzip and verify
 
 ```bat
-cd elevenhandle
+cd selfimpulse
 npm ci
 .\node_modules\.bin\tsc --noEmit
 ```
@@ -61,7 +61,7 @@ src-tauri\target\release\bundle\nsis\SelfImpulse_x64-setup.exe
 ```
 
 Run it — SelfImpulse installs per-user, gets a Start-menu entry, and launches as a desktop
-app. First launch creates its SQLite store under `%APPDATA%\com.elevenhandle.app`; nothing is
+app. First launch creates its SQLite store under `%APPDATA%\com.selfimpulse.app` (an older install's `com.elevenhandle.app` folder is copied across on first launch and left in place); nothing is
 written outside that.
 
 ## 5. First run — sanity checklist
